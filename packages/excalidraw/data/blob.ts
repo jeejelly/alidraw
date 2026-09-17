@@ -423,6 +423,10 @@ export const ImageURLToFile = async (
   imageUrl: string,
   filename: string = "",
 ): Promise<File | undefined> => {
+  // Only images already in the page (data: and blob: URLs); nothing is fetched from a server.
+  if (!/^(data|blob):/.test(imageUrl)) {
+    throw new Error("Error: failed to fetch image", { cause: "FETCH_ERROR" });
+  }
   let response;
   try {
     response = await fetch(imageUrl);
