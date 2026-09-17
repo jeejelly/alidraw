@@ -760,5 +760,14 @@
     "spacebar": "Space",
     "delete": "Delete",
     "mmb": "Scroll wheel"
+  },
+  "autosave": {
+    "toggle": "Autosave to file",
+    "noFile": "Not saved to a file: Ctrl+S",
+    "unsupported": "Autosave to file is not available in this browser",
+    "needsPermission": "Autosave needs permission for {{filename}}: Ctrl+S",
+    "saving": "Saving to {{filename}}…",
+    "saved": "Saved to {{filename}} {{time}}",
+    "failed": "Autosave to {{filename}} failed: {{reason}}"
   }
 }

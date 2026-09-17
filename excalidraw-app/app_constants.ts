@@ -1,5 +1,7 @@
 // time constants (ms)
 export const SAVE_TO_LOCAL_STORAGE_TIMEOUT = 300;
+/** How long edits must pause before the open file is rewritten. */
+export const AUTOSAVE_TO_FILE_DELAY_MS = 20_000;
 export const INITIAL_SCENE_UPDATE_TIMEOUT = 5000;
 export const FILE_UPLOAD_TIMEOUT = 300;
 export const LOAD_IMAGES_TIMEOUT = 500;
@@ -42,6 +44,7 @@ export const STORAGE_KEYS = {
   LOCAL_STORAGE_COLLAB: "excalidraw-collab",
   LOCAL_STORAGE_THEME: "excalidraw-theme",
   LOCAL_STORAGE_DEBUG: "excalidraw-debug",
+  LOCAL_STORAGE_AUTOSAVE_TO_FILE: "excalidraw-autosave-to-file",
   VERSION_DATA_STATE: "version-dataState",
   VERSION_FILES: "version-files",
 

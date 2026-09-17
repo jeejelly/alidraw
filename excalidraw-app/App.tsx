@@ -86,6 +86,7 @@ import DebugCanvas, {
   loadSavedDebugState,
 } from "./components/DebugCanvas";
 import { useSimulatedCollaborators } from "./debugCollaborators";
+import { useFileAutosave } from "./autosave/useFileAutosave";
 
 import "./index.scss";
 
@@ -213,6 +214,8 @@ const ExcalidrawWrapper = () => {
   // collaborators for exercising avatar/UserList UI without a real
   // collab room
   useSimulatedCollaborators(excalidrawAPI);
+
+  const autosaveToFile = useFileAutosave(excalidrawAPI);
 
   // ---------------------------------------------------------------------------
   // Hoisted loadImages
@@ -379,6 +382,8 @@ const ExcalidrawWrapper = () => {
     appState: AppState,
     files: BinaryFiles,
   ) => {
+    autosaveToFile({ elements, appState, files });
+
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {

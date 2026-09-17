@@ -1,6 +1,8 @@
 import { Footer } from "@excalidraw/excalidraw/index";
 import React from "react";
 
+import { AutosaveStatus } from "../autosave/AutosaveStatus";
+
 import { DebugFooter, isVisualDebuggerEnabled } from "./DebugCanvas";
 
 export const AppFooter = React.memo(
@@ -15,6 +17,7 @@ export const AppFooter = React.memo(
           }}
         >
           {isVisualDebuggerEnabled() && <DebugFooter onChange={onChange} />}
+          <AutosaveStatus />
         </div>
       </Footer>
     );

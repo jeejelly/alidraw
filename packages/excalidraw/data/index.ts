@@ -95,6 +95,62 @@ export const prepareElementsForExport = (
   };
 };
 
+/** The bytes of a PNG or SVG export, scene embedded when `appState.exportEmbedScene`. */
+export const exportToImageBlob = async (
+  type: "png" | "svg",
+  elements: ExportedElements,
+  appState: AppState,
+  files: BinaryFiles,
+  {
+    exportBackground,
+    exportPadding = DEFAULT_EXPORT_PADDING,
+    viewBackgroundColor,
+    exportingFrame = null,
+  }: {
+    exportBackground: boolean;
+    exportPadding?: number;
+    viewBackgroundColor: string;
+    exportingFrame: NonDeleted<ExcalidrawFrameLikeElement> | null;
+  },
+): Promise<Blob> => {
+  if (type === "svg") {
+    const svg = await exportToSvg(
+      elements,
+      {
+        exportBackground,
+        exportWithDarkMode: appState.exportWithDarkMode,
+        viewBackgroundColor,
+        exportPadding,
+        exportScale: appState.exportScale,
+        exportEmbedScene: appState.exportEmbedScene,
+      },
+      files,
+      { exportingFrame },
+    );
+    // adding SVG preamble so that older software parse the SVG file properly
+    return new Blob([SVG_DOCUMENT_PREAMBLE + svg.outerHTML], {
+      type: MIME_TYPES.svg,
+    });
+  }
+
+  const blob = await canvasToBlob(
+    exportToCanvas(elements, appState, files, {
+      exportBackground,
+      viewBackgroundColor,
+      exportPadding,
+      exportingFrame,
+    }),
+  );
+  if (!appState.exportEmbedScene) {
+    return blob;
+  }
+  const { encodePngMetadata } = await import("./image");
+  return encodePngMetadata({
+    blob,
+    metadata: serializeAsJSON(elements, appState, files, "local"),
+  });
+};
+
 export const exportCanvas = async (
   type: Omit<ExportType, "backend">,
   elements: ExportedElements,
@@ -120,30 +176,16 @@ export const exportCanvas = async (
   if (elements.length === 0) {
     throw new Error(t("alerts.cannotExportEmptyCanvas"));
   }
+  const exportOptions = {
+    exportBackground,
+    exportPadding,
+    viewBackgroundColor,
+    exportingFrame,
+  };
   if (type === "svg" || type === "clipboard-svg") {
-    const svgPromise = exportToSvg(
-      elements,
-      {
-        exportBackground,
-        exportWithDarkMode: appState.exportWithDarkMode,
-        viewBackgroundColor,
-        exportPadding,
-        exportScale: appState.exportScale,
-        exportEmbedScene: appState.exportEmbedScene && type === "svg",
-      },
-      files,
-      { exportingFrame },
-    );
-
     if (type === "svg") {
       return fileSave(
-        svgPromise.then((svg) => {
-          // adding SVG preamble so that older software parse the SVG file
-          // properly
-          return new Blob([SVG_DOCUMENT_PREAMBLE + svg.outerHTML], {
-            type: MIME_TYPES.svg,
-          });
-        }),
+        exportToImageBlob("svg", elements, appState, files, exportOptions),
         {
           description: "Export to SVG",
           name,
@@ -153,7 +195,21 @@ export const exportCanvas = async (
         },
       );
     } else if (type === "clipboard-svg") {
-      const svg = await svgPromise.then((svg) => svg.outerHTML);
+      const svg = (
+        await exportToSvg(
+          elements,
+          {
+            exportBackground,
+            exportWithDarkMode: appState.exportWithDarkMode,
+            viewBackgroundColor,
+            exportPadding,
+            exportScale: appState.exportScale,
+            exportEmbedScene: false,
+          },
+          files,
+          { exportingFrame },
+        )
+      ).outerHTML;
       try {
         await copyTextToSystemClipboard(svg);
       } catch (e) {
@@ -163,26 +219,14 @@ export const exportCanvas = async (
     }
   }
 
-  const tempCanvas = exportToCanvas(elements, appState, files, {
-    exportBackground,
-    viewBackgroundColor,
-    exportPadding,
-    exportingFrame,
-  });
-
   if (type === "png") {
-    let blob = canvasToBlob(tempCanvas);
-
-    if (appState.exportEmbedScene) {
-      blob = blob.then((blob) =>
-        import("./image").then(({ encodePngMetadata }) =>
-          encodePngMetadata({
-            blob,
-            metadata: serializeAsJSON(elements, appState, files, "local"),
-          }),
-        ),
-      );
-    }
+    const blob = exportToImageBlob(
+      "png",
+      elements,
+      appState,
+      files,
+      exportOptions,
+    );
 
     return fileSave(blob, {
       description: "Export to PNG",
@@ -193,7 +237,14 @@ export const exportCanvas = async (
     });
   } else if (type === "clipboard") {
     try {
-      const blob = canvasToBlob(tempCanvas);
+      const blob = canvasToBlob(
+        exportToCanvas(elements, appState, files, {
+          exportBackground,
+          viewBackgroundColor,
+          exportPadding,
+          exportingFrame,
+        }),
+      );
       await copyBlobToClipboardAsPng(blob);
     } catch (error: any) {
       console.warn(error);

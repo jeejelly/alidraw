@@ -7,6 +7,7 @@ import { isDevEnv } from "@excalidraw/common";
 import type { Theme } from "@excalidraw/element/types";
 
 import { LanguageList } from "../app-language/LanguageList";
+import { AutosaveMenuItem } from "../autosave/AutosaveMenuItem";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -42,7 +43,7 @@ export const AppMainMenu: React.FC<{
         </MainMenu.Item>
       )}
       <MainMenu.Separator />
-      <MainMenu.DefaultItems.Preferences />
+      <MainMenu.DefaultItems.Preferences additionalItems={<AutosaveMenuItem />} />
       <MainMenu.DefaultItems.ToggleTheme allowSystemTheme theme={props.theme} />
       <MainMenu.ItemCustom>
         <LanguageList style={{ width: "100%" }} />

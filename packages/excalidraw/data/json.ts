@@ -74,6 +74,16 @@ export const serializeAsJSON = (
   return JSON.stringify(data, null, 2);
 };
 
+/** The bytes of an `.excalidraw` file, the same ones `saveAsJSON` writes. */
+export const sceneAsJSONBlob = async (
+  data: MaybePromise<JSONExportData>,
+): Promise<Blob> => {
+  const { elements, appState, files } = await data;
+  return new Blob([serializeAsJSON(elements, appState, files, "local")], {
+    type: MIME_TYPES.excalidraw,
+  });
+};
+
 export const saveAsJSON = async ({
   data,
   filename,
@@ -83,12 +93,7 @@ export const saveAsJSON = async ({
   filename: string;
   fileHandle: AppState["fileHandle"];
 }) => {
-  const blob = Promise.resolve(data).then(({ elements, appState, files }) => {
-    const serialized = serializeAsJSON(elements, appState, files, "local");
-    return new Blob([serialized], {
-      type: MIME_TYPES.excalidraw,
-    });
-  });
+  const blob = sceneAsJSONBlob(data);
 
   const savedFileHandle = await fileSave(blob, {
     name: filename,
