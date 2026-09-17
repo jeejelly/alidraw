@@ -71,16 +71,42 @@ const refuseNetwork = () => {
     }
     callback({ cancel: !local });
   });
-  // the File System Access API (open, save, autosave) asks through these
-  const localOnly = (webContents) =>
-    !!webContents && webContents.getURL().startsWith(ORIGIN);
+  // Every permission the page asks for (file open, save and autosave through the File System
+  // Access API; clipboard) is granted to this app's own origin and to nothing else.
+  // Electron 44 calls the check handler with webContents null and, for some checks, an empty
+  // requestingOrigin (measured: media, geolocation, web-app-installation), so the origin is
+  // taken from whichever argument carries it.
+  const originOf = (requestingOrigin, details, webContents) =>
+    requestingOrigin ||
+    details?.requestingUrl ||
+    details?.embeddingOrigin ||
+    webContents?.getURL() ||
+    "";
+  // navigation and new windows are refused, so the only page that can ask is the app's own
+  const decide = (permission, origin, details) => {
+    const granted =
+      origin.startsWith(ORIGIN) || (origin === "" && permission === "fileSystem");
+    if (permission === "fileSystem" || !granted) {
+      console.warn(
+        `excalidraw-desktop: ${granted ? "granted" : "denied"} ${permission} ` +
+          `origin="${origin}" ${JSON.stringify(details ?? {})}`,
+      );
+    }
+    return granted;
+  };
   session.defaultSession.setPermissionRequestHandler(
-    (webContents, permission, callback) =>
-      callback(permission === "fileSystem" && localOnly(webContents)),
+    (webContents, permission, callback, details) =>
+      callback(
+        decide(permission, originOf("", details, webContents), details),
+      ),
   );
   session.defaultSession.setPermissionCheckHandler(
-    (webContents, permission) =>
-      permission === "fileSystem" && localOnly(webContents),
+    (webContents, permission, requestingOrigin, details) =>
+      decide(
+        permission,
+        originOf(requestingOrigin, details, webContents),
+        details,
+      ),
   );
 };
 
