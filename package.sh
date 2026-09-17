@@ -5,6 +5,7 @@
 #   ./package.sh build      dependencies + vite build only
 #   ./package.sh install    install the existing build, (re)start, check
 #   ./package.sh status     service state and HTTP answer
+#   ./package.sh desktop    build, package the Electron app, install it in the apps menu
 #
 # Env: EXCALIDRAW_PORT (3100), EXCALIDRAW_DIR (~/.local/share/excalidraw-local)
 set -euo pipefail
@@ -17,6 +18,10 @@ DEST="${EXCALIDRAW_DIR:-$HOME/.local/share/excalidraw-local}"
 UNIT_NAME="excalidraw-local.service"
 UNIT="$HOME/.config/systemd/user/$UNIT_NAME"
 URL="http://127.0.0.1:$PORT/"
+DESKTOP="$REPO/excalidraw-desktop"
+DESKTOP_DEST="$HOME/.local/opt/excalidraw-desktop"
+DESKTOP_ENTRY="$HOME/.local/share/applications/excalidraw-desktop.desktop"
+DESKTOP_ICON="$HOME/.local/share/icons/hicolor/512x512/apps/excalidraw-desktop.png"
 
 say() { printf '== %s\n' "$*"; }
 die() { printf 'package.sh: %s\n' "$*" >&2; exit 1; }
@@ -84,10 +89,43 @@ check() {
   say "$(systemctl --user is-active "$UNIT_NAME") $URL 200"
 }
 
+desktop() {
+  build
+  say "package Electron app"
+  (cd "$DESKTOP" && npm ci --no-audit --no-fund >/dev/null &&
+    env -u ELECTRON_RUN_AS_NODE npx electron-builder --linux dir >/dev/null)
+  local unpacked="$DESKTOP/dist/linux-unpacked"
+  [[ -x "$unpacked/excalidraw" ]] || die "no $unpacked/excalidraw after packaging"
+  say "install $unpacked -> $DESKTOP_DEST"
+  if [[ -e "$DESKTOP_DEST" && ! -x "$DESKTOP_DEST/excalidraw" ]]; then
+    die "$DESKTOP_DEST exists and holds no excalidraw binary: refusing to replace it"
+  fi
+  rm -rf "$DESKTOP_DEST"
+  mkdir -p "$(dirname "$DESKTOP_DEST")" "$(dirname "$DESKTOP_ENTRY")" "$(dirname "$DESKTOP_ICON")"
+  cp -a "$unpacked" "$DESKTOP_DEST"
+  cp "$BUILD/android-chrome-512x512.png" "$DESKTOP_ICON"
+  # VS Code terminals export ELECTRON_RUN_AS_NODE, which turns the binary into plain node
+  cat >"$DESKTOP_ENTRY" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Excalidraw
+Comment=Whiteboard, local files only (branch $(git -C "$REPO" rev-parse --abbrev-ref HEAD))
+Exec=env -u ELECTRON_RUN_AS_NODE $DESKTOP_DEST/excalidraw
+Icon=$DESKTOP_ICON
+Terminal=false
+Categories=Graphics;
+StartupWMClass=excalidraw-desktop
+EOF
+  command -v update-desktop-database >/dev/null &&
+    update-desktop-database "$(dirname "$DESKTOP_ENTRY")" || true
+  say "apps menu: Excalidraw ($DESKTOP_ENTRY)"
+}
+
 case "${1:-all}" in
   all) build; install_files; install_unit; check ;;
   build) build ;;
   install) install_files; install_unit; check ;;
+  desktop) desktop ;;
   status) systemctl --user status "$UNIT_NAME" --no-pager | head -5; check ;;
-  *) sed -n '2,9p' "$0"; exit 2 ;;
+  *) sed -n '2,10p' "$0"; exit 2 ;;
 esac
