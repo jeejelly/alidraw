@@ -356,13 +356,13 @@ const changeFontSize = (
 // -----------------------------------------------------------------------------
 
 export const actionChangeStrokeColor = register<
-  Partial<AppState> & { color?: string }
+  Partial<AppState> & { color?: string; preview?: boolean }
 >({
   name: "changeStrokeColor",
   label: "labels.stroke",
   trackEvent: false,
   perform: (elements, appState, value) => {
-    const { color, ...appStateUpdates } = value ?? {};
+    const { color, preview, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
         appState: { ...appState, ...appStateUpdates },
@@ -397,7 +397,10 @@ export const actionChangeStrokeColor = register<
         ...appStateUpdates,
         ...getColorTargetAppStateUpdates(target, color),
       },
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      // a colour dragged in the spectrum stays out of history until it is released
+      captureUpdate: preview
+        ? CaptureUpdateAction.EVENTUALLY
+        : CaptureUpdateAction.IMMEDIATELY,
     };
   },
   PanelComponent: ({ elements, appState, updateData, app }) => {
@@ -425,6 +428,7 @@ export const actionChangeStrokeColor = register<
             (hasSelection) => (!hasSelection ? target.currentValue : null),
           )}
           onChange={(color) => updateData({ color })}
+          onPreview={(color) => updateData({ color, preview: true })}
           elements={elements}
           appState={appState}
           updateData={updateData}
@@ -435,13 +439,13 @@ export const actionChangeStrokeColor = register<
 });
 
 export const actionChangeBackgroundColor = register<
-  Partial<AppState> & { color?: string }
+  Partial<AppState> & { color?: string; preview?: boolean }
 >({
   name: "changeBackgroundColor",
   label: "labels.changeBackground",
   trackEvent: false,
   perform: (elements, appState, value, app) => {
-    const { color, ...appStateUpdates } = value ?? {};
+    const { color, preview, ...appStateUpdates } = value ?? {};
     if (color === undefined) {
       return {
         appState: { ...appState, ...appStateUpdates },
@@ -510,7 +514,10 @@ export const actionChangeBackgroundColor = register<
         ...appStateUpdates,
         ...getColorTargetAppStateUpdates(target, color),
       },
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      // a colour dragged in the spectrum stays out of history until it is released
+      captureUpdate: preview
+        ? CaptureUpdateAction.EVENTUALLY
+        : CaptureUpdateAction.IMMEDIATELY,
     };
   },
   PanelComponent: ({ elements, appState, updateData, app }) => {
@@ -541,6 +548,7 @@ export const actionChangeBackgroundColor = register<
             (hasSelection) => (!hasSelection ? target.currentValue : null),
           )}
           onChange={(color) => updateData({ color })}
+          onPreview={(color) => updateData({ color, preview: true })}
           elements={elements}
           appState={appState}
           updateData={updateData}
@@ -592,6 +600,10 @@ export const actionChangeBucketFillBackgroundColor = register<
             appState.currentItemBackgroundColor,
           )}
           onChange={(color) =>
+            updateData({ currentItemBackgroundColor: color })
+          }
+          // no element to recolour and no history entry: a preview is the change itself
+          onPreview={(color) =>
             updateData({ currentItemBackgroundColor: color })
           }
           elements={elements}

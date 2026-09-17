@@ -8,9 +8,11 @@ import {
   STROKE_WIDTH,
 } from "@excalidraw/common";
 
+import { CaptureUpdateAction } from "@excalidraw/element";
+
 import { Excalidraw } from "../index";
 import { API } from "../tests/helpers/api";
-import { UI } from "../tests/helpers/ui";
+import { Keyboard, UI } from "../tests/helpers/ui";
 import { render } from "../tests/test-utils";
 
 describe("element locking", () => {
@@ -251,5 +253,49 @@ describe("element locking", () => {
         "active",
       );
     });
+  });
+});
+
+describe("colour picked in the spectrum", () => {
+  const { h } = window;
+
+  beforeEach(async () => {
+    await render(<Excalidraw handleKeyboardGlobally={true} />);
+  });
+
+  it("recolours while dragging and undoes the whole drag in one step", async () => {
+    const { act } = await import("@testing-library/react");
+    const { actionChangeStrokeColor } = await import("./actionProperties");
+    const rectangle = API.createElement({
+      type: "rectangle",
+      strokeColor: "#1e1e1e",
+    });
+    // recorded in the store snapshot, so the first undo entry is the colour, not the creation
+    API.updateScene({
+      elements: [rectangle],
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+    API.setSelectedElements([rectangle]);
+
+    const pick = (color: string, preview: boolean) =>
+      act(() => {
+        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+          color,
+          preview,
+        });
+      });
+
+    pick("#aa0000", true);
+    expect(h.elements[0].strokeColor).toBe("#aa0000");
+    pick("#bb0000", true);
+    pick("#cc0000", true);
+    pick("#cc0000", false);
+    expect(h.elements[0].strokeColor).toBe("#cc0000");
+
+    Keyboard.undo();
+    expect(h.elements[0].strokeColor).toBe("#1e1e1e");
+    expect(h.elements[0].isDeleted).toBe(false);
+    Keyboard.redo();
+    expect(h.elements[0].strokeColor).toBe("#cc0000");
   });
 });

@@ -44,7 +44,9 @@ import { register } from "./register";
 
 import type { AppState } from "../types";
 
-export const actionChangeViewBackgroundColor = register<Partial<AppState>>({
+export const actionChangeViewBackgroundColor = register<
+  Partial<AppState> & { preview?: boolean }
+>({
   name: "changeViewBackgroundColor",
   label: "labels.canvasBackground",
   trackEvent: false,
@@ -55,11 +57,14 @@ export const actionChangeViewBackgroundColor = register<Partial<AppState>>({
     );
   },
   perform: (_, appState, value) => {
+    const { preview, ...changes } = value ?? {};
     return {
-      appState: { ...appState, ...value },
-      captureUpdate: !!value?.viewBackgroundColor
-        ? CaptureUpdateAction.IMMEDIATELY
-        : CaptureUpdateAction.EVENTUALLY,
+      appState: { ...appState, ...changes },
+      // a colour dragged in the spectrum stays out of history until it is released
+      captureUpdate:
+        !!changes.viewBackgroundColor && !preview
+          ? CaptureUpdateAction.IMMEDIATELY
+          : CaptureUpdateAction.EVENTUALLY,
     };
   },
   PanelComponent: ({ elements, appState, updateData, appProps, data }) => {
@@ -72,6 +77,9 @@ export const actionChangeViewBackgroundColor = register<Partial<AppState>>({
         type="canvasBackground"
         color={appState.viewBackgroundColor}
         onChange={(color) => updateData({ viewBackgroundColor: color })}
+        onPreview={(color) =>
+          updateData({ viewBackgroundColor: color, preview: true })
+        }
         data-testid="canvas-background-picker"
         elements={elements}
         appState={appState}

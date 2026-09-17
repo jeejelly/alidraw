@@ -31,6 +31,7 @@ import {
 } from "../../hooks/useTextEditorFocus";
 
 import { ColorInput } from "./ColorInput";
+import { ColorSpectrum } from "./ColorSpectrum";
 import { Picker } from "./Picker";
 import PickerHeading from "./PickerHeading";
 import { TopPicks } from "./TopPicks";
@@ -55,6 +56,8 @@ interface ColorPickerProps {
    */
   color: string | null;
   onChange: (color: string) => void;
+  /** a colour shown on the elements while it is being picked, not yet an undo step */
+  onPreview?: (color: string) => void;
   label: string;
   elements: readonly ExcalidrawElement[];
   appState: UIAppState;
@@ -73,6 +76,7 @@ const ColorPickerPopupContent = ({
   type,
   color,
   onChange,
+  onPreview,
   label,
   elements,
   palette = COLOR_PALETTE,
@@ -85,6 +89,7 @@ const ColorPickerPopupContent = ({
   | "type"
   | "color"
   | "onChange"
+  | "onPreview"
   | "label"
   | "elements"
   | "palette"
@@ -105,6 +110,7 @@ const ColorPickerPopupContent = ({
 
   const colorInputJSX = (
     <div>
+      <ColorSpectrum color={color} onPreview={onPreview} onChange={onChange} />
       <PickerHeading>{t("colorPicker.hexCode")}</PickerHeading>
       <ColorInput
         color={color || ""}
@@ -347,6 +353,7 @@ const ColorPickerComponent = ({
   type,
   color,
   onChange,
+  onPreview,
   label,
   elements,
   palette = COLOR_PALETTE,
@@ -478,6 +485,7 @@ const ColorPickerComponent = ({
               type={type}
               color={color}
               onChange={onChange}
+              onPreview={onPreview}
               label={label}
               elements={elements}
               palette={palette}
