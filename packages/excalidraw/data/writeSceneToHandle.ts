@@ -12,29 +12,46 @@ export class WritePermissionNeededError extends Error {
   }
 }
 
+type PermissionDescriptor = { mode: "read" | "readwrite" };
+
 type PermissionedHandle = FileSystemFileHandle & {
-  queryPermission?: (descriptor: {
-    mode: "read" | "readwrite";
-  }) => Promise<PermissionState>;
+  queryPermission?: (descriptor: PermissionDescriptor) => Promise<PermissionState>;
+  requestPermission?: (
+    descriptor: PermissionDescriptor,
+  ) => Promise<PermissionState>;
+};
+
+const READ_WRITE: PermissionDescriptor = { mode: "readwrite" };
+
+/** Write access to [handle]; asked for only when [ask], which needs a user gesture in progress. */
+const hasWriteAccess = async (handle: PermissionedHandle, ask: boolean) => {
+  if (!handle.queryPermission) {
+    return true;
+  }
+  if ((await handle.queryPermission(READ_WRITE)) === "granted") {
+    return true;
+  }
+  return (
+    ask &&
+    !!handle.requestPermission &&
+    (await handle.requestPermission(READ_WRITE)) === "granted"
+  );
 };
 
 /**
  * Writes the scene into the file [fileHandle] names, in that file's own format
  * (`.excalidraw`, or PNG/SVG with the scene embedded), the bytes Save writes.
  *
- * Never opens a file picker and never asks for permission: without a gesture the browser
- * would refuse the prompt, so a handle not yet granted write access throws
- * [WritePermissionNeededError] instead.
+ * Never opens a file picker. Asks the browser for write access only with `askPermission`,
+ * which a caller sets when a user gesture is in progress (Save); without it, a handle not yet
+ * granted write access throws [WritePermissionNeededError].
  */
 export const writeSceneToHandle = async (
   data: JSONExportData,
   fileHandle: FileSystemFileHandle,
+  { askPermission = false }: { askPermission?: boolean } = {},
 ): Promise<void> => {
-  const handle = fileHandle as PermissionedHandle;
-  if (
-    handle.queryPermission &&
-    (await handle.queryPermission({ mode: "readwrite" })) !== "granted"
-  ) {
+  if (!(await hasWriteAccess(fileHandle as PermissionedHandle, askPermission))) {
     throw new WritePermissionNeededError(fileHandle.name);
   }
   const blob = isImageFileHandle(fileHandle)

@@ -316,7 +316,8 @@
     },
     "asyncPasteFailedOnRead": "Couldn't paste (couldn't read from system clipboard).",
     "asyncPasteFailedOnParse": "Couldn't paste.",
-    "copyToSystemClipboardFailed": "Couldn't copy to clipboard."
+    "copyToSystemClipboardFailed": "Couldn't copy to clipboard.",
+    "saveToFileFailed": "Could not save to {{filename}}: {{reason}}"
   },
   "toolBar": {
     "selection": "Selection",

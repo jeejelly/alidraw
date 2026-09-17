@@ -8,15 +8,15 @@ import { useEditorInterface } from "../components/App";
 import { CheckboxItem } from "../components/CheckboxItem";
 import { DarkModeToggle } from "../components/DarkModeToggle";
 import { ProjectName } from "../components/ProjectName";
+import { SaveFailedMessage } from "../components/SaveFailedMessage";
 import { Toast } from "../components/Toast";
 import { IconButton } from "../components/IconButton";
 import { Tooltip } from "../components/Tooltip";
 import { ExportIcon, questionCircle, saveAs } from "../components/icons";
 import { loadFromJSON, saveAsJSON } from "../data";
-import { isImageFileHandle } from "../data/blob";
 import { nativeFileSystemSupported } from "../data/filesystem";
 
-import { resaveAsImageWithScene } from "../data/resave";
+import { writeSceneToHandle } from "../data/writeSceneToHandle";
 
 import { t } from "../i18n";
 
@@ -268,53 +268,73 @@ export const actionSaveToActiveFile = register({
     }
     onExportInProgress = true;
 
-    const previousFileHandle = appState.fileHandle;
+    const fileHandle = appState.fileHandle;
     const filename = app.getName();
 
     const { abortController, data: exportedDataPromise } =
       prepareDataForJSONExport(elements, appState, app.files, app);
 
-    try {
-      const { fileHandle } = isImageFileHandle(previousFileHandle)
-        ? await resaveAsImageWithScene(
-            exportedDataPromise,
-            previousFileHandle,
-            filename,
-          )
-        : await saveAsJSON({
-            data: exportedDataPromise,
-            filename,
-            fileHandle: previousFileHandle,
-          });
+    // No file yet: the first save asks where. Once there is a file, Save writes to it and never
+    // opens a dialog; a failed write says so and offers Save as.
+    if (!fileHandle) {
+      try {
+        const { fileHandle: savedFileHandle } = await saveAsJSON({
+          data: exportedDataPromise,
+          filename,
+          fileHandle: null,
+        });
+        return {
+          captureUpdate: CaptureUpdateAction.NEVER,
+          appState: {
+            fileHandle: savedFileHandle,
+            toast: { message: t("toast.fileSaved"), duration: 1500 },
+          },
+        };
+      } catch (error: any) {
+        abortController.abort();
+        if (error?.name !== "AbortError") {
+          console.error(error);
+        } else {
+          console.warn(error);
+        }
+        return {
+          captureUpdate: CaptureUpdateAction.NEVER,
+          appState: { toast: null },
+        };
+      } finally {
+        onExportInProgress = false;
+      }
+    }
 
+    try {
+      await writeSceneToHandle(await exportedDataPromise, fileHandle, {
+        askPermission: true,
+      });
       return {
         captureUpdate: CaptureUpdateAction.NEVER,
         appState: {
-          fileHandle,
           toast: {
-            message:
-              previousFileHandle && fileHandle?.name
-                ? t("toast.fileSavedToFilename").replace(
-                    "{filename}",
-                    `"${fileHandle.name}"`,
-                  )
-                : t("toast.fileSaved"),
+            message: t("toast.fileSavedToFilename").replace(
+              "{filename}",
+              `"${fileHandle.name}"`,
+            ),
             duration: 1500,
           },
         },
       };
     } catch (error: any) {
       abortController.abort();
-
-      if (error?.name !== "AbortError") {
-        console.error(error);
-      } else {
-        console.warn(error);
-      }
+      console.error(error);
       return {
         captureUpdate: CaptureUpdateAction.NEVER,
         appState: {
           toast: null,
+          errorMessage: (
+            <SaveFailedMessage
+              fileName={fileHandle.name}
+              reason={error?.message ?? String(error)}
+            />
+          ),
         },
       };
     } finally {
