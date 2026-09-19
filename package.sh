@@ -3,9 +3,12 @@
 #
 #   ./package.sh            build, install, (re)start, check
 #   ./package.sh build      dependencies + vite build only
-#   ./package.sh install    install the existing build, (re)start, check
+#   ./package.sh install    stop, uninstall, install the web app, start, check
+#   ./package.sh install vscode
+#   ./package.sh install desktop
 #   ./package.sh status     service state and HTTP answer
-#   ./package.sh desktop    build, package the Electron app, install it in the apps menu
+#   ./package.sh desktop    build, package, install the Electron app
+#   ./package.sh desktop-package  build and create a .deb in excalidraw-desktop/dist
 #
 # Env: EXCALIDRAW_PORT (3100), EXCALIDRAW_DIR (~/.local/share/excalidraw-local)
 set -euo pipefail
@@ -19,9 +22,9 @@ UNIT_NAME="excalidraw-local.service"
 UNIT="$HOME/.config/systemd/user/$UNIT_NAME"
 URL="http://127.0.0.1:$PORT/"
 DESKTOP="$REPO/excalidraw-desktop"
-DESKTOP_DEST="$HOME/.local/opt/excalidraw-desktop"
-DESKTOP_ENTRY="$HOME/.local/share/applications/excalidraw-desktop.desktop"
-DESKTOP_ICON="$HOME/.local/share/icons/hicolor/512x512/apps/excalidraw-desktop.png"
+VSCODE_EXTENSION="pomdtr.excalidraw-editor"
+VSCODE_DIR="${EXCALIDRAW_VSCODE_DIR:-$REPO-vscode}"
+VSCODE_VSIX="$VSCODE_DIR/excalidraw-editor-local.vsix"
 
 say() { printf '== %s\n' "$*"; }
 die() { printf 'package.sh: %s\n' "$*" >&2; exit 1; }
@@ -51,6 +54,18 @@ install_files() {
   find "$DEST" -mindepth 1 -delete
   cp -a "$BUILD/." "$DEST/"
   find "$DEST" -name '*.map' -delete
+}
+
+stop_app() {
+  systemctl --user stop "$UNIT_NAME" >/dev/null 2>&1 || true
+}
+
+install_app() {
+  stop_app
+  rm -rf "$DEST"
+  install_files
+  install_unit
+  check
 }
 
 install_unit() {
@@ -93,39 +108,52 @@ desktop() {
   build
   say "package Electron app"
   (cd "$DESKTOP" && npm ci --no-audit --no-fund >/dev/null &&
-    env -u ELECTRON_RUN_AS_NODE npx electron-builder --linux dir >/dev/null)
-  local unpacked="$DESKTOP/dist/linux-unpacked"
-  [[ -x "$unpacked/excalidraw" ]] || die "no $unpacked/excalidraw after packaging"
-  say "install $unpacked -> $DESKTOP_DEST"
-  if [[ -e "$DESKTOP_DEST" && ! -x "$DESKTOP_DEST/excalidraw" ]]; then
-    die "$DESKTOP_DEST exists and holds no excalidraw binary: refusing to replace it"
-  fi
-  rm -rf "$DESKTOP_DEST"
-  mkdir -p "$(dirname "$DESKTOP_DEST")" "$(dirname "$DESKTOP_ENTRY")" "$(dirname "$DESKTOP_ICON")"
-  cp -a "$unpacked" "$DESKTOP_DEST"
-  cp "$BUILD/android-chrome-512x512.png" "$DESKTOP_ICON"
-  # VS Code terminals export ELECTRON_RUN_AS_NODE, which turns the binary into plain node
-  cat >"$DESKTOP_ENTRY" <<EOF
-[Desktop Entry]
-Type=Application
-Name=Excalidraw
-Comment=Whiteboard, local files only (branch $(git -C "$REPO" rev-parse --abbrev-ref HEAD))
-Exec=env -u ELECTRON_RUN_AS_NODE $DESKTOP_DEST/excalidraw
-Icon=$DESKTOP_ICON
-Terminal=false
-Categories=Graphics;
-StartupWMClass=excalidraw-desktop
-EOF
-  command -v update-desktop-database >/dev/null &&
-    update-desktop-database "$(dirname "$DESKTOP_ENTRY")" || true
-  say "apps menu: Excalidraw ($DESKTOP_ENTRY)"
+    env -u ELECTRON_RUN_AS_NODE npx electron-builder --linux deb >/dev/null)
+  local deb
+  deb="$(find "$DESKTOP/dist" -maxdepth 1 -type f -name '*.deb' -print -quit)"
+  [[ -n "$deb" ]] || die "no .deb in $DESKTOP/dist after packaging"
+  say "install $deb"
+  command -v apt-get >/dev/null || die "apt-get not found; install $deb with a package manager"
+  sudo apt-get install -y "$deb"
+  say "installed Excalidraw; launch it from the applications menu"
+}
+
+desktop_package() {
+  build
+  say "package Electron app"
+  (cd "$DESKTOP" && npm ci --no-audit --no-fund >/dev/null &&
+    env -u ELECTRON_RUN_AS_NODE npx electron-builder --linux deb >/dev/null)
+  find "$DESKTOP/dist" -maxdepth 1 -type f -name '*.deb' -print
+}
+
+vscode() {
+  local vscode_cli="${VSCODE_CLI:-code}"
+  command -v "$vscode_cli" >/dev/null || die "$vscode_cli not found"
+  command -v npm >/dev/null || die "npm not found"
+  [[ -f "$VSCODE_DIR/package.json" ]] || die "no VS Code extension at $VSCODE_DIR"
+  say "build VS Code extension $VSCODE_DIR"
+  (cd "$VSCODE_DIR" && npm ci --no-audit --no-fund >/dev/null && npm run package)
+  say "package VS Code extension $VSCODE_VSIX"
+  (cd "$VSCODE_DIR" && npx --yes @vscode/vsce package --out "$VSCODE_VSIX" >/dev/null)
+  "$vscode_cli" --uninstall-extension "$VSCODE_EXTENSION" >/dev/null 2>&1 || true
+  say "install VS Code extension $VSCODE_VSIX"
+  "$vscode_cli" --install-extension "$VSCODE_VSIX" --force
 }
 
 case "${1:-all}" in
-  all) build; install_files; install_unit; check ;;
+  all) stop_app; rm -rf "$DEST"; build; install_files; install_unit; check ;;
   build) build ;;
-  install) install_files; install_unit; check ;;
+  install)
+    case "${2:-app}" in
+      app) install_app ;;
+      desktop) desktop ;;
+      vscode) vscode ;;
+      *) die "usage: $0 install [app|vscode|desktop]" ;;
+    esac
+    ;;
   desktop) desktop ;;
+  desktop-package) desktop_package ;;
+  vscode) vscode ;;
   status) systemctl --user status "$UNIT_NAME" --no-pager | head -5; check ;;
   *) sed -n '2,10p' "$0"; exit 2 ;;
 esac
