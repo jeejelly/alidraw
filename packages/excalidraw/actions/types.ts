@@ -127,6 +127,8 @@ export type ActionName =
   | "unlockAllElements"
   | "toggleElementLock"
   | "toggleLinearEditor"
+  | "convertShapeToPath"
+  | "editPath"
   | "selectAllElementsInFrame"
   | "removeAllElementsFromFrame"
   | "updateFrameRendering"

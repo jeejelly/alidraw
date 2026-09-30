@@ -29,6 +29,7 @@ import type { Mutable } from "@excalidraw/common/utility-types";
 
 import { generateRoughOptions } from "./shape";
 import { ShapeCache } from "./shape";
+import { flattenPath, getPathLocalBounds } from "./path";
 import { LinearElementEditor } from "./linearElementEditor";
 import { getBoundTextElement, getContainerElement } from "./textElement";
 import {
@@ -36,6 +37,7 @@ import {
   isBoundToContainer,
   isFrameLikeElement,
   isFreeDrawElement,
+  isPathElement,
   isLinearElement,
   isLineElement,
   isTextElement,
@@ -154,6 +156,24 @@ export class ElementBounds {
       element,
       elementsMap,
     );
+    if (isPathElement(element)) {
+      const [minX, minY, maxX, maxY] = getBoundsFromPoints(
+        flattenPath(element).map(([x, y]) =>
+          pointRotateRads(
+            pointFrom(x, y),
+            pointFrom(cx - element.x, cy - element.y),
+            element.angle,
+          ),
+        ),
+      );
+
+      return [
+        minX + element.x,
+        minY + element.y,
+        maxX + element.x,
+        maxY + element.y,
+      ];
+    }
     if (isFreeDrawElement(element)) {
       const [minX, minY, maxX, maxY] = getBoundsFromPoints(
         element.points.map(([x, y]) =>
@@ -248,7 +268,14 @@ export const getElementAbsoluteCoords = (
   elementsMap: ElementsMap,
   includeBoundText: boolean = false,
 ): [number, number, number, number, number, number] => {
-  if (isFreeDrawElement(element)) {
+  if (isPathElement(element)) {
+    const [minX, minY, maxX, maxY] = getPathLocalBounds(element);
+    const x1 = element.x + minX;
+    const y1 = element.y + minY;
+    const x2 = element.x + maxX;
+    const y2 = element.y + maxY;
+    return [x1, y1, x2, y2, (x1 + x2) / 2, (y1 + y2) / 2];
+  } else if (isFreeDrawElement(element)) {
     return getFreeDrawElementAbsoluteCoords(element);
   } else if (isLinearElement(element)) {
     return LinearElementEditor.getElementAbsoluteCoords(
@@ -1429,7 +1456,11 @@ export const elementsOverlappingBBox = <T extends ExcalidrawElement>({
       let hasIntersection = false;
 
       // Preliminary check potential intersection imprecision
-      if (isLinearElement(element) || isFreeDrawElement(element)) {
+      if (
+        isLinearElement(element) ||
+        isFreeDrawElement(element) ||
+        isPathElement(element)
+      ) {
         const center = elementCenterPoint(element, elementsMap);
         hasIntersection = element.points.some((point) => {
           const rotatedPoint = pointRotateRads(
@@ -1558,7 +1589,11 @@ export const elementCenterPoint = (
   xOffset: number = 0,
   yOffset: number = 0,
 ) => {
-  if (isLinearElement(element) || isFreeDrawElement(element)) {
+  if (
+    isLinearElement(element) ||
+    isFreeDrawElement(element) ||
+    isPathElement(element)
+  ) {
     const [x1, y1, x2, y2] = getElementAbsoluteCoords(element, elementsMap);
     const [x, y] = pointFrom<GlobalPoint>((x1 + x2) / 2, (y1 + y2) / 2);
 

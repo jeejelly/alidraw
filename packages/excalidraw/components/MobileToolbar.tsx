@@ -31,6 +31,7 @@ import {
   laserPointerToolIcon,
   drawShapeToolIcon,
   bucketFillIcon,
+  pathToolIcon,
   mermaidLogoIcon,
   MagicIcon,
   stickyNoteToolIcon,
@@ -121,6 +122,7 @@ export const MobileToolbar = ({ app, setAppState }: MobileToolbarProps) => {
       "embeddable",
       "laser",
       "bucketfill",
+      "path",
       "magicframe",
     ] as const
   ).filter((tool) => {
@@ -148,6 +150,8 @@ export const MobileToolbar = ({ app, setAppState }: MobileToolbarProps) => {
       ? laserPointerToolIcon
       : activeTool.type === "bucketfill"
       ? bucketFillIcon
+      : activeTool.type === "path"
+      ? pathToolIcon
       : activeTool.type === "magicframe"
       ? MagicIcon
       : DotsIcon
@@ -344,6 +348,15 @@ export const MobileToolbar = ({ app, setAppState }: MobileToolbarProps) => {
             disabled={isToolButtonDisabled(app, "bucketfill")}
           >
             {t("toolBar.bucketfill")}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            onSelect={() => app.setActiveTool({ type: "path" })}
+            icon={pathToolIcon}
+            data-testid="toolbar-path"
+            selected={activeTool.type === "path"}
+            disabled={isToolButtonDisabled(app, "path")}
+          >
+            {t("toolBar.path")}
           </DropdownMenu.Item>
           <div style={{ margin: "6px 0", fontSize: 14, fontWeight: 600 }}>
             Generate

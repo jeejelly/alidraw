@@ -330,6 +330,8 @@ import {
   actionLink,
   actionToggleElementLock,
   actionToggleLinearEditor,
+  actionEditPath,
+  actionConvertShapeToPath,
   actionToggleObjectsSnapMode,
   actionToggleArrowBinding,
   actionToggleMidpointSnapping,
@@ -450,6 +452,8 @@ import ConvertElementTypePopup, {
 import { activeConfirmDialogAtom } from "./ActiveConfirmDialog";
 import { AppArrowText } from "./App.arrowText";
 import { AppBucketFill } from "./App.bucketFill";
+import { AppPath } from "./App.path";
+import { PathEditorPanel } from "./PathEditorPanel";
 import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
 import { AppDrawShape } from "./App.drawshape";
@@ -759,6 +763,7 @@ class App extends React.Component<AppProps, AppState> {
   previousPointerMoveCoords: { x: number; y: number } | null = null;
 
   drawShape = new AppDrawShape(this);
+  path = new AppPath(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
   lassoTrail = new LassoTrail(this);
@@ -2538,6 +2543,9 @@ class App extends React.Component<AppProps, AppState> {
                             ]}
                           />
                           {this.isDefaultUIEnabled() && <CursorHint />}
+                          {this.state.editingPath && (
+                            <PathEditorPanel app={this} />
+                          )}
                           {this.isDefaultUIEnabled() &&
                             selectedElements.length === 1 &&
                             this.state.openDialog?.name !==
@@ -3945,6 +3953,7 @@ class App extends React.Component<AppProps, AppState> {
     this.library.destroy();
     this.laserTrails.stop();
     this.drawShape.stop();
+    this.path.reset();
     this.toolDrag.cancel();
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
@@ -5555,6 +5564,10 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (!isInputLike(event.target)) {
+        if (this.path.handleKeyDown(event)) {
+          event.preventDefault();
+          return;
+        }
         if (
           (event.key === KEYS.ESCAPE || event.key === KEYS.ENTER) &&
           this.state.croppingElementId
@@ -6183,6 +6196,13 @@ class App extends React.Component<AppProps, AppState> {
         `"${tool.type}" tool activation ignored — the active tool is controlled by the host via "props.activeTool"`,
       );
       return;
+    }
+
+    if (tool.type !== "path") {
+      this.path.reset();
+    }
+    if (tool.type === "path") {
+      this.setState({ editingPath: null });
     }
 
     if (this.drawShape.hasPendingGesture()) {
@@ -7227,6 +7247,9 @@ class App extends React.Component<AppProps, AppState> {
       | "shiftKey"
     >,
   ) => {
+    if (this.isInteractionEnabled() && this.path.handleDoubleClick()) {
+      return;
+    }
     if (
       !this.isInteractionEnabled() ||
       this.state.editingTextElement ||
@@ -8733,6 +8756,11 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    // the pen tool and the point editor of a selected path own their pointer
+    if (this.path.handlePointerDown(event)) {
+      return;
+    }
+
     this.setState({
       lastPointerDownWith: event.pointerType,
       cursorButton: "down",
@@ -9014,7 +9042,8 @@ class App extends React.Component<AppProps, AppState> {
     } else if (
       this.state.activeTool.type !== "eraser" &&
       this.state.activeTool.type !== "hand" &&
-      this.state.activeTool.type !== "image"
+      this.state.activeTool.type !== "image" &&
+      this.state.activeTool.type !== "path"
     ) {
       this.createGenericElementOnPointerDown(
         this.state.activeTool.type,
@@ -10537,6 +10566,20 @@ class App extends React.Component<AppProps, AppState> {
       });
     }
   };
+
+  /** the style a newly drawn path starts with */
+  public getPathElementStyle = () => ({
+    strokeColor: this.state.currentItemStrokeColor,
+    backgroundColor: this.state.currentItemBackgroundColor,
+    fillStyle: this.state.currentItemFillStyle,
+    strokeWidth: this.getCurrentItemStrokeWidth("path"),
+    strokeStyle: this.state.currentItemStrokeStyle,
+    roughness: this.state.currentItemRoughness,
+    opacity: this.state.currentItemOpacity,
+    roundness: null,
+    locked: false,
+    frameId: null,
+  });
 
   private createFrameElementOnPointerDown = (
     pointerDownState: PointerDownState,
@@ -13962,6 +14005,8 @@ class App extends React.Component<AppProps, AppState> {
       actionFlipVertical,
       CONTEXT_MENU_SEPARATOR,
       actionToggleLinearEditor,
+      actionEditPath,
+      actionConvertShapeToPath,
       CONTEXT_MENU_SEPARATOR,
       actionLink,
       actionCopyElementLink,

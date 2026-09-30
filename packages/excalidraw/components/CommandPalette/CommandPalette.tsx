@@ -334,6 +334,8 @@ function CommandPaletteInner({
         actionManager.actions.increaseFontSize,
         actionManager.actions.decreaseFontSize,
         actionManager.actions.toggleLinearEditor,
+        actionManager.actions.convertShapeToPath,
+        actionManager.actions.editPath,
         actionManager.actions.cropEditor,
         actionManager.actions.togglePolygon,
         actionLink,

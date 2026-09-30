@@ -34,6 +34,7 @@ import {
   getElementBounds,
 } from "./bounds";
 import { LinearElementEditor } from "./linearElementEditor";
+import { scalePathGeometry } from "./path";
 import {
   getBoundTextElement,
   getBoundTextElementId,
@@ -56,6 +57,7 @@ import {
   isElbowArrow,
   isFrameLikeElement,
   isFreeDrawElement,
+  isPathElement,
   isImageElement,
   isLinearElement,
   isStickyNoteElement,
@@ -278,7 +280,13 @@ export const rescalePointsInElement = (
   height: number,
   normalizePoints: boolean,
 ) =>
-  isLinearElement(element) || isFreeDrawElement(element)
+  isPathElement(element)
+    ? scalePathGeometry(
+        element,
+        element.width ? width / element.width : 1,
+        element.height ? height / element.height : 1,
+      )
+    : isLinearElement(element) || isFreeDrawElement(element)
     ? {
         points: rescalePoints(
           0,

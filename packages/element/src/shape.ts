@@ -9,6 +9,7 @@ import {
   getEllipseShape,
   getFreedrawShape,
   getPolygonShape,
+  polylineFromPoints,
 } from "@excalidraw/utils/shape";
 
 import {
@@ -16,6 +17,7 @@ import {
   pointDistance,
   type LocalPoint,
   pointRotateRads,
+  polygonFromPoints,
 } from "@excalidraw/math";
 import {
   ROUGHNESS,
@@ -56,6 +58,7 @@ import {
 } from "./typeChecks";
 import { getCornerRadius, isPathALoop } from "./utils";
 import { headingForPointIsHorizontal } from "./heading";
+import { flattenPath, getPathSvgD } from "./path";
 
 import { canChangeRoundness } from "./comparisons";
 import {
@@ -236,6 +239,15 @@ export const generateRoughOptions = (
         : applyDarkModeFilter(element.backgroundColor, isDarkMode);
       if (element.type === "ellipse") {
         options.curveFitting = 1;
+      }
+      return options;
+    }
+    case "path": {
+      if (element.closed) {
+        options.fillStyle = element.fillStyle;
+        options.fill = isTransparent(element.backgroundColor)
+          ? undefined
+          : applyDarkModeFilter(element.backgroundColor, isDarkMode);
       }
       return options;
     }
@@ -955,6 +967,17 @@ const _generateElementShape = (
       }
       return shape;
     }
+    case "path": {
+      if (element.points.length < 2) {
+        return [];
+      }
+      return [
+        generator.path(
+          getPathSvgD(element),
+          generateRoughOptions(element, false, isDarkMode),
+        ),
+      ];
+    }
     case "freedraw": {
       // oredered in terms of z-index [background, stroke]
       const shapes: ElementShapes[typeof element.type] = [];
@@ -1110,6 +1133,25 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
     case "ellipse":
       return getEllipseShape(element);
 
+    case "path": {
+      const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
+      const center = pointFrom<Point>(cx, cy);
+      const polyline = flattenPath(element).map((p) =>
+        pointRotateRads(
+          pointFrom<Point>(p[0] + element.x, p[1] + element.y),
+          center,
+          element.angle,
+        ),
+      );
+      return element.closed && shouldTestInside(element)
+        ? { type: "polygon", data: polygonFromPoints(polyline) }
+        : {
+            type: "polyline",
+            data: polylineFromPoints(
+              element.closed ? [...polyline, polyline[0]] : polyline,
+            ),
+          };
+    }
     case "freedraw": {
       const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
       return getFreedrawShape(

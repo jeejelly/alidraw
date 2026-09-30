@@ -639,6 +639,19 @@ export const bucketFillIcon = createIcon(
   tablerIconProps,
 );
 
+// a bezier path with its two tangent handles
+export const pathToolIcon = createIcon(
+  <g strokeWidth={1.5}>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M5 19c0 -8 5 -5 7 -9s4 -4 7 -5" />
+    <circle cx="5" cy="19" r="1.5" />
+    <circle cx="19" cy="5" r="1.5" />
+    <path d="M12 10l-3 2" />
+    <path d="M12 10l2.5 -1.8" />
+  </g>,
+  tablerIconProps,
+);
+
 // simple / icon
 export const slashIcon = createIcon(
   <g strokeWidth={1.5}>

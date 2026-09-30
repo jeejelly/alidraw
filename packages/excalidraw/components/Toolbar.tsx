@@ -21,6 +21,7 @@ import {
   LassoIcon,
   laserPointerToolIcon,
   bucketFillIcon,
+  pathToolIcon,
   MagicIcon,
   mermaidLogoIcon,
   DotsIcon,
@@ -71,6 +72,7 @@ const ExtraToolsDropdown = ({
   const drawShapeToolSelected = activeTool.type === "autoshape";
   const laserToolSelected = activeTool.type === "laser";
   const bucketFillToolSelected = activeTool.type === "bucketfill";
+  const pathToolSelected = activeTool.type === "path";
   const lassoToolSelected =
     isFullStylesPanel &&
     activeTool.type === "lasso" &&
@@ -88,6 +90,7 @@ const ExtraToolsDropdown = ({
             (isFullStylesPanel && drawShapeToolSelected) ||
             lassoToolSelected ||
             bucketFillToolSelected ||
+            pathToolSelected ||
             // in collab we're already highlighting the laser button
             // outside toolbar, so let's not highlight extra-tools button
             // on top of it
@@ -113,6 +116,8 @@ const ExtraToolsDropdown = ({
           ? LassoIcon
           : bucketFillToolSelected
           ? bucketFillIcon
+          : pathToolSelected
+          ? pathToolIcon
           : DotsIcon}
       </DropdownMenu.Trigger>
       <DropdownMenu.Content
@@ -180,6 +185,15 @@ const ExtraToolsDropdown = ({
           disabled={isToolButtonDisabled(app, "bucketfill")}
         >
           {t("toolBar.bucketfill")}
+        </DropdownMenu.Item>
+        <DropdownMenu.Item
+          onSelect={() => app.setActiveTool({ type: "path" })}
+          icon={pathToolIcon}
+          data-testid="toolbar-path"
+          selected={pathToolSelected}
+          disabled={isToolButtonDisabled(app, "path")}
+        >
+          {t("toolBar.path")}
         </DropdownMenu.Item>
         {isFullStylesPanel && (
           <DropdownMenu.Item

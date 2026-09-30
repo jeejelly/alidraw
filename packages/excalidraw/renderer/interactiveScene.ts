@@ -73,6 +73,7 @@ import type {
   ExcalidrawFrameLikeElement,
   ExcalidrawImageElement,
   ExcalidrawLinearElement,
+  ExcalidrawPathElement,
   ExcalidrawTextElement,
   GroupId,
   NonDeleted,
@@ -1145,6 +1146,76 @@ const renderElementsBoxHighlight = (
     );
 };
 
+/** anchors of a path being edited, and the tangent handles of the selected one */
+const renderPathEditor = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  element: ExcalidrawPathElement,
+  elementsMap: RenderableElementsMap,
+) => {
+  const editing = appState.editingPath;
+  if (!editing) {
+    return;
+  }
+  const zoom = appState.zoom.value;
+  const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
+  const center = pointFrom<GlobalPoint>(cx, cy);
+  const toScene = (p: readonly [number, number]) =>
+    pointRotateRads(
+      pointFrom<GlobalPoint>(element.x + p[0], element.y + p[1]),
+      center,
+      element.angle,
+    );
+
+  context.save();
+  context.translate(appState.scrollX, appState.scrollY);
+  context.lineWidth = 1 / zoom;
+  const accent = getThemedColor("#5e5ad8", appState.theme);
+  const fill = getThemedColor("rgba(255, 255, 255, 0.95)", appState.theme);
+  const fillSelected = getThemedColor("#5e5ad8", appState.theme);
+  const r = 5 / zoom;
+
+  const selected = editing.selectedPoint;
+  if (selected != null && element.handles[selected]) {
+    const anchor = toScene(element.points[selected]);
+    for (const side of ["in", "out"] as const) {
+      const h = element.handles[selected][side];
+      if (!h) {
+        continue;
+      }
+      const tip = toScene([
+        element.points[selected][0] + h[0],
+        element.points[selected][1] + h[1],
+      ]);
+      context.strokeStyle = accent;
+      context.beginPath();
+      context.moveTo(anchor[0], anchor[1]);
+      context.lineTo(tip[0], tip[1]);
+      context.stroke();
+      context.fillStyle = fill;
+      context.beginPath();
+      context.arc(tip[0], tip[1], r * 0.8, 0, Math.PI * 2);
+      context.fill();
+      context.stroke();
+    }
+  }
+
+  element.points.forEach((point, index) => {
+    const p = toScene(point);
+    context.strokeStyle = accent;
+    context.fillStyle = index === selected ? fillSelected : fill;
+    context.beginPath();
+    if (element.handles[index]?.mode === "corner") {
+      context.rect(p[0] - r, p[1] - r, r * 2, r * 2);
+    } else {
+      context.arc(p[0], p[1], r, 0, Math.PI * 2);
+    }
+    context.fill();
+    context.stroke();
+  });
+  context.restore();
+};
+
 const renderLinearPointHandles = (
   context: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -1683,6 +1754,13 @@ const _renderInteractiveScene = ({
     }
   });
 
+  if (appState.editingPath) {
+    const editingPath = elementsMap.get(appState.editingPath.elementId);
+    if (editingPath && editingPath.type === "path") {
+      renderPathEditor(context, appState, editingPath, elementsMap);
+    }
+  }
+
   if (editingLinearElement) {
     renderLinearPointHandles(
       context,
@@ -2000,7 +2078,9 @@ const _renderInteractiveScene = ({
         // do not show transform handles when text is being edited
         !isTextElement(appState.editingTextElement) &&
         // do not show transform handles when image is being cropped
-        !appState.croppingElementId
+        !appState.croppingElementId &&
+        // nor while the points of a path are edited
+        !appState.editingPath
       ) {
         renderTransformHandles(
           context,

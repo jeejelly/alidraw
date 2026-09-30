@@ -61,6 +61,10 @@ export const INVISIBLY_SMALL_ELEMENT_SIZE = 0.1;
 export const isInvisiblySmallElement = (
   element: ExcalidrawElement,
 ): boolean => {
+  if (element.type === "path") {
+    return element.points.length < 2;
+  }
+
   if (isLinearElement(element) || isFreeDrawElement(element)) {
     return (
       element.points.length < 2 ||

@@ -155,6 +155,15 @@
       "hint": "Type or paste your link here",
       "goToElement": "Go to target element"
     },
+    "path": {
+      "edit": "Edit path points",
+      "convertToPath": "Convert to path",
+      "corner": "Corner point",
+      "smooth": "Smooth point",
+      "broken": "Broken tangents",
+      "deletePoint": "Delete point",
+      "done": "Done"
+    },
     "lineEditor": {
       "edit": "Edit line",
       "editArrow": "Edit arrow"
@@ -342,6 +351,7 @@
     "laser": "Laser pointer",
     "autoshape": "Draw to shape",
     "bucketfill": "Bucket fill",
+    "path": "Path (click to add points, drag for curves)",
     "hand": "Hand (panning tool)",
     "extraTools": "More tools",
     "mermaidToExcalidraw": "Mermaid to Excalidraw",
@@ -358,6 +368,7 @@
     "arrow": "Arrow",
     "line": "Line",
     "freedraw": "Freedraw",
+    "path": "Path",
     "text": "Text",
     "image": "Image",
     "group": "Group",

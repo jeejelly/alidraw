@@ -33,6 +33,7 @@ import { normalizeText, measureText } from "./textMeasurements";
 import { wrapText } from "./textWrapping";
 
 import { isLineElement } from "./typeChecks";
+import { NO_HANDLES } from "./path";
 
 import type {
   ExcalidrawElement,
@@ -45,6 +46,7 @@ import type {
   VerticalAlign,
   Arrowhead,
   ExcalidrawFreeDrawElement,
+  ExcalidrawPathElement,
   FontFamilyValues,
   ExcalidrawTextContainer,
   ExcalidrawFrameElement,
@@ -566,6 +568,22 @@ export const newFreeDrawElement = (
       variability: "variable",
       streamline: DEFAULT_STROKE_STREAMLINE,
     },
+  };
+};
+
+export const newPathElement = (
+  opts: {
+    points?: ExcalidrawPathElement["points"];
+    handles?: ExcalidrawPathElement["handles"];
+    closed?: boolean;
+  } & ElementConstructorOpts,
+): NonDeleted<ExcalidrawPathElement> => {
+  const points = opts.points ?? [];
+  return {
+    ..._newElementBase<ExcalidrawPathElement>("path", opts),
+    points,
+    handles: opts.handles ?? points.map(() => NO_HANDLES),
+    closed: opts.closed ?? false,
   };
 };
 

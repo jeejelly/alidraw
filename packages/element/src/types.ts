@@ -227,6 +227,7 @@ export type ExcalidrawElement =
   | ExcalidrawLinearElement
   | ExcalidrawArrowElement
   | ExcalidrawFreeDrawElement
+  | ExcalidrawPathElement
   | ExcalidrawImageElement
   | ExcalidrawFrameElement
   | ExcalidrawMagicFrameElement
@@ -434,6 +435,29 @@ export type ExcalidrawFreeDrawElement = _ExcalidrawElementBase &
     pressures: readonly number[];
     simulatePressure: boolean;
     strokeOptions: StrokeOptions;
+  }>;
+
+export type PathPointMode = "corner" | "smooth" | "broken";
+
+/**
+ * Tangent handles of one path point. `in` and `out` are offsets from the
+ * point (not absolute), each optional: a missing handle is a straight
+ * side. A smooth point keeps both collinear while either is dragged.
+ */
+export type PathPointHandles = Readonly<{
+  mode: PathPointMode;
+  in: LocalPoint | null;
+  out: LocalPoint | null;
+}>;
+
+export type ExcalidrawPathElement = _ExcalidrawElementBase &
+  Readonly<{
+    type: "path";
+    /** anchors, local to the element like the points of a line */
+    points: readonly LocalPoint[];
+    /** same length as `points` */
+    handles: readonly PathPointHandles[];
+    closed: boolean;
   }>;
 
 export type FileId = string & { _brand: "FileId" };

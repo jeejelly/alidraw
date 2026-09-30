@@ -82,6 +82,10 @@ import { getNormalizedDimensions } from "@excalidraw/element";
 import { isInvisiblySmallElement } from "@excalidraw/element";
 
 import type { LocalPoint, Radians } from "@excalidraw/math";
+import type {
+  ExcalidrawPathElement,
+  PathPointHandles,
+} from "@excalidraw/element/types";
 
 import type {
   ElementsMap,
@@ -241,6 +245,7 @@ export const AllowedExcalidrawActiveTools: Record<
   hand: true,
   laser: false,
   autoshape: false,
+  path: true,
   magicframe: false,
   bucketfill: true,
 };
@@ -602,6 +607,34 @@ export const restoreElement = (
         simulatePressure: element.simulatePressure,
         strokeOptions: restoreFreedrawStrokeOptions(element.strokeOptions),
         pressures,
+      });
+    }
+    case "path": {
+      const path = element as ExcalidrawPathElement;
+      const toPoint = (p: unknown): LocalPoint | null =>
+        Array.isArray(p) && isFiniteNumber(p[0]) && isFiniteNumber(p[1])
+          ? pointFrom<LocalPoint>(p[0], p[1])
+          : null;
+      const pathPoints: LocalPoint[] = [];
+      const pathHandles: PathPointHandles[] = [];
+      (Array.isArray(path.points) ? path.points : []).forEach((p, i) => {
+        const point = toPoint(p);
+        if (!point) {
+          return;
+        }
+        const h = path.handles?.[i] as Partial<PathPointHandles> | undefined;
+        pathPoints.push(point);
+        pathHandles.push({
+          mode:
+            h?.mode === "smooth" || h?.mode === "broken" ? h.mode : "corner",
+          in: toPoint(h?.in),
+          out: toPoint(h?.out),
+        });
+      });
+      return restoreElementWithProperties(element, {
+        points: pathPoints,
+        handles: pathHandles,
+        closed: !!path.closed,
       });
     }
     case "image":

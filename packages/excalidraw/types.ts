@@ -163,7 +163,8 @@ export type ToolType =
   | "embeddable"
   | "laser"
   | "autoshape"
-  | "bucketfill";
+  | "bucketfill"
+  | "path";
 
 export type ElementOrToolType = ExcalidrawElementType | ToolType | "custom";
 
@@ -245,6 +246,7 @@ export type InteractiveCanvasAppState = Readonly<
     // Cropping
     isCropping: AppState["isCropping"];
     croppingElementId: AppState["croppingElementId"];
+    editingPath: AppState["editingPath"];
     // Search matches
     searchMatches: AppState["searchMatches"];
     activeLockedId: AppState["activeLockedId"];
@@ -535,6 +537,12 @@ export interface AppState {
   /** image cropping */
   isCropping: boolean;
   croppingElementId: ExcalidrawElement["id"] | null;
+
+  /** path point/handle editing; `selectedPoint` is an index into `points` */
+  editingPath: {
+    elementId: ExcalidrawElement["id"];
+    selectedPoint: number | null;
+  } | null;
 
   /** null if no search matches found / search closed */
   searchMatches: Readonly<{
