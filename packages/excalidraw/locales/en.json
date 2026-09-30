@@ -161,6 +161,20 @@
     "localFontSearch": "Search installed fonts",
     "localFontClear": "Use the picker font",
     "localFontNone": "No installed fonts available",
+    "palette": {
+      "title": "Palette",
+      "toggle": "Palette panel",
+      "orientation": "Horizontal / vertical layout",
+      "add": "Add colour",
+      "edit": "Edit swatches",
+      "done": "Done",
+      "remove": "Remove swatch",
+      "import": "Import .ase / .gpl",
+      "imported": "Imported {{count}} swatches",
+      "importFailed": "No colours found in that file",
+      "empty": "No swatches yet",
+      "more": "Style and text"
+    },
     "rulers": {
       "toggle": "Rulers and guides",
       "snap": "Snap to guides (magnet)",

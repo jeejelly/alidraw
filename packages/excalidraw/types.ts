@@ -531,6 +531,8 @@ export interface AppState {
   guides: readonly Guide[];
   /** the magnet: dragged elements and points snap to guides (opt-out) */
   guidesSnapEnabled: boolean;
+  /** the colour palette panel stays open over the canvas */
+  paletteOpen: boolean;
   viewModeEnabled: boolean;
 
   /** top-most selected groups (i.e. does not include nested groups) */

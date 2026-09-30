@@ -132,6 +132,7 @@ export type ActionName =
   | "changeFontSizeInput"
   | "changeLocalFont"
   | "toggleRulers"
+  | "togglePalette"
   | "toggleGuidesSnap"
   | "clearGuides"
   | "editPath"

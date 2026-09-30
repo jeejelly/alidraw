@@ -91,6 +91,7 @@ exports[`history > multiplayer undo/redo > conflicts in arrows and their bindabl
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -750,6 +751,7 @@ exports[`history > multiplayer undo/redo > conflicts in arrows and their bindabl
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -1339,6 +1341,7 @@ exports[`history > multiplayer undo/redo > conflicts in arrows and their bindabl
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -1723,6 +1726,7 @@ exports[`history > multiplayer undo/redo > conflicts in arrows and their bindabl
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -2108,6 +2112,7 @@ exports[`history > multiplayer undo/redo > conflicts in arrows and their bindabl
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -2391,6 +2396,7 @@ exports[`history > multiplayer undo/redo > conflicts in arrows and their bindabl
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -2872,6 +2878,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -3202,6 +3209,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -3550,6 +3558,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -3870,6 +3879,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -4180,6 +4190,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -4438,6 +4449,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -4719,6 +4731,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -5016,6 +5029,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -5268,6 +5282,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -5520,6 +5535,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -5791,6 +5807,7 @@ exports[`history > multiplayer undo/redo > conflicts in bound text elements and 
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -6073,6 +6090,7 @@ exports[`history > multiplayer undo/redo > conflicts in frames and their childre
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -6350,6 +6368,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -6702,6 +6721,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -7154,6 +7174,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -7556,6 +7577,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -7888,6 +7910,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -8201,6 +8224,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   "openPopup": "elementBackground",
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -8452,6 +8476,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -8829,6 +8854,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -9206,6 +9232,7 @@ exports[`history > multiplayer undo/redo > should not let remote changes to inte
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -9636,6 +9663,7 @@ exports[`history > multiplayer undo/redo > should not let remote changes to inte
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -9945,6 +9973,7 @@ exports[`history > multiplayer undo/redo > should not let remote changes to inte
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -10231,6 +10260,7 @@ exports[`history > multiplayer undo/redo > should not override remote changes on
   "openPopup": "elementBackground",
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -10518,6 +10548,7 @@ exports[`history > multiplayer undo/redo > should not override remote changes on
   "openPopup": "elementBackground",
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -10774,6 +10805,7 @@ exports[`history > multiplayer undo/redo > should override remotely added groups
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -11091,6 +11123,7 @@ exports[`history > multiplayer undo/redo > should override remotely added points
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -11429,6 +11462,7 @@ exports[`history > multiplayer undo/redo > should redistribute deltas when eleme
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -11689,6 +11723,7 @@ exports[`history > multiplayer undo/redo > should redraw arrows on undo > [end o
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -12636,6 +12671,7 @@ exports[`history > multiplayer undo/redo > should update history entries after r
   "openPopup": "elementBackground",
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -12917,6 +12953,7 @@ exports[`history > singleplayer undo/redo > remounting undo/redo buttons should 
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -13174,6 +13211,7 @@ exports[`history > singleplayer undo/redo > should clear the redo stack on eleme
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -13433,6 +13471,7 @@ exports[`history > singleplayer undo/redo > should create entry when selecting f
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -13863,6 +13902,7 @@ exports[`history > singleplayer undo/redo > should create new history entry on e
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -14091,6 +14131,7 @@ exports[`history > singleplayer undo/redo > should create new history entry on e
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -14322,6 +14363,7 @@ exports[`history > singleplayer undo/redo > should create new history entry on i
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -14643,6 +14685,7 @@ exports[`history > singleplayer undo/redo > should create new history entry on i
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -14967,6 +15010,7 @@ exports[`history > singleplayer undo/redo > should create new history entry on s
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -15235,6 +15279,7 @@ exports[`history > singleplayer undo/redo > should disable undo/redo buttons whe
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -15494,6 +15539,7 @@ exports[`history > singleplayer undo/redo > should end up with no history entry 
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -15753,6 +15799,7 @@ exports[`history > singleplayer undo/redo > should iterate through the history w
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -16021,6 +16068,7 @@ exports[`history > singleplayer undo/redo > should not clear the redo stack on s
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -16378,6 +16426,7 @@ exports[`history > singleplayer undo/redo > should not collapse when applying co
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -16565,6 +16614,7 @@ exports[`history > singleplayer undo/redo > should not end up with history entry
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -16875,6 +16925,7 @@ exports[`history > singleplayer undo/redo > should not end up with history entry
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -17161,6 +17212,7 @@ exports[`history > singleplayer undo/redo > should not modify anything on unrela
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -17331,6 +17383,7 @@ exports[`history > singleplayer undo/redo > should not override appstate changes
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -17637,6 +17690,7 @@ exports[`history > singleplayer undo/redo > should support appstate name or view
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -17815,6 +17869,7 @@ exports[`history > singleplayer undo/redo > should support bidirectional binding
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -18594,6 +18649,7 @@ exports[`history > singleplayer undo/redo > should support bidirectional binding
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -19271,6 +19327,7 @@ exports[`history > singleplayer undo/redo > should support bidirectional binding
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -19948,6 +20005,7 @@ exports[`history > singleplayer undo/redo > should support bidirectional binding
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -20728,6 +20786,7 @@ exports[`history > singleplayer undo/redo > should support bidirectional binding
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -21527,6 +21586,7 @@ exports[`history > singleplayer undo/redo > should support changes in elements' 
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -22032,6 +22092,7 @@ exports[`history > singleplayer undo/redo > should support duplication of groups
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -22572,6 +22633,7 @@ exports[`history > singleplayer undo/redo > should support element creation, del
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
@@ -23056,6 +23118,7 @@ exports[`history > singleplayer undo/redo > should support linear element creati
   "openPopup": null,
   "openSidebar": null,
   "originSnapOffset": null,
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {

@@ -370,6 +370,7 @@ function CommandPaletteInner({
         actionManager.actions.viewMode,
         actionManager.actions.gridMode,
         actionManager.actions.toggleRulers,
+        actionManager.actions.togglePalette,
         actionManager.actions.toggleGuidesSnap,
         actionManager.actions.clearGuides,
         actionManager.actions.objectsSnapMode,

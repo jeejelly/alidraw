@@ -13,6 +13,7 @@ import {
   actionToggleGridMode,
   actionToggleRulers,
   actionToggleGuidesSnap,
+  actionTogglePalette,
   actionToggleMidpointSnapping,
   actionToggleObjectsSnapMode,
   actionToggleSearchMenu,
@@ -516,6 +517,24 @@ const PreferencesToggleRulersItem = () => {
   );
 };
 
+const PreferencesTogglePaletteItem = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.paletteOpen}
+      shortcut={getShortcutFromShortcutName("togglePalette")}
+      onSelect={(event) => {
+        actionManager.executeAction(actionTogglePalette);
+        event.preventDefault();
+      }}
+    >
+      {t("labels.palette.toggle")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
 const PreferencesToggleGuidesSnapItem = () => {
   const { t } = useI18n();
   const actionManager = useExcalidrawActionManager();
@@ -681,6 +700,7 @@ export const Preferences = ({
             <PreferencesToggleToolLockItem />
             <PreferencesToggleSnapModeItem />
             <PreferencesToggleRulersItem />
+            <PreferencesTogglePaletteItem />
             <PreferencesToggleGuidesSnapItem />
             <PreferencesToggleGridModeItem />
             <PreferencesToggleZenModeItem />

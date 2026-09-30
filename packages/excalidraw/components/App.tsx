@@ -296,6 +296,7 @@ import {
   actionToggleRulers,
   actionToggleGuidesSnap,
   actionClearGuides,
+  actionTogglePalette,
   actionToggleStats,
   actionToggleZenMode,
   actionUnbindText,
@@ -421,6 +422,7 @@ import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { Rulers } from "./Rulers";
+import { PalettePanel } from "./PalettePanel";
 import { PathEditorPanel } from "./PathEditorPanel";
 import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
@@ -2503,6 +2505,7 @@ class App extends React.Component<AppProps, AppState> {
                           />
                           {this.isDefaultUIEnabled() && <CursorHint />}
                           {this.state.rulersEnabled && <Rulers app={this} />}
+                          {this.state.paletteOpen && <PalettePanel app={this} />}
                           {this.state.editingPath && (
                             <PathEditorPanel app={this} />
                           )}
@@ -12764,6 +12767,7 @@ class App extends React.Component<AppProps, AppState> {
         actionToggleRulers,
         actionToggleGuidesSnap,
         actionClearGuides,
+        actionTogglePalette,
         actionToggleObjectsSnapMode,
         actionToggleArrowBinding,
         actionToggleMidpointSnapping,

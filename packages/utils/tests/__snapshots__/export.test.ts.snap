@@ -93,6 +93,7 @@ exports[`exportToSvg > with default arguments 1`] = `
     "x": 0,
     "y": 0,
   },
+  "paletteOpen": false,
   "penDetected": false,
   "penMode": false,
   "preferredSelectionTool": {
