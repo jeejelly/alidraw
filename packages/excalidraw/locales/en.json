@@ -2,6 +2,7 @@
   "labels": {
     "signUp": "Sign up",
     "signIn": "Sign in",
+    "upgrade": "Upgrade",
     "paste": "Paste",
     "pasteAsPlaintext": "Paste as plaintext",
     "pasteCharts": "Paste charts",
@@ -197,6 +198,7 @@
     "boxSelectionOverlap": "Overlap",
     "arrowBinding": "Arrow binding",
     "midpointSnapping": "Snap to midpoints",
+    "showHints": "Show hints",
     "inputDevice": "Input",
     "inputDeviceTrackpad": "Trackpad",
     "inputDeviceMouse": "Mouse"
@@ -249,6 +251,7 @@
     "undo": "Undo",
     "redo": "Redo",
     "resetLibrary": "Reset library",
+    "reset": "Reset",
     "createNewRoom": "Create new room",
     "fullScreen": "Full screen",
     "darkMode": "Dark mode",
@@ -658,6 +661,15 @@
       }
     }
   },
+  "fileDrop": {
+    "replace": "Drop to replace content",
+    "add": "Drop to add to canvas",
+    "importLibrary": "Drop to import library",
+    "replaceHint": "Hold <shift>Shift</shift> to keep existing content",
+    "keepHint": "Your existing content will be kept",
+    "libraryHint": "Library files will append",
+    "replacedToast": "Content replaced. {{shortcut}} to undo"
+  },
   "mermaid": {
     "title": "Mermaid to Excalidraw",
     "button": "Insert",
@@ -665,7 +677,7 @@
     "syntax": "Mermaid Syntax",
     "preview": "Preview",
     "label": "Mermaid",
-    "inputPlaceholder": "Write Mermaid diagram defintion here...",
+    "inputPlaceholder": "Write Mermaid diagram definition here...",
     "autoFixAvailable": "Auto-fix is available"
   },
   "ttd": {
@@ -723,7 +735,9 @@
     },
     "sceneFonts": "In this scene",
     "availableFonts": "Available fonts",
-    "empty": "No fonts found"
+    "empty": "No fonts found",
+    "topPicksTip": "Tip: drag any font onto your top picks to pin it",
+    "resetTopPicks": "Reset to default top picks"
   },
   "userList": {
     "empty": "No users found",

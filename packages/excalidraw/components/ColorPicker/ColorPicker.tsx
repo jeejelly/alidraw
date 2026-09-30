@@ -39,8 +39,8 @@ import { activeColorPickerSectionAtom } from "./colorPickerUtils";
 import {
   ColorPickerDnDContext,
   useColorPickerDnD,
-  useTopPicksDnD,
-} from "./topPicksDnD";
+  useColorTopPicksDnD,
+} from "./colorTopPicksDnD";
 
 import "./ColorPicker.scss";
 
@@ -84,6 +84,7 @@ const ColorPickerPopupContent = ({
   getOpenPopup,
   appState,
   excludedColors,
+  onResetTopPicks,
 }: Pick<
   ColorPickerProps,
   | "type"
@@ -98,6 +99,8 @@ const ColorPickerPopupContent = ({
   | "excludedColors"
 > & {
   getOpenPopup: () => AppState["openPopup"];
+  /** present only while the top picks are customized */
+  onResetTopPicks?: () => void;
 }) => {
   const { container } = useExcalidrawContainer();
   const app = useApp();
@@ -143,7 +146,7 @@ const ColorPickerPopupContent = ({
         // `data-highlighted` styling and break its keyboard navigation)
         if (
           target instanceof app.ownerWindow.HTMLElement &&
-          target.closest(".color-picker__context-menu")
+          target.closest(".top-picks-dnd__context-menu")
         ) {
           event.preventDefault();
           return;
@@ -200,6 +203,7 @@ const ColorPickerPopupContent = ({
           ref={colorPickerContentRef}
           palette={palette}
           excludedColors={excludedColors}
+          onResetTopPicks={onResetTopPicks}
           color={color}
           theme={appState.theme}
           onChange={(changedColor) => {
@@ -326,7 +330,7 @@ const ColorPickerTrigger = ({
       // the active-color swatch can be dragged onto the top-picks strip to
       // pin the current (possibly custom) color
       onPointerDown={
-        dnd ? (event) => dnd.startSwatchDrag(event, color) : undefined
+        dnd ? (event) => dnd.startSourceDrag(event, color) : undefined
       }
     >
       <div className="color-picker__button-outline">{!color && slashIcon}</div>
@@ -387,7 +391,19 @@ const ColorPickerComponent = ({
         ? DEFAULT_ELEMENT_STROKE_PICKS
         : DEFAULT_ELEMENT_BACKGROUND_PICKS);
 
-  const dnd = useTopPicksDnD({
+  const resetTopPicks =
+    isTopPicksCustomizable && customizableTopPicks
+      ? () => {
+          updateData({
+            colorTopPicks: {
+              ...appState.colorTopPicks,
+              [customizableTopPicks]: null,
+            },
+          });
+        }
+      : undefined;
+
+  const dnd = useColorTopPicksDnD({
     enabled: isTopPicksCustomizable,
     picks: effectiveTopPicks,
     onPicksChange: (picks) => {
@@ -435,18 +451,7 @@ const ColorPickerComponent = ({
             type={type}
             topPicks={customTopPicks?.length ? customTopPicks : topPicks}
             isCustomized={!!customTopPicks?.length}
-            onReset={
-              isTopPicksCustomizable && customizableTopPicks
-                ? () => {
-                    updateData({
-                      colorTopPicks: {
-                        ...appState.colorTopPicks,
-                        [customizableTopPicks]: null,
-                      },
-                    });
-                  }
-                : undefined
-            }
+            onReset={resetTopPicks}
           />
         )}
         {!isCompactMode && <ButtonSeparator />}
@@ -493,6 +498,9 @@ const ColorPickerComponent = ({
               updateData={updateData}
               getOpenPopup={() => openRef.current}
               appState={appState}
+              onResetTopPicks={
+                customTopPicks?.length ? resetTopPicks : undefined
+              }
             />
           )}
         </Popover.Root>
