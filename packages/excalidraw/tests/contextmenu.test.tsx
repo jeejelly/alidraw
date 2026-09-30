@@ -213,7 +213,7 @@ describe("contextMenu element", () => {
     const contextMenu = UI.queryContextMenu();
     const contextMenuOptions =
       contextMenu?.querySelectorAll(".context-menu li");
-    const expectedShortcutNames: ShortcutName[] = [
+    const expectedShortcutNames: (ShortcutName | ActionName)[] = [
       "cut",
       "copy",
       "paste",
