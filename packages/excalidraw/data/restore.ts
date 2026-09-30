@@ -85,6 +85,8 @@ import { getNormalizedDimensions } from "@excalidraw/element";
 import { isInvisiblySmallElement } from "@excalidraw/element";
 
 import type { LocalPoint, Radians } from "@excalidraw/math";
+import { sanitizeGuides } from "../guides";
+
 import type {
   ExcalidrawPathElement,
   PathPointHandles,
@@ -1349,6 +1351,7 @@ export const restoreAppState = (
     ),
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
+  nextAppState.guides = sanitizeGuides(nextAppState.guides);
 
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {

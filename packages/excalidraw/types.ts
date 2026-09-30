@@ -1,3 +1,4 @@
+import type { Guide } from "./guides";
 import type {
   IMAGE_MIME_TYPES,
   UserIdleState,
@@ -234,6 +235,7 @@ export type InteractiveCanvasAppState = Readonly<
     isBindingEnabled: AppState["isBindingEnabled"];
     isMidpointSnappingEnabled: AppState["isMidpointSnappingEnabled"];
     gridModeEnabled: AppState["gridModeEnabled"];
+    guides: AppState["guides"];
     suggestedBinding: AppState["suggestedBinding"];
     textToolHover: AppState["textToolHover"];
     isRotating: AppState["isRotating"];
@@ -520,6 +522,12 @@ export interface AppState {
   gridSize: number;
   gridStep: number;
   gridModeEnabled: boolean;
+  /** edge rulers (px) along the top and left of the canvas */
+  rulersEnabled: boolean;
+  /** guide lines dragged off the rulers; saved with the document */
+  guides: readonly Guide[];
+  /** the magnet: dragged elements and points snap to guides (opt-out) */
+  guidesSnapEnabled: boolean;
   viewModeEnabled: boolean;
 
   /** top-most selected groups (i.e. does not include nested groups) */

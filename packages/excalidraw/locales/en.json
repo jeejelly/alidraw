@@ -156,6 +156,11 @@
       "hint": "Type or paste your link here",
       "goToElement": "Go to target element"
     },
+    "rulers": {
+      "toggle": "Rulers and guides",
+      "snap": "Snap to guides (magnet)",
+      "clear": "Clear all guides"
+    },
     "path": {
       "edit": "Edit path points",
       "convertToPath": "Convert to path",

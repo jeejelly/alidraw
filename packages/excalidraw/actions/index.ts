@@ -89,6 +89,11 @@ export { actionUnbindText, actionBindText } from "./actionBoundText";
 export { actionLink } from "./actionLink";
 export { actionToggleElementLock } from "./actionElementLock";
 export { actionToggleLinearEditor } from "./actionLinearEditor";
+export {
+  actionToggleRulers,
+  actionToggleGuidesSnap,
+  actionClearGuides,
+} from "./actionGuides";
 export { actionConvertShapeToPath, actionEditPath } from "./actionPath";
 
 export { actionToggleSearchMenu } from "./actionToggleSearchMenu";

@@ -293,6 +293,9 @@ import {
   actionSendBackward,
   actionSendToBack,
   actionToggleGridMode,
+  actionToggleRulers,
+  actionToggleGuidesSnap,
+  actionClearGuides,
   actionToggleStats,
   actionToggleZenMode,
   actionUnbindText,
@@ -416,6 +419,8 @@ import { AppText } from "./App.text";
 import { AppTextTool } from "./App.textTool";
 import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
+import { AppGuides } from "./App.guides";
+import { Rulers } from "./Rulers";
 import { PathEditorPanel } from "./PathEditorPanel";
 import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
@@ -734,6 +739,7 @@ class App extends React.Component<AppProps, AppState> {
 
   drawShape = new AppDrawShape(this);
   path = new AppPath(this);
+  guides = new AppGuides(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
   lassoTrail = new LassoTrail(this);
@@ -2496,6 +2502,7 @@ class App extends React.Component<AppProps, AppState> {
                             ]}
                           />
                           {this.isDefaultUIEnabled() && <CursorHint />}
+                          {this.state.rulersEnabled && <Rulers app={this} />}
                           {this.state.editingPath && (
                             <PathEditorPanel app={this} />
                           )}
@@ -3925,6 +3932,7 @@ class App extends React.Component<AppProps, AppState> {
     this.laserTrails.stop();
     this.drawShape.stop();
     this.path.reset();
+    this.guides.destroy();
     this.toolDrag.cancel();
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
@@ -6202,6 +6210,9 @@ class App extends React.Component<AppProps, AppState> {
       | "shiftKey"
     >,
   ) => {
+    if (this.isInteractionEnabled() && this.guides.handleDoubleClick(event)) {
+      return;
+    }
     if (this.isInteractionEnabled() && this.path.handleDoubleClick()) {
       return;
     }
@@ -7714,6 +7725,11 @@ class App extends React.Component<AppProps, AppState> {
     // else it will send pointer state & laser pointer events in collab when
     // panning
     if (this.pan.start(event)) {
+      return;
+    }
+
+    // a guide line under the pointer is dragged before anything else
+    if (this.guides.handlePointerDown(event)) {
       return;
     }
 
@@ -12745,6 +12761,9 @@ class App extends React.Component<AppProps, AppState> {
         actionUnlockAllElements,
         CONTEXT_MENU_SEPARATOR,
         actionToggleGridMode,
+        actionToggleRulers,
+        actionToggleGuidesSnap,
+        actionClearGuides,
         actionToggleObjectsSnapMode,
         actionToggleArrowBinding,
         actionToggleMidpointSnapping,

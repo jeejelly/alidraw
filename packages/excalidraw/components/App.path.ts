@@ -27,6 +27,8 @@ import type {
   PathPointMode,
 } from "@excalidraw/element/types";
 
+import { getGuideSnap } from "../guides";
+
 import type React from "react";
 
 import type App from "./App";
@@ -113,6 +115,24 @@ export class AppPath {
 
   private scenePointer = (event: { clientX: number; clientY: number }) =>
     viewportCoordsToSceneCoords(event, this.app.state);
+
+  /** the magnet: a scene point pulled onto a nearby guide (Ctrl/Cmd skips) */
+  private snapToGuides = (
+    p: Pt,
+    event: { ctrlKey: boolean; metaKey: boolean },
+  ): Pt => {
+    const { guides, guidesSnapEnabled, zoom } = this.app.state;
+    if (
+      !guides.length ||
+      !guidesSnapEnabled ||
+      event.ctrlKey ||
+      event.metaKey
+    ) {
+      return p;
+    }
+    const snap = getGuideSnap([[p.x, p.y]], guides, zoom.value);
+    return { x: p.x + snap.x, y: p.y + snap.y };
+  };
 
   // ---------------------------------------------------------------------------
   // element updates
@@ -452,17 +472,26 @@ export class AppPath {
     return false;
   };
 
-  private editPointerMove = (p: Pt) => {
+  private editPointerMove = (
+    p: Pt,
+    event: { ctrlKey: boolean; metaKey: boolean },
+  ) => {
     const g = this.gesture;
     if (!g || g.kind === "pen-handle") {
       return;
     }
     const local = this.toLocal(g.orig, p);
     if (g.kind === "anchor") {
-      const to = pointFrom<LocalPoint>(
+      let to = pointFrom<LocalPoint>(
         local[0] + g.grab[0],
         local[1] + g.grab[1],
       );
+      // the anchor, not the pointer, is pulled onto a guide
+      const anchor = this.toScene(g.orig, to);
+      const snapped = this.snapToGuides({ x: anchor[0], y: anchor[1] }, event);
+      if (snapped.x !== anchor[0] || snapped.y !== anchor[1]) {
+        to = this.toLocal(g.orig, snapped);
+      }
       this.apply(g.orig, movePathPoint(g.orig, g.index, to));
     } else {
       const anchor = g.orig.points[g.index];
@@ -514,7 +543,7 @@ export class AppPath {
     if (event.button !== 0) {
       return false;
     }
-    const p = this.scenePointer(event);
+    const p = this.snapToGuides(this.scenePointer(event), event);
     if (this.app.state.activeTool.type === "path") {
       return this.penPointerDown(p, event);
     }
@@ -618,9 +647,9 @@ export class AppPath {
     const onMove = (event: PointerEvent) => {
       const p = this.scenePointer(event);
       if (this.creating) {
-        this.penPointerMove(p);
+        this.penPointerMove(this.snapToGuides(p, event));
       } else {
-        this.editPointerMove(p);
+        this.editPointerMove(p, event);
       }
     };
     const onUp = () => {

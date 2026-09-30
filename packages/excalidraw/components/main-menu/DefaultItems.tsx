@@ -11,6 +11,8 @@ import {
   actionShortcuts,
   actionToggleArrowBinding,
   actionToggleGridMode,
+  actionToggleRulers,
+  actionToggleGuidesSnap,
   actionToggleMidpointSnapping,
   actionToggleObjectsSnapMode,
   actionToggleSearchMenu,
@@ -42,10 +44,7 @@ import DropdownMenuItemCheckbox from "../dropdownMenu/DropdownMenuItemCheckbox";
 import DropdownMenuItemContentRadio from "../dropdownMenu/DropdownMenuItemContentRadio";
 import DropdownMenuItemLink from "../dropdownMenu/DropdownMenuItemLink";
 import DropdownMenuSub from "../dropdownMenu/DropdownMenuSub";
-import {
-  settingsIcon,
-  emptyIcon,
-} from "../icons";
+import { settingsIcon, emptyIcon } from "../icons";
 import {
   boltIcon,
   DeviceDesktopIcon,
@@ -499,6 +498,41 @@ const PreferencesToggleSnapModeItem = () => {
   );
 };
 
+const PreferencesToggleRulersItem = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.rulersEnabled}
+      shortcut={getShortcutFromShortcutName("toggleRulers")}
+      onSelect={(event) => {
+        actionManager.executeAction(actionToggleRulers);
+        event.preventDefault();
+      }}
+    >
+      {t("labels.rulers.toggle")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
+const PreferencesToggleGuidesSnapItem = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.guidesSnapEnabled}
+      onSelect={(event) => {
+        actionManager.executeAction(actionToggleGuidesSnap);
+        event.preventDefault();
+      }}
+    >
+      {t("labels.rulers.snap")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
 const PreferencesToggleArrowBindingItem = () => {
   const { t } = useI18n();
   const actionManager = useExcalidrawActionManager();
@@ -646,6 +680,8 @@ export const Preferences = ({
             <PreferencesInputDeviceItem />
             <PreferencesToggleToolLockItem />
             <PreferencesToggleSnapModeItem />
+            <PreferencesToggleRulersItem />
+            <PreferencesToggleGuidesSnapItem />
             <PreferencesToggleGridModeItem />
             <PreferencesToggleZenModeItem />
             <PreferencesToggleViewModeItem />

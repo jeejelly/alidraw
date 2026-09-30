@@ -1720,6 +1720,33 @@ const _renderInteractiveScene = ({
     normalizedHeight,
   });
 
+  if (appState.guides.length) {
+    context.save();
+    context.lineWidth = 1;
+    context.strokeStyle = getThemedColor("#e0449b", appState.theme);
+    context.setLineDash([]);
+    for (const guide of appState.guides) {
+      context.beginPath();
+      if (guide.axis === "x") {
+        const x =
+          Math.round(
+            (guide.position + appState.scrollX) * appState.zoom.value,
+          ) + 0.5;
+        context.moveTo(x, 0);
+        context.lineTo(x, appState.height);
+      } else {
+        const y =
+          Math.round(
+            (guide.position + appState.scrollY) * appState.zoom.value,
+          ) + 0.5;
+        context.moveTo(0, y);
+        context.lineTo(appState.width, y);
+      }
+      context.stroke();
+    }
+    context.restore();
+  }
+
   // Apply zoom
   context.save();
   context.scale(appState.zoom.value, appState.zoom.value);

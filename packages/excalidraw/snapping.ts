@@ -8,6 +8,7 @@ import {
 } from "@excalidraw/math";
 
 import { TOOL_TYPE, KEYS } from "@excalidraw/common";
+
 import {
   getCommonBounds,
   getDraggedElementsBounds,
@@ -31,6 +32,8 @@ import type {
   ExcalidrawElement,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
+
+import { getGuideSnap } from "./guides";
 
 import type {
   AppClassProperties,
@@ -689,7 +692,7 @@ const getPointSnaps = (
   }
 };
 
-export const snapDraggedElements = (
+const snapDraggedElementsToObjects = (
   elements: ExcalidrawElement[],
   dragOffset: Vector2D,
   app: AppClassProperties,
@@ -1105,7 +1108,7 @@ const createGapSnapLines = (
   );
 };
 
-export const snapResizingElements = (
+const snapResizingElementsToObjects = (
   // use the latest elements to create snap lines
   selectedElements: readonly NonDeletedExcalidrawElement[],
   // while using the original elements to appy dragOffset to calculate snaps
@@ -1243,7 +1246,7 @@ export const snapResizingElements = (
   };
 };
 
-export const snapNewElement = (
+const snapNewElementToObjects = (
   newElement: NonDeletedExcalidrawElement,
   app: AppClassProperties,
   event: KeyboardModifiersObject,
@@ -1410,5 +1413,183 @@ export const isActiveToolNonLinearSnappable = (
     activeToolType === TOOL_TYPE.magicframe ||
     activeToolType === TOOL_TYPE.image ||
     activeToolType === TOOL_TYPE.text
+  );
+};
+
+// -----------------------------------------------------------------------------
+//                                   guides
+// -----------------------------------------------------------------------------
+
+type SnapResult = {
+  snapOffset: Vector2D;
+  snapLines: SnapLine[];
+};
+
+const isGuideSnappingEnabled = (
+  app: AppClassProperties,
+  event: KeyboardModifiersObject,
+) =>
+  app.state.guides.length > 0 &&
+  app.state.guidesSnapEnabled &&
+  !(event && event[KEYS.CTRL_OR_CMD]);
+
+/** a guide wins an axis when it is nearer than the object snap (or none) */
+const mergeGuideSnap = (
+  result: SnapResult,
+  points: readonly GlobalPoint[],
+  app: AppClassProperties,
+): SnapResult => {
+  const guide = getGuideSnap(points, app.state.guides, app.state.zoom.value);
+  const snapOffset = { ...result.snapOffset };
+  if (
+    guide.guides.some((g) => g.axis === "x") &&
+    (snapOffset.x === 0 || Math.abs(guide.x) < Math.abs(snapOffset.x))
+  ) {
+    snapOffset.x = guide.x;
+  }
+  if (
+    guide.guides.some((g) => g.axis === "y") &&
+    (snapOffset.y === 0 || Math.abs(guide.y) < Math.abs(snapOffset.y))
+  ) {
+    snapOffset.y = guide.y;
+  }
+  return { ...result, snapOffset };
+};
+
+/** anchors of paths: they snap to guides as well as the bounding box */
+const getPathAnchors = (
+  elements: readonly NonDeletedExcalidrawElement[],
+  elementsMap: ElementsMap,
+  offset: Vector2D,
+): GlobalPoint[] => {
+  const anchors: GlobalPoint[] = [];
+  for (const element of elements) {
+    if (element.type !== "path") {
+      continue;
+    }
+    const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
+    for (const p of element.points) {
+      const r = pointRotateRads(
+        pointFrom<GlobalPoint>(element.x + p[0], element.y + p[1]),
+        pointFrom<GlobalPoint>(cx, cy),
+        element.angle,
+      );
+      anchors.push(pointFrom(r[0] + offset.x, r[1] + offset.y));
+    }
+  }
+  return anchors;
+};
+
+export const snapDraggedElements = (
+  elements: ExcalidrawElement[],
+  dragOffset: Vector2D,
+  app: AppClassProperties,
+  event: KeyboardModifiersObject,
+  elementsMap: ElementsMap,
+): SnapResult => {
+  const result = snapDraggedElementsToObjects(
+    elements,
+    dragOffset,
+    app,
+    event,
+    elementsMap,
+  );
+  if (!isGuideSnappingEnabled(app, event)) {
+    return result;
+  }
+  const selected = getSelectedElements(elements, app.state);
+  if (!selected.length) {
+    return result;
+  }
+  return mergeGuideSnap(
+    result,
+    [
+      ...getElementsCorners(selected, elementsMap, { dragOffset }),
+      ...getPathAnchors(selected, elementsMap, dragOffset),
+    ],
+    app,
+  );
+};
+
+export const snapResizingElements = (
+  selectedElements: readonly NonDeletedExcalidrawElement[],
+  selectedOriginalElements: readonly NonDeletedExcalidrawElement[],
+  app: AppClassProperties,
+  event: KeyboardModifiersObject,
+  dragOffset: Vector2D,
+  transformHandle: MaybeTransformHandleType,
+): SnapResult => {
+  const result = snapResizingElementsToObjects(
+    selectedElements,
+    selectedOriginalElements,
+    app,
+    event,
+    dragOffset,
+    transformHandle,
+  );
+  if (
+    !isGuideSnappingEnabled(app, event) ||
+    !transformHandle ||
+    !selectedOriginalElements.length ||
+    (selectedOriginalElements.length === 1 &&
+      !areRoughlyEqual(selectedOriginalElements[0].angle, 0))
+  ) {
+    return result;
+  }
+  let [minX, minY, maxX, maxY] = getCommonBounds(selectedOriginalElements);
+  if (transformHandle.includes("e")) {
+    maxX += dragOffset.x;
+  } else if (transformHandle.includes("w")) {
+    minX += dragOffset.x;
+  }
+  if (transformHandle.includes("n")) {
+    minY += dragOffset.y;
+  } else if (transformHandle.includes("s")) {
+    maxY += dragOffset.y;
+  }
+  // only the edges the handle moves
+  const points: GlobalPoint[] = [];
+  const xs = transformHandle.includes("e")
+    ? [maxX]
+    : transformHandle.includes("w")
+    ? [minX]
+    : [];
+  const ys = transformHandle.includes("s")
+    ? [maxY]
+    : transformHandle.includes("n")
+    ? [minY]
+    : [];
+  for (const x of xs) {
+    points.push(pointFrom(x, (minY + maxY) / 2));
+  }
+  for (const y of ys) {
+    points.push(pointFrom((minX + maxX) / 2, y));
+  }
+  return mergeGuideSnap(result, points, app);
+};
+
+export const snapNewElement = (
+  newElement: NonDeletedExcalidrawElement,
+  app: AppClassProperties,
+  event: KeyboardModifiersObject,
+  origin: Vector2D,
+  dragOffset: Vector2D,
+  elementsMap: ElementsMap,
+): SnapResult => {
+  const result = snapNewElementToObjects(
+    newElement,
+    app,
+    event,
+    origin,
+    dragOffset,
+    elementsMap,
+  );
+  if (!isGuideSnappingEnabled(app, event)) {
+    return result;
+  }
+  return mergeGuideSnap(
+    result,
+    [pointFrom(origin.x + dragOffset.x, origin.y + dragOffset.y)],
+    app,
   );
 };
