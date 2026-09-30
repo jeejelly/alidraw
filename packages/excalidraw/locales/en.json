@@ -173,7 +173,21 @@
       "imported": "Imported {{count}} swatches",
       "importFailed": "No colours found in that file",
       "empty": "No swatches yet",
-      "more": "Style and text"
+      "more": "Style and text",
+      "transform": "Transform",
+      "appearance": "Appearance",
+      "swatches": "Swatches",
+      "type": "Type",
+      "installed": "Installed",
+      "hex": "Colour (hex)",
+      "pick": "Pick a colour",
+      "swap": "Swap fill and stroke",
+      "defaults": "Default colours",
+      "none": "None",
+      "dock": "Dock to the right",
+      "noLayers": "Nothing on the canvas yet",
+      "tab_design": "Design",
+      "tab_layers": "Layers"
     },
     "rulers": {
       "toggle": "Rulers and guides",

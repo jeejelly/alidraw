@@ -18,6 +18,7 @@ import {
 import { Excalidraw } from "../index";
 
 import { API } from "./helpers/api";
+import { Keyboard } from "./helpers/ui";
 import { render, fireEvent, screen, act, unmountComponent } from "./test-utils";
 
 unmountComponent();
@@ -104,7 +105,7 @@ describe("palette store", () => {
       position: { x: "1" },
     });
     expect(state.swatches).toEqual([{ id: "a", name: "ok", color: "#123456" }]);
-    expect(state.layout).toBe("horizontal");
+    expect(state.layout).toBe("docked");
     localStorage.setItem("excalidraw-palette", "{not json");
     resetPaletteCache();
     expect(getPaletteState().swatches).toEqual([]);
@@ -204,13 +205,21 @@ describe("palette panel", () => {
     expect(getPaletteState().swatches).toHaveLength(0);
   });
 
-  it("switches between horizontal and vertical layout and is dragged", async () => {
+  it("docks to the right by default and floats as a column or a strip", async () => {
     const panel = await open();
-    const width = () => (panel as HTMLElement).style.width;
-    expect(width()).toBe("420px");
+    expect(panel.getAttribute("data-layout")).toBe("docked");
+    // the drag handle only moves a floating panel
+    expect(
+      (screen.getByTestId("palette-orientation") as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    fireEvent.click(screen.getByTestId("palette-dock"));
+    expect(getPaletteState().layout).toBe("vertical");
+    fireEvent.click(screen.getByTestId("palette-orientation"));
+    expect(getPaletteState().layout).toBe("horizontal");
+    expect(panel.className).toContain("inspector--horizontal");
     fireEvent.click(screen.getByTestId("palette-orientation"));
     expect(getPaletteState().layout).toBe("vertical");
-    expect(width()).toBe("170px");
 
     const handle = screen.getByTestId("palette-handle");
     const start = getPaletteState().position;
@@ -243,5 +252,124 @@ describe("palette panel", () => {
     expect(getPaletteState().swatches).toEqual([
       expect.objectContaining({ name: "Red", color: "#ff0000" }),
     ]);
+  });
+});
+
+describe("inspector controls", () => {
+  const setup = async () => {
+    await render(<Excalidraw />);
+    act(() => {
+      API.executeAction(actionTogglePalette);
+    });
+    const rect = API.createElement({
+      type: "rectangle",
+      strokeWidth: 2,
+      opacity: 100,
+    });
+    API.setElements([rect]);
+    API.setSelectedElements([rect]);
+    return rect;
+  };
+
+  it("opacity and stroke weight are a slider plus a value pill, in sync", async () => {
+    await setup();
+    const slider = screen.getByTestId("inspector-opacity-slider");
+    fireEvent.change(slider, { target: { value: "40" } });
+    expect(h.elements[0].opacity).toBe(40);
+    const pill = screen.getByTestId(
+      "inspector-opacity-value",
+    ) as HTMLInputElement;
+    expect(pill.value).toBe("40");
+    fireEvent.change(pill, { target: { value: "75" } });
+    fireEvent.keyDown(pill, { key: "Enter" });
+    expect(h.elements[0].opacity).toBe(75);
+
+    const width = screen.getByTestId("inspector-stroke-width-value");
+    fireEvent.change(width, { target: { value: "7.5" } });
+    fireEvent.blur(width);
+    expect(h.elements[0].strokeWidth).toBe(7.5);
+    fireEvent.change(screen.getByTestId("inspector-stroke-width-slider"), {
+      target: { value: "12" },
+    });
+    expect(h.elements[0].strokeWidth).toBe(12);
+  });
+
+  it("clamps typed values and ignores junk", async () => {
+    await setup();
+    const pill = screen.getByTestId("inspector-opacity-value");
+    fireEvent.change(pill, { target: { value: "500" } });
+    fireEvent.blur(pill);
+    expect(h.elements[0].opacity).toBe(100);
+    fireEvent.change(pill, { target: { value: "abc" } });
+    fireEvent.blur(pill);
+    expect(h.elements[0].opacity).toBe(100);
+  });
+
+  it("sets stroke style and sloppiness, and swaps fill with stroke", async () => {
+    const rect = await setup();
+    API.updateScene({
+      elements: [
+        { ...rect, strokeColor: "#ff0000", backgroundColor: "#00ff00" } as any,
+      ],
+    });
+    API.setSelectedElements([h.elements[0] as any]);
+    fireEvent.click(screen.getByTestId("inspector-stroke-style-dashed"));
+    expect(h.elements[0].strokeStyle).toBe("dashed");
+    fireEvent.click(screen.getByTestId("inspector-roughness-2"));
+    expect(h.elements[0].roughness).toBe(2);
+    fireEvent.click(screen.getByTestId("palette-swap"));
+    expect(h.elements[0].strokeColor).toBe("#00ff00");
+    expect(h.elements[0].backgroundColor).toBe("#ff0000");
+    fireEvent.click(screen.getByTestId("palette-none"));
+    expect(h.elements[0].strokeColor).toBe("transparent");
+  });
+
+  it("types a hex colour for the target", async () => {
+    await setup();
+    const hex = screen.getByTestId("palette-hex");
+    fireEvent.change(hex, { target: { value: "#0af" } });
+    fireEvent.blur(hex);
+    expect(h.elements[0].strokeColor).toBe("#00aaff");
+  });
+
+  it("lists layers top-most first and selects on click", async () => {
+    await render(<Excalidraw />);
+    act(() => {
+      API.executeAction(actionTogglePalette);
+    });
+    const a = API.createElement({ type: "rectangle" });
+    const b = API.createElement({ type: "ellipse" });
+    API.setElements([a, b]);
+    fireEvent.click(screen.getByTestId("inspector-tab-layers"));
+    const rows = screen.getAllByTestId("inspector-layer");
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining("Ellipse"),
+      expect.stringContaining("Rectangle"),
+    ]);
+    fireEvent.click(rows[1]);
+    expect(h.state.selectedElementIds[a.id]).toBe(true);
+  });
+
+  it("hides the old style panel while the inspector is open", async () => {
+    await setup();
+    expect(document.querySelector(".selected-shape-actions")).toBeNull();
+    act(() => {
+      API.executeAction(actionTogglePalette);
+    });
+    expect(document.querySelector(".selected-shape-actions")).not.toBeNull();
+  });
+
+  it("Ctrl+T opens the inspector and focuses the width", async () => {
+    await render(<Excalidraw handleKeyboardGlobally />);
+    const rect = API.createElement({
+      type: "rectangle",
+      width: 100,
+      height: 50,
+    });
+    API.setElements([rect]);
+    API.setSelectedElements([rect]);
+    Keyboard.withModifierKeys({ ctrl: true }, () => Keyboard.codePress("KeyT"));
+    await screen.findByTestId("palette-panel");
+    expect(h.state.paletteOpen).toBe(true);
   });
 });

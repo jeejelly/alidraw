@@ -651,10 +651,30 @@ export class AppPath {
         return true;
       }
       if (
-        (event.key === KEYS.DELETE || event.key === KEYS.BACKSPACE) &&
+        (event.key === KEYS.DELETE ||
+          event.key === KEYS.BACKSPACE ||
+          // Illustrator's delete-anchor-point key
+          event.key === "-") &&
         this.app.state.editingPath.selectedPoint != null
       ) {
         this.deleteSelectedPoint();
+        return true;
+      }
+      // Illustrator's Anchor Point tool (Shift+C): corner <-> smooth
+      if (
+        event.shiftKey &&
+        event.key.toLowerCase() === "c" &&
+        !event[KEYS.CTRL_OR_CMD] &&
+        this.app.state.editingPath.selectedPoint != null
+      ) {
+        const element = this.getEditedElement();
+        const index = this.app.state.editingPath.selectedPoint;
+        if (element) {
+          this.setPointMode(
+            element.handles[index]?.mode === "corner" ? "smooth" : "corner",
+            index,
+          );
+        }
         return true;
       }
     }

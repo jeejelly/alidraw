@@ -9,7 +9,7 @@ import {
   isPathElement,
   newElementWith,
 } from "@excalidraw/element";
-import { arrayToMap } from "@excalidraw/common";
+import { CODES, KEYS, arrayToMap } from "@excalidraw/common";
 
 import type {
   ExcalidrawElement,
@@ -107,6 +107,12 @@ export const actionJoinPaths = register({
   category: DEFAULT_CATEGORIES.elements,
   keywords: ["path", "merge", "connect"],
   trackEvent: { category: "element" },
+  // Illustrator: Ctrl+J joins
+  keyTest: (event) =>
+    event[KEYS.CTRL_OR_CMD] &&
+    !event.shiftKey &&
+    !event.altKey &&
+    event.code === CODES.J,
   predicate: (elements, appState, _, app) => {
     const selected = app.scene.getSelectedElements(appState);
     return selected.length === 2 && selected.every(isOpenPath);

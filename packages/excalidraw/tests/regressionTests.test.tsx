@@ -147,7 +147,7 @@ describe("regression tests", () => {
     [`4${KEYS.O}`, "ellipse", true],
     [`5${KEYS.A}`, "arrow", true],
     [`6${KEYS.L}`, "line", true],
-    [`7${KEYS.P}`, "freedraw", false],
+    [`7${KEYS.X}`, "freedraw", false],
   ] as [string, ExcalidrawElement["type"], boolean][]) {
     for (const key of keys) {
       it(`key ${key} selects ${shape} tool`, () => {

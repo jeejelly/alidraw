@@ -6,11 +6,7 @@ import { pointFrom, type LocalPoint } from "@excalidraw/math";
 
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
 
-import {
-  actionConvertShapeToPath,
-  actionEditPath,
-  actionJoinPaths,
-} from "../actions";
+import { actionConvertShapeToPath, actionEditPath } from "../actions";
 import { restoreElements } from "../data/restore";
 import { Excalidraw } from "../index";
 
@@ -231,6 +227,18 @@ describe("path editing", () => {
     expect([path.x, path.y]).toEqual([100, 100]);
   });
 
+  it("Illustrator keys: Shift+C flips corner/smooth, - deletes the anchor", async () => {
+    const { canvas } = await setup();
+    API.executeAction(actionEditPath);
+    click(canvas, 200, 100);
+    Keyboard.withModifierKeys({ shift: true }, () => Keyboard.keyPress("C"));
+    expect(getPath().handles[1].mode).toBe("smooth");
+    Keyboard.withModifierKeys({ shift: true }, () => Keyboard.keyPress("C"));
+    expect(getPath().handles[1].mode).toBe("corner");
+    Keyboard.keyPress("-");
+    expect(getPath().points).toHaveLength(2);
+  });
+
   it("clicking elsewhere leaves the editor", async () => {
     const { canvas } = await setup();
     API.executeAction(actionEditPath);
@@ -314,7 +322,7 @@ describe("open, close, split and join in the editor", () => {
   });
 
   it("joins two selected open paths at their nearest ends", async () => {
-    await render(<Excalidraw />);
+    await render(<Excalidraw handleKeyboardGlobally />);
     const a = mk(0, 0, [
       [0, 0],
       [100, 0],
@@ -325,7 +333,7 @@ describe("open, close, split and join in the editor", () => {
     ]);
     API.setElements([a, b]);
     API.setSelectedElements([a, b]);
-    API.executeAction(actionJoinPaths);
+    Keyboard.withModifierKeys({ ctrl: true }, () => Keyboard.codePress("KeyJ"));
     const live = h.elements.filter(
       (e) => !e.isDeleted,
     ) as ExcalidrawPathElement[];

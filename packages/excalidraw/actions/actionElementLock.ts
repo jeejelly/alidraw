@@ -146,9 +146,14 @@ export const actionToggleElementLock = register({
   },
   keyTest: (event, appState, elements, app) => {
     return (
-      event.key.toLocaleLowerCase() === KEYS.L &&
-      event[KEYS.CTRL_OR_CMD] &&
-      event.shiftKey &&
+      ((event.key.toLocaleLowerCase() === KEYS.L &&
+        event[KEYS.CTRL_OR_CMD] &&
+        event.shiftKey) ||
+        // Illustrator: Ctrl+2 locks the selection
+        (event.code === "Digit2" &&
+          event[KEYS.CTRL_OR_CMD] &&
+          !event.shiftKey &&
+          !event.altKey)) &&
       app.scene.getSelectedElements({
         selectedElementIds: appState.selectedElementIds,
         includeBoundTextElement: false,

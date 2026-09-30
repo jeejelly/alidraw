@@ -14,6 +14,7 @@ export {
   actionChangeStrokeWidth,
   actionChangeFillStyle,
   actionChangeSloppiness,
+  actionChangeStrokeStyle,
   actionChangeFreedrawMode,
   actionChangeOpacity,
   actionChangeFontSize,
@@ -89,7 +90,11 @@ export { actionUnbindText, actionBindText } from "./actionBoundText";
 export { actionLink } from "./actionLink";
 export { actionToggleElementLock } from "./actionElementLock";
 export { actionToggleLinearEditor } from "./actionLinearEditor";
-export { actionTogglePalette } from "./actionPalette";
+export {
+  actionTogglePalette,
+  actionOpenTransform,
+  actionChangeStrokeWidthValue,
+} from "./actionPalette";
 export {
   actionToggleRulers,
   actionToggleGuidesSnap,

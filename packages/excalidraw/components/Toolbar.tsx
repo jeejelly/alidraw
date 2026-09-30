@@ -190,6 +190,7 @@ const ExtraToolsDropdown = ({
           onSelect={() => app.setActiveTool({ type: "path" })}
           icon={pathToolIcon}
           data-testid="toolbar-path"
+          shortcut={KEYS.P.toLocaleUpperCase()}
           selected={pathToolSelected}
           disabled={isToolButtonDisabled(app, "path")}
         >

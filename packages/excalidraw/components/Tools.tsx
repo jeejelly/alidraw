@@ -111,7 +111,8 @@ export const TOOLS = defineTools({
   },
   freedraw: {
     icon: FreedrawIcon,
-    letterKey: [KEYS.P, KEYS.X],
+    // Illustrator: P is the pen (path tool), so drawing freehand is X
+    letterKey: KEYS.X,
     numericKey: KEYS["7"],
   },
   text: {
@@ -156,6 +157,7 @@ export const TOOLS = defineTools({
   },
   path: {
     icon: pathToolIcon,
+    letterKey: KEYS.P,
     fillable: true,
   },
   lasso: {

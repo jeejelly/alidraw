@@ -258,7 +258,7 @@ export const actionChangeLocalFont = register<string | null>({
   },
 });
 
-const LocalFontPicker = ({
+export const LocalFontPicker = ({
   current,
   onSelect,
 }: {

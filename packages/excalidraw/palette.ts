@@ -4,7 +4,8 @@
  */
 export type Swatch = Readonly<{ id: string; name: string; color: string }>;
 
-export type PaletteLayout = "horizontal" | "vertical";
+/** docked to the right edge, or floating as a strip / column */
+export type PaletteLayout = "docked" | "horizontal" | "vertical";
 
 export type PaletteState = Readonly<{
   swatches: readonly Swatch[];
@@ -18,7 +19,7 @@ export const PALETTE_SWATCH_LIMIT = 500;
 
 export const DEFAULT_PALETTE_STATE: PaletteState = {
   swatches: [],
-  layout: "horizontal",
+  layout: "docked",
   position: { x: 80, y: 120 },
 };
 
@@ -74,7 +75,10 @@ export const sanitizePaletteState = (raw: unknown): PaletteState => {
   const pos = value.position;
   return {
     swatches,
-    layout: value.layout === "vertical" ? "vertical" : "horizontal",
+    layout:
+      value.layout === "vertical" || value.layout === "horizontal"
+        ? value.layout
+        : "docked",
     position:
       pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)
         ? { x: pos.x, y: pos.y }
