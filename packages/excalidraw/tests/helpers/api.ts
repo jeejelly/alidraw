@@ -580,9 +580,9 @@ export class API {
     await fireEvent(GlobalTestState.interactiveCanvas, fileDropEvent);
   };
 
-  static executeAction = (action: Action) => {
+  static executeAction = (action: Action, value?: unknown) => {
     act(() => {
-      h.app.actionManager.executeAction(action);
+      h.app.actionManager.executeAction(action, "api", value);
     });
   };
 }

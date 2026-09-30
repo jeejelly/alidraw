@@ -318,8 +318,7 @@ export const textWysiwyg = ({
     }
     const currentFont = editable.style.fontFamily.replace(/"/g, "");
     if (
-      getFontFamilyString({ fontFamily: updatedTextElement.fontFamily }) !==
-      currentFont
+      getFontFamilyString(updatedTextElement).replace(/"/g, "") !== currentFont
     ) {
       return true;
     }

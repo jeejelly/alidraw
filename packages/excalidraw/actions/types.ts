@@ -129,6 +129,8 @@ export type ActionName =
   | "toggleElementLock"
   | "toggleLinearEditor"
   | "convertShapeToPath"
+  | "changeFontSizeInput"
+  | "changeLocalFont"
   | "toggleRulers"
   | "toggleGuidesSnap"
   | "clearGuides"

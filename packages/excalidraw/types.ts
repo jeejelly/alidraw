@@ -1,3 +1,4 @@
+import type { FontUnit } from "@excalidraw/common";
 import type { Guide } from "./guides";
 import type {
   IMAGE_MIME_TYPES,
@@ -459,6 +460,8 @@ export interface AppState {
   currentItemStrokeVariability: StrokeVariability;
   currentItemOpacity: number;
   currentItemFontFamily: FontFamilyValues;
+  currentItemFontFamilyName: string | null;
+  currentItemFontUnit: FontUnit;
   currentItemFontSize: number;
   currentItemTextAlign: TextAlign;
   currentItemStartArrowhead: Arrowhead | null;

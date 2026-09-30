@@ -340,6 +340,8 @@ export const newTextElement = (
     originalText?: string;
     fontSize?: number;
     fontFamily?: FontFamilyValues;
+    fontFamilyName?: string | null;
+    fontUnit?: ExcalidrawTextElement["fontUnit"];
     textAlign?: TextAlign;
     verticalAlign?: VerticalAlign;
     containerId?: ExcalidrawTextContainer["id"] | null;
@@ -355,7 +357,11 @@ export const newTextElement = (
   const text = normalizeText(opts.text);
   const metrics = measureText(
     text,
-    getFontString({ fontFamily, fontSize }),
+    getFontString({
+      fontFamily,
+      fontSize,
+      fontFamilyName: opts.fontFamilyName,
+    }),
     lineHeight,
   );
   const textAlign = opts.textAlign || DEFAULT_TEXT_ALIGN;
@@ -371,6 +377,8 @@ export const newTextElement = (
     fontSize,
     baseFontSize: opts.baseFontSize ?? null,
     fontFamily,
+    ...(opts.fontFamilyName ? { fontFamilyName: opts.fontFamilyName } : {}),
+    ...(opts.fontUnit ? { fontUnit: opts.fontUnit } : {}),
     textAlign,
     verticalAlign,
     x: opts.x - offsets.x,

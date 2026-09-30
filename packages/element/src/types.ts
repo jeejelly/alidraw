@@ -257,6 +257,14 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
     fontSize: number;
     fontFamily: FontFamilyValues;
     /**
+     * A font installed on the machine that draws the text, when picked from
+     * the local fonts. `fontFamily` stays as the fallback (also what other
+     * editors that don't know this field use).
+     */
+    fontFamilyName?: string | null;
+    /** the unit `fontSize` is expressed in; absent means px */
+    fontUnit?: "px" | "dp";
+    /**
      * The font size the user picked, from which the layout derives `fontSize`.
      * Today only sticky note labels have one: the auto-fit shrinks below it
      * and never above it (compare `baseHeight`, which the note grows above).

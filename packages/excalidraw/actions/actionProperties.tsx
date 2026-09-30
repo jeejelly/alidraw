@@ -291,7 +291,7 @@ const offsetElementAfterFontResize = (
   });
 };
 
-const changeFontSize = (
+export const changeFontSize = (
   elements: readonly ExcalidrawElement[],
   appState: AppState,
   app: AppClassProperties,
@@ -1255,6 +1255,7 @@ export const actionChangeFontFamily = register<{
       appState: {
         ...appState,
         ...nextAppState,
+        ...(currentItemFontFamily ? { currentItemFontFamilyName: null } : {}),
       },
       captureUpdate: nextCaptureUpdateAction,
     };
@@ -1297,6 +1298,8 @@ export const actionChangeFontFamily = register<{
                 oldElement,
                 {
                   fontFamily: nextFontFamily,
+                  // a family from the picker replaces a local font
+                  fontFamilyName: null,
                   lineHeight: getLineHeight(nextFontFamily!),
                 },
               );

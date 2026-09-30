@@ -129,6 +129,21 @@ export const FONT_SIZES = {
   xl: 36,
 } as const;
 
+/**
+ * The unit a text size is expressed in. `dp` is density independent:
+ * dp = px / (dpi / 160), so at the fixed mdpi 1x density (160 dpi) one dp is
+ * one px and both render at the same device size.
+ */
+export const FONT_UNITS = ["px", "dp"] as const;
+export type FontUnit = typeof FONT_UNITS[number];
+export const DEFAULT_FONT_UNIT: FontUnit = "px";
+export const DP_DENSITY = 1;
+export const fontSizeToPx = (size: number, unit: FontUnit | undefined) =>
+  unit === "dp" ? size * DP_DENSITY : size;
+
+export const MIN_FONT_SIZE_INPUT = 1;
+export const MAX_FONT_SIZE_INPUT = 1000;
+
 export const CJK_HAND_DRAWN_FALLBACK_FONT = "Xiaolai";
 export const WINDOWS_EMOJI_FALLBACK_FONT = "Segoe UI Emoji";
 

@@ -156,6 +156,11 @@
       "hint": "Type or paste your link here",
       "goToElement": "Go to target element"
     },
+    "fontUnit": "Font size unit",
+    "localFont": "Installed fonts…",
+    "localFontSearch": "Search installed fonts",
+    "localFontClear": "Use the picker font",
+    "localFontNone": "No installed fonts available",
     "rulers": {
       "toggle": "Rulers and guides",
       "snap": "Snap to guides (magnet)",

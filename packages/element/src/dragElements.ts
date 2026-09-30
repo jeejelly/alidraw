@@ -274,6 +274,7 @@ export const dragNewTextElement = ({
       getFontString({
         fontSize: newElement.fontSize,
         fontFamily: newElement.fontFamily,
+        fontFamilyName: newElement.fontFamilyName,
       }),
       newElement.lineHeight,
     ),

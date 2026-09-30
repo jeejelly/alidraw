@@ -85,7 +85,6 @@ import { getNormalizedDimensions } from "@excalidraw/element";
 import { isInvisiblySmallElement } from "@excalidraw/element";
 
 import type { LocalPoint, Radians } from "@excalidraw/math";
-import { sanitizeGuides } from "../guides";
 
 import type {
   ExcalidrawPathElement,
@@ -112,6 +111,8 @@ import type {
 } from "@excalidraw/element/types";
 
 import type { MarkOptional, Mutable } from "@excalidraw/common/utility-types";
+
+import { sanitizeGuides } from "../guides";
 
 import { getDefaultAppState } from "../appState";
 
@@ -554,6 +555,17 @@ export const restoreElement = (
       }
       const text = (typeof element.text === "string" && element.text) || "";
 
+      // optional typography fields: keep them only when well formed
+      if (
+        typeof element.fontFamilyName !== "string" ||
+        !element.fontFamilyName.trim()
+      ) {
+        delete (element as any).fontFamilyName;
+      }
+      if (element.fontUnit !== "dp" && element.fontUnit !== "px") {
+        delete (element as any).fontUnit;
+      }
+
       // line-height might not be specified either when creating elements
       // programmatically, or when importing old diagrams.
       // For the latter we want to detect the original line height which
@@ -570,6 +582,13 @@ export const restoreElement = (
       element = restoreElementWithProperties(element, {
         fontSize,
         fontFamily,
+        ...(typeof element.fontFamilyName === "string" &&
+        element.fontFamilyName.trim()
+          ? { fontFamilyName: element.fontFamilyName.trim().slice(0, 200) }
+          : {}),
+        ...(element.fontUnit === "dp" || element.fontUnit === "px"
+          ? { fontUnit: element.fontUnit }
+          : {}),
         text,
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,

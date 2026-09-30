@@ -94,6 +94,10 @@ export {
   actionToggleGuidesSnap,
   actionClearGuides,
 } from "./actionGuides";
+export {
+  actionChangeFontSizeInput,
+  actionChangeLocalFont,
+} from "./actionTypography";
 export { actionConvertShapeToPath, actionEditPath } from "./actionPath";
 
 export { actionToggleSearchMenu } from "./actionToggleSearchMenu";
