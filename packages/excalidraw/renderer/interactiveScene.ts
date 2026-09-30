@@ -1084,7 +1084,7 @@ const renderPathEditor = (
   const r = 5 / zoom;
 
   const selected = editing.selectedPoint;
-  if (selected != null && element.handles[selected]) {
+  if (selected != null && element.handles[selected]?.mode !== "corner" && element.handles[selected]) {
     const anchor = toScene(element.points[selected]);
     for (const side of ["in", "out"] as const) {
       const h = element.handles[selected][side];

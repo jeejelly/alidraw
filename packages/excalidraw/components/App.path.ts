@@ -16,7 +16,9 @@ import {
   isPathElement,
   movePathPoint,
   newPathElement,
+  setPathClosed,
   setPathPointMode,
+  splitPathAt,
 } from "@excalidraw/element";
 
 import { viewportCoordsToSceneCoords } from "@excalidraw/common";
@@ -340,7 +342,14 @@ export class AppPath {
 
     const points = element.points.slice(0, keep);
     const handles = element.handles.slice(0, keep);
-    this.apply(element, { points, handles }, close);
+    const closing = close
+      ? setPathClosed({ ...element, points, handles, closed: false }, true)
+      : null;
+    if (closing) {
+      this.apply(element, closing, true);
+    } else {
+      this.apply(element, { points, handles }, false);
+    }
     this.app.setState({ selectedElementIds: { [id]: true } });
     if (!this.app.state.activeTool.locked) {
       this.app.setActiveTool({ type: "selection" }, { keepSelection: true });
@@ -370,7 +379,11 @@ export class AppPath {
     const selected = this.app.state.editingPath?.selectedPoint ?? null;
 
     // handles of the selected point come first: they sit on top
-    if (selected != null && element.handles[selected]) {
+    if (
+      selected != null &&
+      element.handles[selected]?.mode !== "corner" &&
+      element.handles[selected]
+    ) {
       for (const side of ["out", "in"] as const) {
         const h = element.handles[selected][side];
         if (h) {
@@ -516,6 +529,58 @@ export class AppPath {
       return;
     }
     this.apply(element, setPathPointMode(element, target, mode));
+    this.commit();
+  };
+
+  /** closes an open path / opens a closed one */
+  toggleClosed = () => {
+    const element = this.getEditedElement();
+    if (!element) {
+      return;
+    }
+    const next = setPathClosed(element, !element.closed);
+    if (!next) {
+      return;
+    }
+    this.apply(element, next, next.closed);
+    this.setEditing(element.id, null);
+    this.commit();
+  };
+
+  /** cuts the path at the selected point */
+  splitAtSelectedPoint = () => {
+    const element = this.getEditedElement();
+    const target = this.app.state.editingPath?.selectedPoint ?? null;
+    if (!element || target == null) {
+      return;
+    }
+    const parts = splitPathAt(element, target);
+    if (!parts) {
+      return;
+    }
+    const [first, ...rest] = parts;
+    const created = rest.map((geometry) =>
+      newPathElement({
+        strokeColor: element.strokeColor,
+        backgroundColor: element.backgroundColor,
+        fillStyle: element.fillStyle,
+        strokeWidth: element.strokeWidth,
+        strokeStyle: element.strokeStyle,
+        roughness: element.roughness,
+        opacity: element.opacity,
+        roundness: element.roundness,
+        angle: element.angle,
+        groupIds: element.groupIds,
+        frameId: element.frameId,
+        ...getPathUpdate(element, geometry),
+        closed: false,
+      }),
+    );
+    this.apply(element, first, false);
+    if (created.length) {
+      this.app.insertNewElements(created);
+    }
+    this.setEditing(element.id, null);
     this.commit();
   };
 

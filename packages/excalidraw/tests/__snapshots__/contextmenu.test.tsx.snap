@@ -771,6 +771,21 @@ exports[`contextMenu element > right-clicking on a group should select whole gro
         "category": "Elements",
         "keywords": [
           "path",
+          "merge",
+          "connect",
+        ],
+        "label": "labels.path.join",
+        "name": "joinPaths",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
+      {
+        "category": "Elements",
+        "keywords": [
+          "path",
           "bezier",
           "vector",
           "shape",
@@ -5736,6 +5751,21 @@ exports[`contextMenu element > shows 'Group selection' in context menu for multi
         "category": "Elements",
         "keywords": [
           "path",
+          "merge",
+          "connect",
+        ],
+        "label": "labels.path.join",
+        "name": "joinPaths",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
+      {
+        "category": "Elements",
+        "keywords": [
+          "path",
           "bezier",
           "vector",
           "shape",
@@ -7001,6 +7031,21 @@ exports[`contextMenu element > shows 'Ungroup selection' in context menu for gro
         ],
         "label": "labels.path.edit",
         "name": "editPath",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
+      {
+        "category": "Elements",
+        "keywords": [
+          "path",
+          "merge",
+          "connect",
+        ],
+        "label": "labels.path.join",
+        "name": "joinPaths",
         "perform": [Function],
         "predicate": [Function],
         "trackEvent": {
@@ -9110,6 +9155,21 @@ exports[`contextMenu element > shows context menu for element > [end of test] ap
         "category": "Elements",
         "keywords": [
           "path",
+          "merge",
+          "connect",
+        ],
+        "label": "labels.path.join",
+        "name": "joinPaths",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
+      {
+        "category": "Elements",
+        "keywords": [
+          "path",
           "bezier",
           "vector",
           "shape",
@@ -10145,6 +10205,21 @@ exports[`contextMenu element > shows context menu for element > [end of test] ap
         ],
         "label": "labels.path.edit",
         "name": "editPath",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
+      {
+        "category": "Elements",
+        "keywords": [
+          "path",
+          "merge",
+          "connect",
+        ],
+        "label": "labels.path.join",
+        "name": "joinPaths",
         "perform": [Function],
         "predicate": [Function],
         "trackEvent": {

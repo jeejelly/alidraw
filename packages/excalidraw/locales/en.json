@@ -187,6 +187,10 @@
       "smooth": "Smooth point",
       "broken": "Broken tangents",
       "deletePoint": "Delete point",
+      "closePath": "Close path",
+      "openPath": "Open path",
+      "split": "Split here",
+      "join": "Join paths",
       "done": "Done"
     },
     "lineEditor": {

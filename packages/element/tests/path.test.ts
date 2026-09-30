@@ -13,6 +13,11 @@ import {
   insertPathPoint,
   movePathPoint,
   scalePathGeometry,
+  setPathClosed,
+  splitPathAt,
+  joinPathGeometries,
+  reversePathGeometry,
+  getPathSceneGeometry,
   setPathHandle,
   setPathPointMode,
 } from "../src/path";
@@ -141,7 +146,18 @@ describe("path editing", () => {
       1,
       "corner",
     );
-    expect(corner.handles[1]).toEqual({ mode: "corner", in: null, out: null });
+    // hard, but the tangents are kept out of sight
+    expect(corner.handles[1].mode).toBe("corner");
+    expect(
+      getPathSegments({ ...el, handles: corner.handles })[0].straight,
+    ).toBe(true);
+    const back = setPathPointMode(
+      { ...el, handles: corner.handles },
+      1,
+      "smooth",
+    );
+    expect(back.handles[1].out).toEqual(smooth.handles[1].out);
+    expect(back.handles[1].in).toEqual(smooth.handles[1].in);
 
     const broken = setPathPointMode(
       { ...el, handles: smooth.handles },
@@ -260,5 +276,171 @@ describe("path editing", () => {
     expect(bounds[0]).toBeCloseTo(0);
     expect(bounds[1]).toBeCloseTo(0);
     expect(next.handles[0].out).toEqual(P(-0, 120));
+  });
+});
+
+describe("hard and soft points in one path", () => {
+  it("a hard point next to a smooth one curves on the smooth side only", () => {
+    const el = makePath({
+      points: [P(0, 0), P(100, 0), P(200, 0)],
+      handles: [
+        { mode: "corner", in: null, out: null },
+        { mode: "smooth", in: P(-30, 0), out: P(30, 40) },
+        { mode: "corner", in: P(0, 20), out: null },
+      ],
+    });
+    const [s1, s2] = getPathSegments(el);
+    // corner -> smooth: bends toward the smooth point's incoming tangent
+    expect(s1.c1).toEqual(s1.p0);
+    expect(s1.c2).toEqual(P(70, 0));
+    // smooth -> corner: the corner's hidden tangent is not used
+    expect(s2.c1).toEqual(P(130, 40));
+    expect(s2.c2).toEqual(s2.p1);
+  });
+});
+
+describe("deleting a point keeps the curve", () => {
+  it("refits the neighbours after a split point is removed", () => {
+    const el = makePath({
+      points: [P(0, 0), P(100, 0)],
+      handles: [
+        { mode: "broken", in: null, out: P(0, 60) },
+        { mode: "broken", in: P(0, 60), out: null },
+      ],
+    });
+    const before = flattenPath(el, 100);
+    const split = insertPathPoint(el, 0, 0.5)!;
+    const withPoint = makePath({
+      points: split.points,
+      handles: split.handles,
+    });
+    const healed = deletePathPoint(withPoint, 1)!;
+    const after = flattenPath(
+      makePath({ points: healed.points, handles: healed.handles }),
+      100,
+    );
+    for (const [x, y] of after) {
+      const nearest = Math.min(
+        ...before.map(([bx, by]) => Math.hypot(bx - x, by - y)),
+      );
+      expect(nearest).toBeLessThan(0.6);
+    }
+  });
+});
+
+describe("opening and closing", () => {
+  it("closing smooths the seam of a smooth end point", () => {
+    const el = makePath({
+      points: [P(0, 0), P(100, 0), P(100, 100)],
+      handles: [
+        { mode: "smooth", in: null, out: P(20, -20) },
+        NO_HANDLES,
+        NO_HANDLES,
+      ],
+    });
+    const closed = setPathClosed(el, true)!;
+    expect(closed.closed).toBe(true);
+    expect(closed.handles[0].in).toEqual(P(-20, 20));
+  });
+
+  it("closing leaves a hard start a corner", () => {
+    const el = makePath({ points: [P(0, 0), P(100, 0), P(100, 100)] });
+    const closed = setPathClosed(el, true)!;
+    expect(closed.handles[0]).toEqual(NO_HANDLES);
+  });
+
+  it("closing folds a last point that sits on the first", () => {
+    const el = makePath({
+      points: [P(0, 0), P(100, 0), P(100, 100), P(0.2, 0.1)],
+      handles: [
+        NO_HANDLES,
+        NO_HANDLES,
+        NO_HANDLES,
+        { mode: "smooth", in: P(-5, 5), out: null },
+      ],
+    });
+    const closed = setPathClosed(el, true)!;
+    expect(closed.points).toHaveLength(3);
+    expect(closed.handles[0].in).toEqual(P(-5, 5));
+  });
+
+  it("opening keeps every point, and too short paths cannot close", () => {
+    const el = makePath({
+      points: [P(0, 0), P(100, 0), P(100, 100)],
+      closed: true,
+    });
+    const open = setPathClosed(el, false)!;
+    expect(open.closed).toBe(false);
+    expect(open.points).toHaveLength(3);
+    expect(
+      setPathClosed(makePath({ points: [P(0, 0), P(1, 1)] }), true),
+    ).toBeNull();
+    expect(setPathClosed(el, true)).toBeNull(); // already closed
+  });
+});
+
+describe("split and join", () => {
+  const open = () =>
+    makePath({ points: [P(0, 0), P(50, 0), P(100, 50), P(150, 0)] });
+
+  it("splits an open path in two sharing the cut point", () => {
+    const [a, b] = splitPathAt(open(), 2)!;
+    expect(a.points).toEqual([P(0, 0), P(50, 0), P(100, 50)]);
+    expect(b.points).toEqual([P(100, 50), P(150, 0)]);
+    expect(splitPathAt(open(), 0)).toBeNull();
+    expect(splitPathAt(open(), 3)).toBeNull();
+  });
+
+  it("a closed path cut at a point becomes one open path from there back to there", () => {
+    const el = makePath({
+      points: [P(0, 0), P(10, 0), P(10, 10)],
+      closed: true,
+    });
+    const [only] = splitPathAt(el, 1)!;
+    expect(only.points).toEqual([P(10, 0), P(10, 10), P(0, 0), P(10, 0)]);
+  });
+
+  it("joins two paths, merging ends that coincide", () => {
+    const [a, b] = splitPathAt(open(), 2)!;
+    const joined = joinPathGeometries(a, b);
+    expect(joined.points).toEqual(open().points);
+  });
+
+  it("bridges ends that do not meet, and reverses a path", () => {
+    const a = {
+      points: [P(0, 0), P(10, 0)],
+      handles: [NO_HANDLES, NO_HANDLES],
+    };
+    const b = {
+      points: [P(30, 0), P(40, 0)],
+      handles: [NO_HANDLES, NO_HANDLES],
+    };
+    expect(joinPathGeometries(a, b).points).toHaveLength(4);
+    const r = reversePathGeometry({
+      points: [P(0, 0), P(10, 0)],
+      handles: [
+        { mode: "broken", in: null, out: P(1, 1) },
+        { mode: "broken", in: P(2, 2), out: null },
+      ],
+    });
+    expect(r.points).toEqual([P(10, 0), P(0, 0)]);
+    expect(r.handles[0]).toEqual({ mode: "broken", in: null, out: P(2, 2) });
+    expect(r.handles[1]).toEqual({ mode: "broken", in: P(1, 1), out: null });
+  });
+
+  it("scene geometry turns points and handles with the element", () => {
+    const el = {
+      ...makePath({
+        points: [P(0, 0), P(100, 0)],
+        handles: [{ mode: "broken", in: null, out: P(10, 0) }, NO_HANDLES],
+      }),
+      angle: (Math.PI / 2) as any,
+    };
+    const g = getPathSceneGeometry(el);
+    // a quarter turn about the middle of the path
+    expect(g.points[0][0]).toBeCloseTo(150, 5);
+    expect(g.points[0][1]).toBeCloseTo(0, 5);
+    expect(g.handles[0].out![0]).toBeCloseTo(0, 5);
+    expect(g.handles[0].out![1]).toBeCloseTo(10, 5);
   });
 });

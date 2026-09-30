@@ -55,6 +55,18 @@ const lerp = (a: Pt, b: Pt, t: number) =>
 const isLive = (h: LocalPoint | null): h is LocalPoint =>
   h != null && (h[0] !== 0 || h[1] !== 0);
 
+/**
+ * The handle that shapes the curve: a corner point keeps its handles (so
+ * switching back restores the curve) but does not use them.
+ */
+const activeHandle = (
+  h: PathPointHandles | undefined,
+  side: "in" | "out",
+): LocalPoint | null => {
+  const offset = h && h.mode !== "corner" ? h[side] : null;
+  return isLive(offset) ? offset : null;
+};
+
 export const getPathSegments = (
   element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed">,
 ): PathSegment[] => {
@@ -65,8 +77,8 @@ export const getPathSegments = (
 
   for (let i = 0; i < count; i++) {
     const j = (i + 1) % n;
-    const out = handles[i]?.out ?? null;
-    const inn = handles[j]?.in ?? null;
+    const out = activeHandle(handles[i], "out");
+    const inn = activeHandle(handles[j], "in");
     const p0 = points[i];
     const p1 = points[j];
     segments.push({
@@ -324,8 +336,8 @@ export const setPathPointMode = (
   let next: PathPointHandles;
 
   if (mode === "corner") {
-    // a corner has no tangent handle
-    next = { mode, in: null, out: null };
+    // a hard point: the handles are kept out of sight, not thrown away
+    next = { ...current, mode };
   } else if (mode === "broken") {
     next = { ...current, mode };
   } else {
@@ -413,12 +425,12 @@ export const insertPathPoint = (
   if (!segment.straight) {
     handles[segment.from] = {
       ...prevHandles,
-      out: isLive(prevHandles.out) ? sub(a, p0) : null,
+      out: activeHandle(prevHandles, "out") ? sub(a, p0) : prevHandles.out,
     };
     const toIndex = segment.to === 0 ? 0 : segment.to + 1;
     handles[toIndex] = {
       ...nextHandles,
-      in: isLive(nextHandles.in) ? sub(c, p1) : null,
+      in: activeHandle(nextHandles, "in") ? sub(c, p1) : nextHandles.in,
     };
   }
   return { points, handles, index: insertAt };
@@ -433,9 +445,35 @@ export const deletePathPoint = (
   if (element.points.length <= minimum) {
     return null;
   }
+  const n = element.points.length;
+  const prev = index > 0 ? index - 1 : element.closed ? n - 1 : null;
+  const next = index < n - 1 ? index + 1 : element.closed ? 0 : null;
+  const handles = [...element.handles];
+
+  // an interior point: refit the two neighbouring handles so the curve keeps
+  // its shape, the inverse of splitting it at that point
+  if (prev !== null && next !== null) {
+    const l1 = len(sub(element.points[index], element.points[prev]));
+    const l2 = len(sub(element.points[next], element.points[index]));
+    const t = l1 + l2 > 0 ? l1 / (l1 + l2) : 0.5;
+    const out = handles[prev]?.out;
+    const inn = handles[next]?.in;
+    if (out && t > 0) {
+      handles[prev] = {
+        ...handles[prev],
+        out: pointFrom<LocalPoint>(out[0] / t, out[1] / t),
+      };
+    }
+    if (inn && t < 1) {
+      handles[next] = {
+        ...handles[next],
+        in: pointFrom<LocalPoint>(inn[0] / (1 - t), inn[1] / (1 - t)),
+      };
+    }
+  }
   return {
     points: element.points.filter((_, i) => i !== index),
-    handles: element.handles.filter((_, i) => i !== index),
+    handles: handles.filter((_, i) => i !== index),
   };
 };
 
@@ -558,5 +596,207 @@ export const getPathGeometryFromShape = (element: {
       smooth(P(kx, 0), P(-kx, 0)),
       smooth(P(0, ky), P(0, -ky)),
     ],
+  };
+};
+
+// -----------------------------------------------------------------------------
+//                          open / close, split, join
+// -----------------------------------------------------------------------------
+
+const hasHandle = (h: LocalPoint | null | undefined): h is LocalPoint =>
+  isLive(h ?? null);
+
+const neg = (h: LocalPoint) => pointFrom<LocalPoint>(-h[0], -h[1]);
+
+/**
+ * Makes the joint where a path closes smooth: a smooth end point that has a
+ * tangent on one side only gets the mirrored tangent on the other. Hard
+ * (corner) points are left as they are.
+ */
+const smoothSeam = (handles: readonly PathPointHandles[]) => {
+  const next = [...handles];
+  const n = next.length;
+  const fix = (i: number) => {
+    const h = next[i];
+    if (!h || h.mode === "corner") {
+      return;
+    }
+    if (hasHandle(h.out) && !hasHandle(h.in)) {
+      next[i] = { ...h, mode: "smooth", in: neg(h.out) };
+    } else if (hasHandle(h.in) && !hasHandle(h.out)) {
+      next[i] = { ...h, mode: "smooth", out: neg(h.in) };
+    }
+  };
+  fix(0);
+  fix(n - 1);
+  return next;
+};
+
+/**
+ * Closes or opens a path. Closing folds an end point lying on the start point
+ * into it, and smooths the seam; opening just drops the closing segment.
+ * @returns null when the path is too short to close
+ */
+export const setPathClosed = (
+  element: ExcalidrawPathElement,
+  closed: boolean,
+): (PathGeometry & { closed: boolean }) | null => {
+  if (element.closed === closed) {
+    return null;
+  }
+  if (!closed) {
+    return {
+      points: element.points,
+      handles: element.handles,
+      closed: false,
+    };
+  }
+  let points = [...element.points];
+  let handles = [...element.handles];
+  const n = points.length;
+  if (n >= 3 && len(sub(points[n - 1], points[0])) < 0.5) {
+    // the last point is the first one again: its incoming tangent is the
+    // closing segment's
+    const last = handles[n - 1];
+    handles[0] = {
+      ...handles[0],
+      mode: last.mode === "corner" ? handles[0].mode : last.mode,
+      in: last.in ?? handles[0].in,
+    };
+    points = points.slice(0, -1);
+    handles = handles.slice(0, -1);
+  }
+  if (points.length < 3) {
+    return null;
+  }
+  return { points, handles: smoothSeam(handles), closed: true };
+};
+
+/**
+ * Cuts a path at a point. An open path gives two (sharing that point); a
+ * closed one becomes a single open path starting and ending there.
+ * @returns null when there is nothing to cut (an end point of an open path)
+ */
+export const splitPathAt = (
+  element: ExcalidrawPathElement,
+  index: number,
+): PathGeometry[] | null => {
+  const n = element.points.length;
+  if (index < 0 || index >= n) {
+    return null;
+  }
+  if (!element.closed) {
+    if (index === 0 || index === n - 1) {
+      return null;
+    }
+    const a = {
+      points: element.points.slice(0, index + 1),
+      handles: element.handles
+        .slice(0, index + 1)
+        .map((h, i) => (i === index ? { ...h, out: null } : h)),
+    };
+    const b = {
+      points: element.points.slice(index),
+      handles: element.handles
+        .slice(index)
+        .map((h, i) => (i === 0 ? { ...h, in: null } : h)),
+    };
+    return [a, b];
+  }
+  const order = [...Array(n).keys()].map((k) => (k + index) % n);
+  const points = [
+    ...order.map((i) => element.points[i]),
+    element.points[index],
+  ];
+  const handles = [
+    ...order.map((i) => element.handles[i]),
+    element.handles[index],
+  ].map((h, i, all) =>
+    i === 0
+      ? { ...h, in: null }
+      : i === all.length - 1
+      ? { ...h, out: null }
+      : h,
+  );
+  return [{ points, handles }];
+};
+
+/** the same path walked the other way round */
+export const reversePathGeometry = (g: PathGeometry): PathGeometry => ({
+  points: [...g.points].reverse(),
+  handles: [...g.handles]
+    .reverse()
+    .map((h) => ({ mode: h.mode, in: h.out, out: h.in })),
+});
+
+/**
+ * Joins the end of `a` to the start of `b`. End points that coincide are
+ * merged into one (keeping the tangent of each side); others are bridged by a
+ * straight segment.
+ */
+export const joinPathGeometries = (
+  a: PathGeometry,
+  b: PathGeometry,
+): PathGeometry => {
+  const aLast = a.points.length - 1;
+  if (len(sub(a.points[aLast], b.points[0])) < 0.5) {
+    const ha = a.handles[aLast];
+    const hb = b.handles[0];
+    const merged: PathPointHandles = {
+      mode: ha.mode === "corner" && hb.mode === "corner" ? "corner" : "broken",
+      in: ha.in,
+      out: hb.out,
+    };
+    return {
+      points: [...a.points, ...b.points.slice(1)],
+      handles: [...a.handles.slice(0, aLast), merged, ...b.handles.slice(1)],
+    };
+  }
+  return {
+    points: [...a.points, ...b.points],
+    handles: [...a.handles, ...b.handles],
+  };
+};
+
+/**
+ * Anchors and handles of a path in scene coordinates (handles stay offsets,
+ * turned by the element angle).
+ */
+export const getPathSceneGeometry = (
+  element: ExcalidrawPathElement,
+): PathGeometry => {
+  const [minX, minY, maxX, maxY] = getPathLocalBounds(element);
+  const center = pointFrom<GlobalPoint>(
+    element.x + (minX + maxX) / 2,
+    element.y + (minY + maxY) / 2,
+  );
+  const rot = (p: Pt) =>
+    pointRotateRads(
+      pointFrom<GlobalPoint>(center[0] + p[0], center[1] + p[1]),
+      center,
+      element.angle,
+    );
+  const turn = (h: LocalPoint | null) => {
+    if (!h) {
+      return null;
+    }
+    const r = rot(pointFrom<LocalPoint>(h[0], h[1]));
+    return pointFrom<LocalPoint>(r[0] - center[0], r[1] - center[1]);
+  };
+  return {
+    points: element.points.map((p) => {
+      const r = rot(
+        pointFrom<LocalPoint>(
+          element.x + p[0] - center[0],
+          element.y + p[1] - center[1],
+        ),
+      );
+      return pointFrom<LocalPoint>(r[0], r[1]);
+    }),
+    handles: element.handles.map((h) => ({
+      mode: h.mode,
+      in: turn(h.in),
+      out: turn(h.out),
+    })),
   };
 };

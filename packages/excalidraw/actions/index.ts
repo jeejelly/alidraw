@@ -99,7 +99,11 @@ export {
   actionChangeFontSizeInput,
   actionChangeLocalFont,
 } from "./actionTypography";
-export { actionConvertShapeToPath, actionEditPath } from "./actionPath";
+export {
+  actionConvertShapeToPath,
+  actionEditPath,
+  actionJoinPaths,
+} from "./actionPath";
 
 export { actionToggleSearchMenu } from "./actionToggleSearchMenu";
 

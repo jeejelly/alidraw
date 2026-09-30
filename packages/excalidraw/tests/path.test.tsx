@@ -6,7 +6,11 @@ import { pointFrom, type LocalPoint } from "@excalidraw/math";
 
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
 
-import { actionConvertShapeToPath, actionEditPath } from "../actions";
+import {
+  actionConvertShapeToPath,
+  actionEditPath,
+  actionJoinPaths,
+} from "../actions";
 import { restoreElements } from "../data/restore";
 import { Excalidraw } from "../index";
 
@@ -243,6 +247,99 @@ describe("path editing", () => {
     expect(flat(getPath())).not.toEqual([100, 100, 200, 100, 200, 200]);
     Keyboard.withModifierKeys({ ctrl: true }, () => Keyboard.keyPress(KEYS.Z));
     expect(flat(getPath())).toEqual([100, 100, 200, 100, 200, 200]);
+  });
+});
+
+describe("open, close, split and join in the editor", () => {
+  beforeAll(() => {
+    mockBoundingClientRect({ width: 1000, height: 1000 });
+  });
+  afterAll(() => {
+    restoreOriginalGetBoundingClientRect();
+  });
+
+  const mk = (x: number, y: number, pts: [number, number][]) =>
+    API.createElement({
+      type: "path",
+      x,
+      y,
+      points: pts.map(([a, b]) => pointFrom<LocalPoint>(a, b)),
+    });
+
+  it("toggles closed and back", async () => {
+    await render(<Excalidraw />);
+    const p = mk(100, 100, [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ]);
+    API.setElements([p]);
+    API.setSelectedElements([p]);
+    API.executeAction(actionEditPath);
+    act(() => h.app.path.toggleClosed());
+    expect(getPath().closed).toBe(true);
+    act(() => h.app.path.toggleClosed());
+    expect(getPath().closed).toBe(false);
+    expect(getPath().points).toHaveLength(3);
+  });
+
+  it("splits at the selected point into two paths", async () => {
+    await render(<Excalidraw />);
+    const p = mk(100, 100, [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ]);
+    API.setElements([p]);
+    API.setSelectedElements([p]);
+    API.setAppState({ editingPath: { elementId: p.id, selectedPoint: 1 } });
+    act(() => h.app.path.splitAtSelectedPoint());
+    const paths = h.elements.filter(
+      (e) => e.type === "path" && !e.isDeleted,
+    ) as ExcalidrawPathElement[];
+    expect(paths).toHaveLength(2);
+    expect(paths.map((q) => q.points.length).sort()).toEqual([2, 2]);
+    // the pieces stay where they were
+    const abs = paths.map((q) =>
+      q.points.map((pt) => [q.x + pt[0], q.y + pt[1]]),
+    );
+    expect(abs).toContainEqual([
+      [100, 100],
+      [200, 100],
+    ]);
+    expect(abs).toContainEqual([
+      [200, 100],
+      [200, 200],
+    ]);
+  });
+
+  it("joins two selected open paths at their nearest ends", async () => {
+    await render(<Excalidraw />);
+    const a = mk(0, 0, [
+      [0, 0],
+      [100, 0],
+    ]);
+    const b = mk(300, 0, [
+      [0, 0],
+      [100, 0],
+    ]);
+    API.setElements([a, b]);
+    API.setSelectedElements([a, b]);
+    API.executeAction(actionJoinPaths);
+    const live = h.elements.filter(
+      (e) => !e.isDeleted,
+    ) as ExcalidrawPathElement[];
+    expect(live).toHaveLength(1);
+    const abs = live[0].points.map((pt) => [
+      live[0].x + pt[0],
+      live[0].y + pt[1],
+    ]);
+    expect(abs).toEqual([
+      [0, 0],
+      [100, 0],
+      [300, 0],
+      [400, 0],
+    ]);
   });
 });
 

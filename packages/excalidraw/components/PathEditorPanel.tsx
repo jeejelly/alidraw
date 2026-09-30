@@ -91,6 +91,24 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
       </button>
       <button
         type="button"
+        data-testid="path-toggle-closed"
+        style={buttonStyle(false, !element.closed && element.points.length < 3)}
+        disabled={!element.closed && element.points.length < 3}
+        onClick={() => app.path.toggleClosed()}
+      >
+        {t(element.closed ? "labels.path.openPath" : "labels.path.closePath")}
+      </button>
+      <button
+        type="button"
+        data-testid="path-split"
+        disabled={selected == null}
+        style={buttonStyle(false, selected == null)}
+        onClick={() => app.path.splitAtSelectedPoint()}
+      >
+        {t("labels.path.split")}
+      </button>
+      <button
+        type="button"
         data-testid="path-editor-done"
         style={buttonStyle(false, false)}
         onClick={() => app.path.stopEditing()}

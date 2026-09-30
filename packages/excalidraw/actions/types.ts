@@ -136,6 +136,7 @@ export type ActionName =
   | "toggleGuidesSnap"
   | "clearGuides"
   | "editPath"
+  | "joinPaths"
   | "selectAllElementsInFrame"
   | "removeAllElementsFromFrame"
   | "updateFrameRendering"

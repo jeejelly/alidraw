@@ -336,6 +336,7 @@ function CommandPaletteInner({
         actionManager.actions.toggleLinearEditor,
         actionManager.actions.convertShapeToPath,
         actionManager.actions.editPath,
+        actionManager.actions.joinPaths,
         actionManager.actions.cropEditor,
         actionManager.actions.togglePolygon,
         actionLink,
