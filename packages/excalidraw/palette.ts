@@ -12,6 +12,9 @@ export type PaletteState = Readonly<{
   layout: PaletteLayout;
   /** viewport position of the panel's top-left corner */
   position: { x: number; y: number };
+  /** the layers list lives in its own floating panel instead of a tab */
+  layersDetached: boolean;
+  layersPosition: { x: number; y: number };
 }>;
 
 const STORAGE_KEY = "excalidraw-palette";
@@ -21,6 +24,8 @@ export const DEFAULT_PALETTE_STATE: PaletteState = {
   swatches: [],
   layout: "docked",
   position: { x: 80, y: 120 },
+  layersDetached: false,
+  layersPosition: { x: 120, y: 160 },
 };
 
 // -----------------------------------------------------------------------------
@@ -83,6 +88,13 @@ export const sanitizePaletteState = (raw: unknown): PaletteState => {
       pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)
         ? { x: pos.x, y: pos.y }
         : DEFAULT_PALETTE_STATE.position,
+    layersDetached: value.layersDetached === true,
+    layersPosition:
+      value.layersPosition &&
+      Number.isFinite(value.layersPosition.x) &&
+      Number.isFinite(value.layersPosition.y)
+        ? { x: value.layersPosition.x, y: value.layersPosition.y }
+        : DEFAULT_PALETTE_STATE.layersPosition,
   };
 };
 
@@ -157,6 +169,12 @@ export const removeSwatch = (id: string) => {
 
 export const setPaletteLayout = (layout: PaletteLayout) =>
   commit({ ...getPaletteState(), layout });
+
+export const setLayersDetached = (layersDetached: boolean) =>
+  commit({ ...getPaletteState(), layersDetached });
+
+export const setLayersPosition = (layersPosition: { x: number; y: number }) =>
+  commit({ ...getPaletteState(), layersPosition });
 
 export const setPalettePosition = (position: { x: number; y: number }) =>
   commit({ ...getPaletteState(), position });

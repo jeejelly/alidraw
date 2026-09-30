@@ -373,3 +373,72 @@ describe("inspector controls", () => {
     expect(h.state.paletteOpen).toBe(true);
   });
 });
+
+describe("dragging and detaching", () => {
+  const open = async () => {
+    await render(<Excalidraw />);
+    act(() => {
+      API.executeAction(actionTogglePalette);
+    });
+  };
+  const dragHandle = (
+    testId: string,
+    from: [number, number],
+    to: [number, number],
+  ) => {
+    const handle = screen.getByTestId(testId);
+    (handle as any).setPointerCapture = () => {};
+    fireEvent.pointerDown(handle, {
+      clientX: from[0],
+      clientY: from[1],
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(handle, {
+      clientX: to[0],
+      clientY: to[1],
+      pointerId: 1,
+    });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+  };
+
+  it("dragging the docked panel tears it off and moves it", async () => {
+    await open();
+    expect(getPaletteState().layout).toBe("docked");
+    dragHandle("palette-handle", [900, 100], [700, 160]);
+    const state = getPaletteState();
+    expect(state.layout).toBe("vertical");
+    // it moved by the drag delta from where it started
+    expect(
+      screen.getByTestId("palette-panel").getAttribute("data-layout"),
+    ).toBe("vertical");
+  });
+
+  it("the layers pop out into their own draggable panel and come back", async () => {
+    await open();
+    fireEvent.click(screen.getByTestId("inspector-tab-layers"));
+    fireEvent.click(screen.getByTestId("layers-detach"));
+    expect(getPaletteState().layersDetached).toBe(true);
+    expect(screen.getByTestId("layers-panel")).toBeTruthy();
+    // the inspector keeps only the design tab
+    expect(screen.queryByTestId("inspector-tab-layers")).toBeNull();
+    expect(screen.getByTestId("inspector-appearance")).toBeTruthy();
+
+    const before = getPaletteState().layersPosition;
+    dragHandle(
+      "layers-handle",
+      [before.x + 10, before.y + 10],
+      [before.x + 70, before.y + 50],
+    );
+    expect(getPaletteState().layersPosition).toEqual({
+      x: before.x + 60,
+      y: before.y + 40,
+    });
+
+    resetPaletteCache(); // survives a reload
+    expect(getPaletteState().layersDetached).toBe(true);
+
+    fireEvent.click(screen.getByTestId("layers-attach"));
+    expect(screen.queryByTestId("layers-panel")).toBeNull();
+    expect(screen.getByTestId("inspector-tab-layers")).toBeTruthy();
+  });
+});

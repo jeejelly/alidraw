@@ -187,7 +187,9 @@
       "dock": "Dock to the right",
       "noLayers": "Nothing on the canvas yet",
       "tab_design": "Design",
-      "tab_layers": "Layers"
+      "tab_layers": "Layers",
+      "detachLayers": "Pop out the layers",
+      "attachLayers": "Put the layers back in the inspector"
     },
     "rulers": {
       "toggle": "Rulers and guides",

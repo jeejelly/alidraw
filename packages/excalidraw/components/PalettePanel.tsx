@@ -25,6 +25,8 @@ import {
   parsePaletteFile,
   removeSwatch,
   renameSwatch,
+  setLayersDetached,
+  setLayersPosition,
   setPaletteLayout,
   setPalettePosition,
   subscribePalette,
@@ -146,10 +148,18 @@ export const PalettePanel = ({ app }: { app: App }) => {
   const pos = palette.position;
 
   const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (docked || (e.target as HTMLElement).closest("button")) {
+    if ((e.target as HTMLElement).closest("button")) {
       return;
     }
-    drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
+    let origin = pos;
+    if (docked) {
+      // dragging a docked panel tears it off where it is
+      const rect = rootRef.current?.getBoundingClientRect();
+      origin = { x: rect?.left ?? pos.x, y: rect?.top ?? pos.y };
+      setPaletteLayout("vertical");
+      setPalettePosition(origin);
+    }
+    drag.current = { dx: e.clientX - origin.x, dy: e.clientY - origin.y };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const moveDrag = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -569,7 +579,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
     (el) => !(el.type === "text" && el.containerId),
   );
 
-  const layersTab = (
+  const layersBody = (
     <div data-testid="inspector-layers" style={{ padding: "0.5rem" }}>
       <div className="inspector__row" style={{ marginTop: 0, marginBottom: 6 }}>
         {(
@@ -591,6 +601,30 @@ export const PalettePanel = ({ app }: { app: App }) => {
             {glyph}
           </button>
         ))}
+        <button
+          type="button"
+          className="inspector__iconbtn"
+          data-testid="layers-detach"
+          style={{ marginLeft: "auto" }}
+          title={
+            palette.layersDetached
+              ? t("labels.palette.attachLayers")
+              : t("labels.palette.detachLayers")
+          }
+          onClick={() => {
+            if (!palette.layersDetached) {
+              const rect = rootRef.current?.getBoundingClientRect();
+              setLayersPosition({
+                x: Math.max(0, (rect?.left ?? 400) - 280),
+                y: (rect?.top ?? 80) + 40,
+              });
+              setTab("design");
+            }
+            setLayersDetached(!palette.layersDetached);
+          }}
+        >
+          {palette.layersDetached ? "⇤" : "⧉"}
+        </button>
         <button
           type="button"
           className="inspector__iconbtn"
@@ -632,85 +666,174 @@ export const PalettePanel = ({ app }: { app: App }) => {
     </div>
   );
 
+  const detached = palette.layersDetached && (
+    <DetachedLayers
+      position={palette.layersPosition}
+      onMove={setLayersPosition}
+      onAttach={() => setLayersDetached(false)}
+    >
+      {layersBody}
+    </DetachedLayers>
+  );
+
+  return (
+    <>
+      {detached}
+      <div
+        ref={rootRef}
+        className={className}
+        data-testid="palette-panel"
+        data-layout={layout}
+        style={docked ? undefined : { left: pos.x, top: pos.y }}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <div
+          className="inspector__head"
+          data-testid="palette-handle"
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={() => {
+            drag.current = null;
+          }}
+        >
+          <div className="inspector__tabs" role="tablist">
+            {(palette.layersDetached
+              ? (["design"] as const)
+              : (["design", "layers"] as const)
+            ).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                className="inspector__tab"
+                data-testid={`inspector-tab-${k}`}
+                aria-selected={tab === k}
+                onClick={() => setTab(k)}
+              >
+                {t(`labels.palette.tab_${k}` as any)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="inspector__iconbtn"
+            data-testid="palette-dock"
+            aria-pressed={docked}
+            title={t("labels.palette.dock")}
+            onClick={() => setPaletteLayout(docked ? "vertical" : "docked")}
+          >
+            ⇥
+          </button>
+          <button
+            type="button"
+            className="inspector__iconbtn"
+            data-testid="palette-orientation"
+            disabled={docked}
+            title={t("labels.palette.orientation")}
+            onClick={() =>
+              setPaletteLayout(
+                layout === "vertical" ? "horizontal" : "vertical",
+              )
+            }
+          >
+            {layout === "horizontal" ? "↕" : "↔"}
+          </button>
+          <button
+            type="button"
+            className="inspector__iconbtn"
+            data-testid="palette-close"
+            aria-label={t("buttons.close")}
+            onClick={() => app.setState({ paletteOpen: false })}
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="inspector__body">
+          {tab === "design" || palette.layersDetached ? (
+            <>
+              {transform}
+              {appearance}
+              {swatches}
+              {strokeSection}
+              {typeSection}
+            </>
+          ) : (
+            layersBody
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+/** the layers list as a panel of its own: floats, drags by its header */
+const DetachedLayers = ({
+  position,
+  onMove,
+  onAttach,
+  children,
+}: {
+  position: { x: number; y: number };
+  onMove: (p: { x: number; y: number }) => void;
+  onAttach: () => void;
+  children: React.ReactNode;
+}) => {
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
   return (
     <div
-      ref={rootRef}
-      className={className}
-      data-testid="palette-panel"
-      data-layout={layout}
-      style={docked ? undefined : { left: pos.x, top: pos.y }}
+      className="inspector inspector--floating inspector--layers"
+      data-testid="layers-panel"
+      style={{ left: position.x, top: position.y }}
       onKeyDown={(e) => e.stopPropagation()}
     >
       <div
         className="inspector__head"
-        data-testid="palette-handle"
-        onPointerDown={startDrag}
-        onPointerMove={moveDrag}
+        data-testid="layers-handle"
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest("button")) {
+            return;
+          }
+          drag.current = {
+            dx: e.clientX - position.x,
+            dy: e.clientY - position.y,
+          };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          if (drag.current) {
+            onMove({
+              x: Math.max(
+                0,
+                Math.min(window.innerWidth - 60, e.clientX - drag.current.dx),
+              ),
+              y: Math.max(
+                0,
+                Math.min(window.innerHeight - 40, e.clientY - drag.current.dy),
+              ),
+            });
+          }
+        }}
         onPointerUp={() => {
           drag.current = null;
         }}
       >
-        <div className="inspector__tabs" role="tablist">
-          {(["design", "layers"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              className="inspector__tab"
-              data-testid={`inspector-tab-${k}`}
-              aria-selected={tab === k}
-              onClick={() => setTab(k)}
-            >
-              {t(`labels.palette.tab_${k}` as any)}
-            </button>
-          ))}
+        <div className="inspector__tabs">
+          <span className="inspector__tab" aria-selected="true">
+            {t("labels.palette.tab_layers")}
+          </span>
         </div>
         <button
           type="button"
           className="inspector__iconbtn"
-          data-testid="palette-dock"
-          aria-pressed={docked}
-          title={t("labels.palette.dock")}
-          onClick={() => setPaletteLayout(docked ? "vertical" : "docked")}
+          data-testid="layers-attach"
+          title={t("labels.palette.attachLayers")}
+          onClick={onAttach}
         >
-          ⇥
-        </button>
-        <button
-          type="button"
-          className="inspector__iconbtn"
-          data-testid="palette-orientation"
-          disabled={docked}
-          title={t("labels.palette.orientation")}
-          onClick={() =>
-            setPaletteLayout(layout === "vertical" ? "horizontal" : "vertical")
-          }
-        >
-          {layout === "horizontal" ? "↕" : "↔"}
-        </button>
-        <button
-          type="button"
-          className="inspector__iconbtn"
-          data-testid="palette-close"
-          aria-label={t("buttons.close")}
-          onClick={() => app.setState({ paletteOpen: false })}
-        >
-          ×
+          ⇤
         </button>
       </div>
-
-      <div className="inspector__body">
-        {tab === "design" ? (
-          <>
-            {transform}
-            {appearance}
-            {swatches}
-            {strokeSection}
-            {typeSection}
-          </>
-        ) : (
-          layersTab
-        )}
-      </div>
+      <div className="inspector__body">{children}</div>
     </div>
   );
 };

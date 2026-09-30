@@ -25,6 +25,11 @@
       width: 16.5rem;
     }
 
+    &--layers {
+      height: 22rem;
+      max-height: 70vh;
+    }
+
     &--floating {
       position: fixed;
       max-height: 82vh;
