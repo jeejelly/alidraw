@@ -1,5 +1,6 @@
 import type { FontUnit } from "@excalidraw/common";
 import type { Guide } from "./guides";
+import type { GizmoZone } from "./gizmo";
 import type {
   IMAGE_MIME_TYPES,
   UserIdleState,
@@ -237,6 +238,7 @@ export type InteractiveCanvasAppState = Readonly<
     isMidpointSnappingEnabled: AppState["isMidpointSnappingEnabled"];
     gridModeEnabled: AppState["gridModeEnabled"];
     guides: AppState["guides"];
+    gizmo: AppState["gizmo"];
     suggestedBinding: AppState["suggestedBinding"];
     textToolHover: AppState["textToolHover"];
     isRotating: AppState["isRotating"];
@@ -533,6 +535,11 @@ export interface AppState {
   guidesSnapEnabled: boolean;
   /** the colour palette panel stays open over the canvas */
   paletteOpen: boolean;
+  /** the rotate/skew gizmo: the zone under the pointer, and a live readout */
+  gizmo: {
+    hover: GizmoZone | null;
+    readout: { x: number; y: number; text: string } | null;
+  } | null;
   viewModeEnabled: boolean;
 
   /** top-most selected groups (i.e. does not include nested groups) */

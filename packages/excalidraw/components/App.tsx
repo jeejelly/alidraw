@@ -422,6 +422,7 @@ import { AppTextTool } from "./App.textTool";
 import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
+import { AppGizmo } from "./App.gizmo";
 import { Rulers } from "./Rulers";
 import { PalettePanel } from "./PalettePanel";
 import { PathEditorPanel } from "./PathEditorPanel";
@@ -743,6 +744,7 @@ class App extends React.Component<AppProps, AppState> {
   drawShape = new AppDrawShape(this);
   path = new AppPath(this);
   guides = new AppGuides(this);
+  gizmo = new AppGizmo(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
   lassoTrail = new LassoTrail(this);
@@ -3937,6 +3939,7 @@ class App extends React.Component<AppProps, AppState> {
     this.drawShape.stop();
     this.path.reset();
     this.guides.destroy();
+    this.gizmo.destroy();
     this.toolDrag.cancel();
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
@@ -7275,6 +7278,11 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    // rotate / skew zones around the selection own the cursor
+    if (this.gizmo.handleHover(event)) {
+      return;
+    }
+
     const hitElementMightBeLocked = this.getElementAtPosition(
       scenePointerX,
       scenePointerY,
@@ -7729,6 +7737,11 @@ class App extends React.Component<AppProps, AppState> {
     // else it will send pointer state & laser pointer events in collab when
     // panning
     if (this.pan.start(event)) {
+      return;
+    }
+
+    // the rotate / skew zones around the selection
+    if (this.gizmo.handlePointerDown(event)) {
       return;
     }
 
@@ -11903,7 +11916,7 @@ class App extends React.Component<AppProps, AppState> {
     this.addNewImagesToImageCache();
   }, IMAGE_RENDER_TIMEOUT);
 
-  private clearSelection(hitElement: ExcalidrawElement | null): void {
+  public clearSelection(hitElement: ExcalidrawElement | null): void {
     this.setState((prevState) => ({
       selectedElementIds: makeNextSelectedElementIds({}, prevState),
       activeEmbeddable: null,

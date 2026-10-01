@@ -209,6 +209,47 @@ export const transformElements = (
   return false;
 };
 
+/**
+ * Sets the angle of one element, taking along its bound label and unbinding
+ * arrows (a rotated binding target keeps no stale attachment).
+ */
+export const setSingleElementAngle = (
+  element: NonDeletedExcalidrawElement,
+  scene: Scene,
+  angle: Radians,
+) => {
+  const boundTextElementId = getBoundTextElementId(element);
+
+  if (isBindingElement(element)) {
+    if (element.startBinding) {
+      unbindBindingElement(element, "start", scene);
+    }
+    if (element.endBinding) {
+      unbindBindingElement(element, "end", scene);
+    }
+  }
+
+  scene.mutateElement(element, { angle });
+
+  if (boundTextElementId) {
+    const textElement =
+      scene.getElement<ExcalidrawTextElementWithContainer>(boundTextElementId);
+
+    if (textElement && !isArrowElement(element)) {
+      const { x, y } = computeBoundTextPosition(
+        element,
+        textElement,
+        scene.getNonDeletedElementsMap(),
+      );
+      scene.mutateElement(textElement, {
+        angle,
+        x,
+        y,
+      });
+    }
+  }
+};
+
 const rotateSingleElement = (
   element: NonDeletedExcalidrawElement,
   scene: Scene,
@@ -234,44 +275,7 @@ const rotateSingleElement = (
     }
     angle = normalizeRadians(angle as Radians);
   }
-  const boundTextElementId = getBoundTextElementId(element);
-
-  let update: ElementUpdate<NonDeletedExcalidrawElement> = {
-    angle,
-  };
-
-  if (isBindingElement(element)) {
-    update = {
-      ...update,
-    } as ElementUpdate<NonDeletedExcalidrawElement>;
-
-    if (element.startBinding) {
-      unbindBindingElement(element, "start", scene);
-    }
-    if (element.endBinding) {
-      unbindBindingElement(element, "end", scene);
-    }
-  }
-
-  scene.mutateElement(element, update);
-
-  if (boundTextElementId) {
-    const textElement =
-      scene.getElement<ExcalidrawTextElementWithContainer>(boundTextElementId);
-
-    if (textElement && !isArrowElement(element)) {
-      const { x, y } = computeBoundTextPosition(
-        element,
-        textElement,
-        scene.getNonDeletedElementsMap(),
-      );
-      scene.mutateElement(textElement, {
-        angle,
-        x,
-        y,
-      });
-    }
-  }
+  setSingleElementAngle(element, scene, angle);
 };
 
 export const rescalePointsInElement = (

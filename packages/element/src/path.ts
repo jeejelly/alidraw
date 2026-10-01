@@ -800,3 +800,45 @@ export const getPathSceneGeometry = (
     })),
   };
 };
+
+// -----------------------------------------------------------------------------
+//                                    skew
+// -----------------------------------------------------------------------------
+
+/**
+ * Shears a path around its centre, in the element's own (unrotated) frame.
+ * `axis: "x"` slides points sideways in proportion to their height (tan k),
+ * `"y"` slides them up/down in proportion to their x. Handles are vectors, so
+ * only the linear part applies to them.
+ */
+export const shearPathGeometry = (
+  element: Pick<
+    ExcalidrawPathElement,
+    "points" | "handles" | "width" | "height"
+  >,
+  axis: "x" | "y",
+  k: number,
+  /** the line (in centre-relative local coordinates) that does not move */
+  pivot = 0,
+): PathGeometry => {
+  const cx = element.width / 2;
+  const cy = element.height / 2;
+  const move = (qx: number, qy: number): [number, number] =>
+    axis === "x" ? [qx + k * (qy - pivot), qy] : [qx, qy + k * (qx - pivot)];
+  return {
+    points: element.points.map((p) => {
+      const [x, y] = move(p[0] - cx, p[1] - cy);
+      return pointFrom<LocalPoint>(x + cx, y + cy);
+    }),
+    handles: element.handles.map((h) => {
+      const turn = (v: LocalPoint | null) =>
+        v
+          ? pointFrom<LocalPoint>(
+              axis === "x" ? v[0] + k * v[1] : v[0],
+              axis === "y" ? v[1] + k * v[0] : v[1],
+            )
+          : null;
+      return { mode: h.mode, in: turn(h.in), out: turn(h.out) };
+    }),
+  };
+};

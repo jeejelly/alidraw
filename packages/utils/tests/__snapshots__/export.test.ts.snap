@@ -66,6 +66,7 @@ exports[`exportToSvg > with default arguments 1`] = `
     "outline": true,
   },
   "frameToHighlight": null,
+  "gizmo": null,
   "gridModeEnabled": false,
   "gridSize": 20,
   "gridStep": 5,

@@ -82,6 +82,16 @@ import type {
   NonDeletedSceneElementsMap,
 } from "@excalidraw/element/types";
 
+import {
+  GIZMO_INNER,
+  GIZMO_OUTER,
+  canRotateWithGizmo,
+  canSkewWithGizmo,
+  gizmoToScene,
+  sameZone,
+  type GizmoZone,
+} from "../gizmo";
+
 import { renderSnaps } from "../renderer/renderSnaps";
 import { roundRect } from "../renderer/roundRect";
 import {
@@ -1084,7 +1094,11 @@ const renderPathEditor = (
   const r = 5 / zoom;
 
   const selected = editing.selectedPoint;
-  if (selected != null && element.handles[selected]?.mode !== "corner" && element.handles[selected]) {
+  if (
+    selected != null &&
+    element.handles[selected]?.mode !== "corner" &&
+    element.handles[selected]
+  ) {
     const anchor = toScene(element.points[selected]);
     for (const side of ["in", "out"] as const) {
       const h = element.handles[selected][side];
@@ -1394,6 +1408,169 @@ const renderFocusPointIndicator = ({
       isHovered,
     );
   }
+};
+
+/** rotate arcs at the corners, skew grips on the edges, the hovered zone, a readout */
+const renderGizmo = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  element: NonDeletedExcalidrawElement,
+  elementsMap: RenderableElementsMap,
+) => {
+  if (
+    appState.activeTool.type !== "selection" ||
+    appState.viewModeEnabled ||
+    appState.editingPath ||
+    appState.editingTextElement ||
+    appState.croppingElementId ||
+    !canRotateWithGizmo(element as any)
+  ) {
+    return;
+  }
+  const z = appState.zoom.value;
+  const [x1, y1, x2, y2, cx, cy] = getElementAbsoluteCoords(
+    element,
+    elementsMap,
+  );
+  const hw = (x2 - x1) / 2;
+  const hh = (y2 - y1) / 2;
+  const skewable = canSkewWithGizmo(element as any);
+  const hover = appState.gizmo?.hover ?? null;
+  const accent = getThemedColor("#6965db", appState.theme);
+  const at = (lx: number, ly: number) =>
+    gizmoToScene(lx, ly, cx, cy, element.angle);
+  const inner = GIZMO_INNER / z;
+  const mid = (GIZMO_INNER + 10) / z;
+  const outer = GIZMO_OUTER / z;
+
+  context.save();
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.lineWidth = 2 / z;
+
+  // every stroke gets a light halo so it reads over any drawing
+  const stroke = () => {
+    const color = context.strokeStyle;
+    const width = context.lineWidth;
+    const alpha = context.globalAlpha;
+    context.strokeStyle = getThemedColor("#ffffff", appState.theme);
+    context.lineWidth = width + 3 / z;
+    context.globalAlpha = alpha * 0.9;
+    context.stroke();
+    context.strokeStyle = color;
+    context.lineWidth = width;
+    context.globalAlpha = alpha;
+    context.stroke();
+  };
+
+  const hot = (zone: GizmoZone) => hover && sameZone(hover, zone);
+
+  // rotate: an arc with an arrowhead around each corner
+  for (const corner of ["nw", "ne", "se", "sw"] as const) {
+    const sx = corner.endsWith("w") ? -1 : 1;
+    const sy = corner.startsWith("n") ? -1 : 1;
+    const active = hot({ kind: "rotate", corner });
+    context.strokeStyle = accent;
+    context.globalAlpha = active ? 1 : 0.45;
+    const [ox, oy] = at(sx * (hw + mid), sy * (hh + mid));
+    const r = 10 / z;
+    const base = Math.atan2(sy, sx) + element.angle;
+    context.beginPath();
+    context.arc(ox, oy, r, base - 0.9, base + 0.9);
+    stroke();
+    // arrowheads at both ends
+    for (const end of [-0.9, 0.9]) {
+      const a = base + end;
+      const tx = ox + Math.cos(a) * r;
+      const ty = oy + Math.sin(a) * r;
+      const dir = a + (end > 0 ? Math.PI / 2 : -Math.PI / 2);
+      context.beginPath();
+      context.moveTo(
+        tx - (Math.cos(dir - 0.5) * 4) / z,
+        ty - (Math.sin(dir - 0.5) * 4) / z,
+      );
+      context.lineTo(tx, ty);
+      context.lineTo(
+        tx - (Math.cos(dir + 0.5) * 4) / z,
+        ty - (Math.sin(dir + 0.5) * 4) / z,
+      );
+      stroke();
+    }
+    if (active) {
+      context.globalAlpha = 0.12;
+      context.fillStyle = accent;
+      const pts = [
+        at(sx * (hw + inner * 0.35), sy * (hh + inner * 0.35)),
+        at(sx * (hw + outer), sy * (hh + inner * 0.35)),
+        at(sx * (hw + outer), sy * (hh + outer)),
+        at(sx * (hw + inner * 0.35), sy * (hh + outer)),
+      ];
+      context.beginPath();
+      pts.forEach(([px, py], i) =>
+        i ? context.lineTo(px, py) : context.moveTo(px, py),
+      );
+      context.closePath();
+      context.fill();
+    }
+  }
+
+  // skew: a slanted double bar on the middle of each edge
+  if (skewable) {
+    for (const edge of ["n", "e", "s", "w"] as const) {
+      // the rotation handle sits above the top edge
+      if (edge === "n") {
+        continue;
+      }
+      const horizontal = edge === "s";
+      const sgn = edge === "s" || edge === "e" ? 1 : -1;
+      const active = hot({ kind: "skew", edge });
+      context.strokeStyle = accent;
+      context.globalAlpha = active ? 1 : 0.45;
+      const [px, py] = horizontal
+        ? at(0, sgn * (hh + mid))
+        : at(sgn * (hw + mid), 0);
+      const len = 11 / z;
+      const slant = 4 / z;
+      const along = horizontal ? element.angle : element.angle + Math.PI / 2;
+      const ux = Math.cos(along);
+      const uy = Math.sin(along);
+      const nx = -uy;
+      const ny = ux;
+      for (const off of [-2.5 / z, 2.5 / z]) {
+        context.beginPath();
+        context.moveTo(
+          px + ux * (-len + slant * Math.sign(off || 1)) + nx * off,
+          py + uy * (-len + slant * Math.sign(off || 1)) + ny * off,
+        );
+        context.lineTo(
+          px + ux * (len + slant * Math.sign(off || 1)) + nx * off,
+          py + uy * (len + slant * Math.sign(off || 1)) + ny * off,
+        );
+        stroke();
+      }
+    }
+  }
+
+  // live readout while dragging
+  const readout = appState.gizmo?.readout;
+  if (readout) {
+    context.globalAlpha = 1;
+    context.font = `${12 / z}px sans-serif`;
+    const w = context.measureText(readout.text).width + 10 / z;
+    const h = 18 / z;
+    context.fillStyle = accent;
+    context.beginPath();
+    if (context.roundRect) {
+      context.roundRect(readout.x, readout.y, w, h, 9 / z);
+    } else {
+      context.rect(readout.x, readout.y, w, h);
+    }
+    context.fill();
+    context.fillStyle = "#fff";
+    context.textBaseline = "middle";
+    context.fillText(readout.text, readout.x + 5 / z, readout.y + h / 2);
+  }
+  context.restore();
 };
 
 const renderTransformHandles = (
@@ -2110,6 +2287,8 @@ const _renderInteractiveScene = ({
           selectedElements[0].angle,
         );
       }
+
+      renderGizmo(context, appState, selectedElements[0], elementsMap);
 
       if (appState.croppingElementId && !appState.isCropping) {
         const croppingElement = elementsMap.get(appState.croppingElementId);
