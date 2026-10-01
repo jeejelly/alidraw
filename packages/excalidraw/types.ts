@@ -71,6 +71,7 @@ import type { SetViewportOptions } from "./viewport";
 
 import type { Language } from "./i18n";
 import type { isOverScrollBars } from "./scene/scrollbars";
+import type { Layer } from "./layers";
 import type React from "react";
 import type { JSX } from "react";
 
@@ -535,6 +536,10 @@ export interface AppState {
   /** scene point the grid lines count from */
   gridOrigin: { x: number; y: number };
   gridModeEnabled: boolean;
+  /** named layers, bottom to top; see layers.ts */
+  layers: readonly Layer[];
+  /** where new objects go */
+  activeLayerId: string | null;
   /** edge rulers (px) along the top and left of the canvas */
   rulersEnabled: boolean;
   /** guide lines dragged off the rulers; saved with the document */

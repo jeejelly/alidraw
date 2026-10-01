@@ -111,6 +111,7 @@ export const actionClearCanvas = register({
         ...getDefaultAppState(),
         files: {},
         theme: appState.theme,
+        paletteOpen: appState.paletteOpen,
         penMode: appState.penMode,
         penDetected: appState.penDetected,
         exportBackground: appState.exportBackground,

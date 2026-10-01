@@ -368,7 +368,73 @@
       }
     }
 
+    &__layerrow {
+      display: flex;
+      align-items: center;
+      gap: 0.125rem;
+      padding: 0.125rem 0.25rem;
+      margin-top: 0.125rem;
+      border-left: 3px solid transparent;
+      border-radius: 0.375rem;
+      background: var(--insp-pill-bg);
+      cursor: pointer;
+
+      &[aria-selected="true"] {
+        outline: 1px solid var(--insp-accent);
+      }
+      .inspector__iconbtn {
+        width: 1.25rem;
+        height: 1.25rem;
+        font-size: 0.75rem;
+      }
+    }
+
+    &__layerchip {
+      width: 0.75rem;
+      height: 0.75rem;
+      border: 0;
+      border-radius: 0.125rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    &__layer-input {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+    }
+
+    &__layer-count {
+      opacity: 0.5;
+      font-size: 0.7rem;
+      padding: 0 0.25rem;
+    }
+
+    &__layerstyle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.5rem 0.25rem 1.5rem;
+
+      label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+      }
+      input[type="color"] {
+        width: 1.5rem;
+        height: 1.25rem;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+      }
+    }
+
     &__layer {
+      &--child {
+        margin-left: 1.5rem;
+      }
       display: flex;
       align-items: center;
       gap: 0.375rem;

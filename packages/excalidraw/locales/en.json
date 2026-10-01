@@ -191,6 +191,18 @@
       "detachLayers": "Pop out the layers",
       "attachLayers": "Put the layers back in the inspector"
     },
+    "layerPanel": {
+      "new": "New layer",
+      "delete": "Delete layer and its objects",
+      "show": "Show layer",
+      "hide": "Hide layer",
+      "lock": "Lock layer",
+      "unlock": "Unlock layer",
+      "selectAll": "Select all objects of the layer",
+      "fill": "Fill of every object in the layer",
+      "stroke": "Stroke of every object in the layer",
+      "noFill": "No fill for the layer"
+    },
     "grid": {
       "title": "Grid",
       "spacing": "Spacing",

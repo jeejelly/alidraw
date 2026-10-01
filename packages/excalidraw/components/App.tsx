@@ -409,6 +409,8 @@ import {
   resolveColorTarget,
 } from "../actions/colorTargets";
 
+import { getHiddenLayerKey, isInHiddenLayer } from "../layers";
+
 import ConvertElementTypePopup, {
   getConversionTypeFromElements,
   convertElementTypePopupAtom,
@@ -425,6 +427,7 @@ import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
 import { AppAnchors } from "./App.anchors";
+import { AppLayers } from "./App.layers";
 import { AppKnife } from "./App.knife";
 import { AngleHelper } from "./AngleHelper";
 import { Rulers } from "./Rulers";
@@ -750,6 +753,7 @@ class App extends React.Component<AppProps, AppState> {
   guides = new AppGuides(this);
   gizmo = new AppGizmo(this);
   anchors = new AppAnchors(this);
+  layers = new AppLayers(this);
   knife = new AppKnife(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
@@ -2355,6 +2359,7 @@ class App extends React.Component<AppProps, AppState> {
       selectedElementsAreBeingDragged:
         this.state.selectedElementsAreBeingDragged,
       frameToHighlight: this.state.frameToHighlight,
+      hiddenLayerKey: getHiddenLayerKey(this.state.layers),
     });
     this.visibleElements = visibleElements;
     this.hasRenderableElements = renderableElementsMap.size > 0;
@@ -3571,6 +3576,8 @@ class App extends React.Component<AppProps, AppState> {
         ...getDefaultAppState(),
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
         theme: this.state.theme,
+        // the inspector is the editor's panel: a new scene keeps it
+        paletteOpen: state.paletteOpen,
       }));
       this.resetStore();
       this.resetHistory();
@@ -3863,6 +3870,7 @@ class App extends React.Component<AppProps, AppState> {
 
     this.scene.onUpdate(this.triggerRender);
     this.scene.onUpdate(this.anchors.refresh);
+    this.scene.onUpdate(this.layers.refresh);
     this.addEventListeners();
 
     if (this.props.autoFocus && this.excalidrawContainerRef.current) {
@@ -6076,6 +6084,10 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   // NOTE: Hot path for hit testing, so avoid unnecessary computations
+  /** ids of the layers switched off: their objects can't be picked */
+  getHiddenLayerIds = () =>
+    new Set(this.state.layers.filter((l) => !l.visible).map((l) => l.id));
+
   getElementsAtPosition(
     x: number,
     y: number,
@@ -6088,6 +6100,7 @@ class App extends React.Component<AppProps, AppState> {
 
     const elementsMap = this.scene.getNonDeletedElementsMap();
 
+    const hidden = this.getHiddenLayerIds();
     const elements = (
       opts?.includeBoundTextElement && opts?.includeLockedElements
         ? this.scene.getNonDeletedElements()
@@ -6100,6 +6113,7 @@ class App extends React.Component<AppProps, AppState> {
                   !(isTextElement(element) && element.containerId)),
             )
     )
+      .filter((el) => !isInHiddenLayer(el, hidden))
       .filter((el) => this.hitElement(x, y, el))
       .filter((element) => {
         // hitting a frame's element from outside the frame is not considered a hit
@@ -10355,7 +10369,9 @@ class App extends React.Component<AppProps, AppState> {
           }
           const elementsWithinSelection = this.state.selectionElement
             ? getElementsWithinSelection(
-                elements,
+                elements.filter(
+                  (el) => !isInHiddenLayer(el, this.getHiddenLayerIds()),
+                ),
                 this.state.selectionElement,
                 this.scene.getNonDeletedElementsMap(),
                 false,

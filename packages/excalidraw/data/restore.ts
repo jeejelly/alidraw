@@ -113,6 +113,7 @@ import type {
 import type { MarkOptional, Mutable } from "@excalidraw/common/utility-types";
 
 import { sanitizeGuides } from "../guides";
+import { sanitizeLayers } from "../layers";
 
 import { getDefaultAppState } from "../appState";
 
@@ -1431,6 +1432,14 @@ export const restoreAppState = (
     gridStep: getNormalizedGridStep(
       isFiniteNumber(appState.gridStep) ? appState.gridStep : DEFAULT_GRID_STEP,
     ),
+    ...(() => {
+      const layers = sanitizeLayers(appState.layers);
+      const active = layers.find((l) => l.id === appState.activeLayerId);
+      return {
+        layers,
+        activeLayerId: active?.id ?? layers[layers.length - 1]?.id ?? null,
+      };
+    })(),
     gridOrigin: {
       x: isFiniteNumber(appState.gridOrigin?.x) ? appState.gridOrigin.x : 0,
       y: isFiniteNumber(appState.gridOrigin?.y) ? appState.gridOrigin.y : 0,

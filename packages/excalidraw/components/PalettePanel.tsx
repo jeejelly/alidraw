@@ -36,6 +36,7 @@ import {
 
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";
+import { LayersTree } from "./inspector/LayersTree";
 import MultiAngle from "./Stats/MultiAngle";
 import MultiDimension from "./Stats/MultiDimension";
 import MultiPosition from "./Stats/MultiPosition";
@@ -696,6 +697,15 @@ export const PalettePanel = ({ app }: { app: App }) => {
         <button
           type="button"
           className="inspector__iconbtn"
+          data-testid="layer-add"
+          title={t("labels.layerPanel.new")}
+          onClick={() => app.layers.add()}
+        >
+          ＋
+        </button>
+        <button
+          type="button"
+          className="inspector__iconbtn"
           data-testid="layers-detach"
           style={{ marginLeft: "auto" }}
           title={
@@ -727,34 +737,50 @@ export const PalettePanel = ({ app }: { app: App }) => {
           🔒
         </button>
       </div>
-      {layers.length === 0 && (
-        <div className="inspector__hint">{t("labels.palette.noLayers")}</div>
+      {app.state.layers.length > 0 ? (
+        <LayersTree
+          app={app}
+          layerName={(el) => layerName(el as any)}
+          glyph={(el) => LAYER_GLYPH[el.type] ?? "•"}
+        />
+      ) : (
+        <>
+          {layers.length === 0 && (
+            <div className="inspector__hint">
+              {t("labels.palette.noLayers")}
+            </div>
+          )}
+          {[...layers].reverse().map((el) => (
+            <div
+              key={el.id}
+              role="option"
+              data-testid="inspector-layer"
+              aria-selected={!!app.state.selectedElementIds[el.id]}
+              className="inspector__layer"
+              onClick={(e) => {
+                app.setState((prev) => ({
+                  selectedElementIds: {
+                    ...(e.shiftKey ? prev.selectedElementIds : {}),
+                    [el.id]: true,
+                  },
+                  selectedGroupIds: {},
+                  editingPath: null,
+                }));
+              }}
+            >
+              <span className="inspector__layer-type">
+                {LAYER_GLYPH[el.type] ?? "•"}
+              </span>
+              <span className="inspector__layer-name">
+                {layerName(el as any)}
+              </span>
+              {el.locked && (
+                <span title={t("labels.elementLock.lock")}>🔒</span>
+              )}
+            </div>
+          ))}
+        </>
       )}
-      {[...layers].reverse().map((el) => (
-        <div
-          key={el.id}
-          role="option"
-          data-testid="inspector-layer"
-          aria-selected={!!app.state.selectedElementIds[el.id]}
-          className="inspector__layer"
-          onClick={(e) => {
-            app.setState((prev) => ({
-              selectedElementIds: {
-                ...(e.shiftKey ? prev.selectedElementIds : {}),
-                [el.id]: true,
-              },
-              selectedGroupIds: {},
-              editingPath: null,
-            }));
-          }}
-        >
-          <span className="inspector__layer-type">
-            {LAYER_GLYPH[el.type] ?? "•"}
-          </span>
-          <span className="inspector__layer-name">{layerName(el as any)}</span>
-          {el.locked && <span title={t("labels.elementLock.lock")}>🔒</span>}
-        </div>
-      ))}
     </div>
   );
 
