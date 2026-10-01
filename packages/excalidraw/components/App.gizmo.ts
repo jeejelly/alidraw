@@ -11,8 +11,11 @@ import {
   getPathUpdate,
   isPathElement,
   newElementWith,
+  getPathSceneGeometry,
+  rotateElementsBy,
   setSingleElementAngle,
   shearPathGeometry,
+  shearSceneGeometry,
   updateBoundElements,
 } from "@excalidraw/element";
 
@@ -32,8 +35,7 @@ import {
 } from "../remarkableAngles";
 
 import {
-  canRotateWithGizmo,
-  canSkewWithGizmo,
+  getGizmoTarget,
   getGizmoZone,
   getSkewFactor,
   gizmoToLocal,
@@ -42,6 +44,7 @@ import {
   snapAngle,
   snapToAlignment,
   type AlignCandidate,
+  type GizmoTarget,
   type GizmoZone,
 } from "../gizmo";
 
@@ -65,7 +68,9 @@ const CLICK_SLOP = 3;
 type Gesture =
   | {
       kind: "rotate";
-      id: string;
+      /** a single element turns about its own centre; several about the box's */
+      ids: string[];
+      angles: Map<string, number>;
       angle0: number;
       theta0: number;
       cx: number;
@@ -79,11 +84,22 @@ type Gesture =
       start: [number, number];
       cx: number;
       cy: number;
+    }
+  | {
+      /** several shapes sheared about one line, in scene axes */
+      kind: "skew-group";
+      edge: "n" | "e" | "s" | "w";
+      bases: ExcalidrawPathElement[];
+      start: [number, number];
+      cx: number;
+      cy: number;
+      hw: number;
+      hh: number;
     };
 
 /**
- * The rotate / skew gizmo around the single selected element (see
- * `gizmo.ts` for the zones). Owns its pointer from press to release; Shift
+ * The rotate / skew gizmo around the selection: one element, or several
+ * together (see `gizmo.ts` for the zones). Owns its pointer from press to release; Shift
  * steps in 15°, Alt works from the centre (skew), Escape cancels.
  */
 export class AppGizmo {
@@ -98,7 +114,7 @@ export class AppGizmo {
 
   isActive = () => this.gesture !== null;
 
-  private target = (): NonDeletedExcalidrawElement | null => {
+  private target = (): GizmoTarget | null => {
     const s = this.app.state;
     if (
       s.activeTool.type !== "selection" ||
@@ -111,11 +127,10 @@ export class AppGizmo {
     ) {
       return null;
     }
-    const selected = this.app.scene.getSelectedElements(s);
-    if (selected.length !== 1 || !canRotateWithGizmo(selected[0] as any)) {
-      return null;
-    }
-    return selected[0];
+    return getGizmoTarget(
+      this.app.scene.getSelectedElements(s),
+      this.app.scene.getNonDeletedElementsMap(),
+    );
   };
 
   private frame = (el: NonDeletedExcalidrawElement) => {
@@ -127,22 +142,22 @@ export class AppGizmo {
   };
 
   private zoneAt = (event: { clientX: number; clientY: number }) => {
-    const el = this.target();
-    if (!el) {
+    const target = this.target();
+    if (!target) {
       return null;
     }
     const p = viewportCoordsToSceneCoords(event, this.app.state);
-    const { hw, hh, cx, cy } = this.frame(el);
-    const [lx, ly] = gizmoToLocal(p.x, p.y, cx, cy, el.angle);
+    const { hw, hh, cx, cy, angle } = target.frame;
+    const [lx, ly] = gizmoToLocal(p.x, p.y, cx, cy, angle);
     const zone = getGizmoZone(
       lx,
       ly,
       hw,
       hh,
       this.app.state.zoom.value,
-      canSkewWithGizmo(el as any),
+      target.skewable,
     );
-    return zone ? { zone, el } : null;
+    return zone ? { zone, target } : null;
   };
 
   private setGizmo = (
@@ -170,7 +185,7 @@ export class AppGizmo {
     if (!hit) {
       return false;
     }
-    const deg = (hit.el.angle * 180) / Math.PI;
+    const deg = (hit.target.frame.angle * 180) / Math.PI;
     if (hit.zone.kind === "rotate") {
       const base = { nw: 0, ne: 90, se: 180, sw: 270 }[hit.zone.corner];
       this.app.cursor.set(makeCursor(ROTATE_ARROW, deg + base));
@@ -195,7 +210,7 @@ export class AppGizmo {
     const s = this.app.state;
     const p = viewportCoordsToSceneCoords(event, s);
     const handle = getElementWithTransformHandleType(
-      [hit.el],
+      hit.target.elements as NonDeletedExcalidrawElement[],
       s,
       p.x,
       p.y,
@@ -209,43 +224,63 @@ export class AppGizmo {
     }
     // another shape under the pointer is simply clicked
     const under = this.app.getElementAtPosition(p.x, p.y);
-    if (under && under.id !== hit.el.id) {
+    if (under && !hit.target.elements.some((e) => e.id === under.id)) {
       return false;
     }
     this.pressedAt = { x: event.clientX, y: event.clientY };
-    return this.begin(hit.zone, hit.el, p);
+    return this.begin(hit.zone, hit.target, p);
   };
 
   private begin = (
     zone: GizmoZone,
-    el: NonDeletedExcalidrawElement,
+    target: GizmoTarget,
     p: { x: number; y: number },
   ) => {
+    const { cx, cy, angle } = target.frame;
     if (zone.kind === "rotate") {
-      const { cx, cy } = this.frame(el);
       this.gesture = {
         kind: "rotate",
-        id: el.id,
-        angle0: el.angle,
+        ids: target.elements.map((e) => e.id),
+        angles: new Map(target.elements.map((e) => [e.id, e.angle])),
+        angle0: angle,
         theta0: Math.atan2(p.y - cy, p.x - cx),
         cx,
         cy,
       };
-    } else {
-      const path = this.ensurePath(el);
+    } else if (target.elements.length === 1) {
+      const path = this.ensurePath(target.elements[0]);
       if (!path) {
         return false;
       }
-      const { cx, cy } = this.frame(path as NonDeletedExcalidrawElement);
-      const [lx, ly] = gizmoToLocal(p.x, p.y, cx, cy, path.angle);
+      const f = this.frame(path as NonDeletedExcalidrawElement);
+      const [lx, ly] = gizmoToLocal(p.x, p.y, f.cx, f.cy, path.angle);
       this.gesture = {
         kind: "skew",
         id: path.id,
         edge: zone.edge,
         base: { ...path },
         start: [lx, ly],
+        cx: f.cx,
+        cy: f.cy,
+      };
+    } else {
+      const bases: ExcalidrawPathElement[] = [];
+      for (const el of target.elements) {
+        const path = this.ensurePath(el);
+        if (!path) {
+          return false;
+        }
+        bases.push({ ...path });
+      }
+      this.gesture = {
+        kind: "skew-group",
+        edge: zone.edge,
+        bases,
+        start: [p.x - cx, p.y - cy],
         cx,
         cy,
+        hw: target.frame.hw,
+        hh: target.frame.hh,
       };
     }
     this.listen();
@@ -306,22 +341,21 @@ export class AppGizmo {
   };
 
   /** the page axes, and every other element's own axes through its centre */
-  private alignCandidates = (exceptId: string): AlignCandidate[] => {
+  private alignCandidates = (
+    except: readonly string[],
+    centre: { cx: number; cy: number },
+  ): AlignCandidate[] => {
     const map = this.app.scene.getNonDeletedElementsMap();
     const out: AlignCandidate[] = [];
     for (const other of this.app.scene.getNonDeletedElements()) {
-      if (other.id === exceptId || other.isDeleted) {
+      if (except.includes(other.id) || other.isDeleted) {
         continue;
       }
       const [, , , , cx, cy] = getElementAbsoluteCoords(other, map);
       out.push({ angle: other.angle, x: cx, y: cy });
     }
-    // the page axes, through the turning element's own centre
-    const self = this.app.scene.getNonDeletedElement(exceptId);
-    if (self) {
-      const [, , , , cx, cy] = getElementAbsoluteCoords(self, map);
-      out.push({ angle: 0, x: cx, y: cy });
-    }
+    // the page axes, through the turning selection's own centre
+    out.push({ angle: 0, x: centre.cx, y: centre.cy });
     return out;
   };
 
@@ -341,55 +375,88 @@ export class AppGizmo {
       return;
     }
     this.moved = true;
-    const el = this.app.scene.getNonDeletedElement(g.id);
-    if (!el) {
-      return;
-    }
     if (g.kind === "rotate") {
-      let angle = g.angle0 + (Math.atan2(p.y - g.cy, p.x - g.cx) - g.theta0);
-      let matches: { angle: number; x: number; y: number }[] = [];
-      let how = "free";
-      const key = this.keys.key;
-      if (key) {
-        // a held number key asks for that angle outright
-        angle = lockAngle(key, angle, Math.PI / 2) ?? angle;
-        how = "key";
-      } else if (event.shiftKey) {
-        angle = snapAngle(angle);
-        how = "step";
-      } else if (!event.altKey) {
-        // the axes of the other elements first, then the remarkable angles
-        const snapped = snapToAlignment(angle, this.alignCandidates(g.id));
-        if (snapped.matches.length) {
-          angle = snapped.angle;
-          matches = snapped.matches;
-          how = "align";
-        } else {
-          const magnet = magnetAngle(normalizeAngle(angle));
-          if (magnet.snapped) {
-            angle = magnet.angle;
-            how = "magnet";
-          }
+      this.moveRotate(g, event, p);
+    } else if (g.kind === "skew") {
+      this.moveSkew(g, event, p);
+    } else {
+      this.moveSkewGroup(g, event, p);
+    }
+  };
+
+  private moveRotate = (
+    g: Extract<Gesture, { kind: "rotate" }>,
+    event: PointerEvent,
+    p: { x: number; y: number },
+  ) => {
+    let angle = g.angle0 + (Math.atan2(p.y - g.cy, p.x - g.cx) - g.theta0);
+    let matches: { angle: number; x: number; y: number }[] = [];
+    let how = "free";
+    const key = this.keys.key;
+    if (key) {
+      // a held number key asks for that angle outright
+      angle = lockAngle(key, angle, Math.PI / 2) ?? angle;
+      how = "key";
+    } else if (event.shiftKey) {
+      angle = snapAngle(angle);
+      how = "step";
+    } else if (!event.altKey) {
+      // the axes of the other elements first, then the remarkable angles
+      const snapped = snapToAlignment(angle, this.alignCandidates(g.ids, g));
+      if (snapped.matches.length) {
+        angle = snapped.angle;
+        matches = snapped.matches;
+        how = "align";
+      } else {
+        const magnet = magnetAngle(normalizeAngle(angle));
+        if (magnet.snapped) {
+          angle = magnet.angle;
+          how = "magnet";
         }
       }
-      angle = normalizeAngle(angle);
-      setSingleElementAngle(el, this.app.scene, angle as Radians);
-      updateBoundElements(el, this.app.scene);
-      this.readout(
-        event,
-        `${toDegrees(angle)}°${
-          how === "align"
-            ? " ⟂"
-            : how === "key"
-            ? ` ⌨${key}`
-            : how === "magnet"
-            ? " ◆"
-            : ""
-        }`,
+    }
+    angle = normalizeAngle(angle);
+    const elements = g.ids
+      .map((id) => this.app.scene.getNonDeletedElement(id))
+      .filter(Boolean) as NonDeletedExcalidrawElement[];
+    if (elements.length === 1) {
+      setSingleElementAngle(elements[0], this.app.scene, angle as Radians);
+      updateBoundElements(elements[0], this.app.scene);
+    } else {
+      // a group turns as one: every shape about the box's centre
+      rotateElementsBy(
+        elements,
+        g.angles,
+        this.app.scene,
+        g.cx,
+        g.cy,
+        angle - g.angle0,
       );
-      this.setGizmo({
-        align: matches.map((m) => ({ x: m.x, y: m.y, angle: m.angle })),
-      });
+    }
+    this.readout(
+      event,
+      `${toDegrees(angle)}°${
+        how === "align"
+          ? " ⟂"
+          : how === "key"
+          ? ` ⌨${key}`
+          : how === "magnet"
+          ? " ◆"
+          : ""
+      }`,
+    );
+    this.setGizmo({
+      align: matches.map((m) => ({ x: m.x, y: m.y, angle: m.angle })),
+    });
+  };
+
+  private moveSkew = (
+    g: Extract<Gesture, { kind: "skew" }>,
+    event: PointerEvent,
+    p: { x: number; y: number },
+  ) => {
+    const el = this.app.scene.getNonDeletedElement(g.id);
+    if (!el) {
       return;
     }
     const base = g.base;
@@ -414,6 +481,47 @@ export class AppGizmo {
     this.readout(event, `${Math.round((Math.atan(k) * 1800) / Math.PI) / 10}°`);
   };
 
+  /** several shapes sheared about one line: scene axes, one shared pivot */
+  private moveSkewGroup = (
+    g: Extract<Gesture, { kind: "skew-group" }>,
+    event: PointerEvent,
+    p: { x: number; y: number },
+  ) => {
+    const horizontal = g.edge === "n" || g.edge === "s";
+    const drag = horizontal ? p.x - g.cx - g.start[0] : p.y - g.cy - g.start[1];
+    const k = getSkewFactor(g.edge, drag, g.hw, g.hh, {
+      fromCenter: event.altKey,
+      snap: event.shiftKey,
+    });
+    // the line that stays put, in scene coordinates
+    const pivot =
+      (horizontal ? g.cy : g.cx) + skewPivot(g.edge, g.hw, g.hh, event.altKey);
+    for (const base of g.bases) {
+      const el = this.app.scene.getNonDeletedElement(base.id);
+      if (!el) {
+        continue;
+      }
+      const geometry = shearSceneGeometry(
+        getPathSceneGeometry(base),
+        horizontal ? "x" : "y",
+        k,
+        pivot,
+      );
+      const frame = {
+        ...base,
+        x: 0,
+        y: 0,
+        angle: 0 as Radians,
+        ...geometry,
+      } as ExcalidrawPathElement;
+      this.app.scene.mutateElement(el as ExcalidrawPathElement, {
+        ...getPathUpdate(frame, geometry),
+        angle: 0 as Radians,
+      });
+    }
+    this.readout(event, `${Math.round((Math.atan(k) * 1800) / Math.PI) / 10}°`);
+  };
+
   private finish = (cancel: boolean) => {
     const g = this.gesture;
     this.gesture = null;
@@ -422,19 +530,34 @@ export class AppGizmo {
     this.keys.end();
     this.app.setState({ angleHelper: null });
     if (g && cancel) {
-      const el = this.app.scene.getNonDeletedElement(g.id);
-      if (el) {
-        if (g.kind === "rotate") {
-          setSingleElementAngle(el, this.app.scene, g.angle0 as Radians);
+      if (g.kind === "rotate") {
+        const elements = g.ids
+          .map((id) => this.app.scene.getNonDeletedElement(id))
+          .filter(Boolean) as NonDeletedExcalidrawElement[];
+        if (elements.length === 1) {
+          setSingleElementAngle(
+            elements[0],
+            this.app.scene,
+            g.angle0 as Radians,
+          );
         } else {
-          this.app.scene.mutateElement(el as ExcalidrawPathElement, {
-            x: g.base.x,
-            y: g.base.y,
-            width: g.base.width,
-            height: g.base.height,
-            points: g.base.points,
-            handles: g.base.handles,
-          });
+          rotateElementsBy(elements, g.angles, this.app.scene, g.cx, g.cy, 0);
+        }
+      } else {
+        for (const base of g.kind === "skew" ? [g.base] : g.bases) {
+          const el = this.app.scene.getNonDeletedElement(base.id);
+          if (el) {
+            this.app.scene.mutateElement(el as ExcalidrawPathElement, {
+              x: base.x,
+              y: base.y,
+              width: base.width,
+              height: base.height,
+              angle: base.angle,
+              points: base.points,
+              handles: base.handles,
+              ...(base.contours ? { contours: base.contours } : {}),
+            });
+          }
         }
       }
     }

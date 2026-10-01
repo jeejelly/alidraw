@@ -1,6 +1,7 @@
 /**
- * The transform gizmo around a single selected element, in the element's own
- * frame (origin at its centre, axes turned with it):
+ * The transform gizmo around the selection: one element in its own frame, or
+ * several (a group) in the frame of their common box (origin at its centre,
+ * axes turned with the element):
  *
  *   rotate zones: just outside each corner  — drag to turn around the centre
  *   skew zones:   just outside each edge    — drag along the edge to shear
@@ -8,6 +9,13 @@
  * Resizing keeps the usual handles; these zones sit outside them, and the
  * modifiers (Shift: 15° steps, Alt: from the centre) work as in other design tools.
  */
+import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
+
+import type {
+  ElementsMap,
+  NonDeletedExcalidrawElement,
+} from "@excalidraw/element/types";
+
 export type GizmoCorner = "nw" | "ne" | "se" | "sw";
 export type GizmoEdge = "n" | "e" | "s" | "w";
 
@@ -231,4 +239,71 @@ export const snapToAlignment = (
     return Math.abs(c.angle + turns * QUARTER - best) < 1e-6;
   });
   return { angle: best, matches };
+};
+
+// -----------------------------------------------------------------------------
+// what the gizmo surrounds
+// -----------------------------------------------------------------------------
+
+/** the box the zones sit around: centre, half sizes, and its turn */
+export type GizmoFrame = {
+  cx: number;
+  cy: number;
+  hw: number;
+  hh: number;
+  angle: number;
+};
+
+export type GizmoTarget = {
+  elements: readonly NonDeletedExcalidrawElement[];
+  frame: GizmoFrame;
+  /** every element can be sheared */
+  skewable: boolean;
+};
+
+/**
+ * The gizmo of a selection. One element has the frame of its own (turned)
+ * box; several, a group included, the upright box around all of them.
+ * Nothing when any of them cannot turn (frames, locked, elbow arrows).
+ */
+export const getGizmoTarget = (
+  selected: readonly NonDeletedExcalidrawElement[],
+  elementsMap: ElementsMap,
+): GizmoTarget | null => {
+  if (
+    !selected.length ||
+    !selected.every((e) => canRotateWithGizmo(e as any))
+  ) {
+    return null;
+  }
+  const skewable = selected.every((e) => canSkewWithGizmo(e as any));
+  if (selected.length === 1) {
+    const [x1, y1, x2, y2, cx, cy] = getElementAbsoluteCoords(
+      selected[0],
+      elementsMap,
+    );
+    return {
+      elements: selected,
+      frame: {
+        cx,
+        cy,
+        hw: (x2 - x1) / 2,
+        hh: (y2 - y1) / 2,
+        angle: selected[0].angle,
+      },
+      skewable,
+    };
+  }
+  const [x1, y1, x2, y2] = getCommonBounds(selected, elementsMap);
+  return {
+    elements: selected,
+    frame: {
+      cx: (x1 + x2) / 2,
+      cy: (y1 + y2) / 2,
+      hw: (x2 - x1) / 2,
+      hh: (y2 - y1) / 2,
+      angle: 0,
+    },
+    skewable,
+  };
 };

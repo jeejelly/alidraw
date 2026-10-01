@@ -1113,3 +1113,39 @@ export const isLineConvertibleToPath = (
   element: ExcalidrawElement,
 ): element is ExcalidrawLineElement =>
   element.type === "line" && element.points.length >= 2;
+
+/**
+ * Shears a path that is already in scene coordinates (no rotation, origin
+ * anywhere): `axis: "x"` slides points sideways in proportion to their
+ * distance from `pivot` along y, `"y"` the other way round. Used to skew
+ * several elements about one shared line.
+ */
+export const shearSceneGeometry = (
+  geometry: PathGeometry,
+  axis: "x" | "y",
+  k: number,
+  pivot: number,
+): PathGeometry => {
+  const move = (p: LocalPoint) =>
+    axis === "x"
+      ? pointFrom<LocalPoint>(p[0] + k * (p[1] - pivot), p[1])
+      : pointFrom<LocalPoint>(p[0], p[1] + k * (p[0] - pivot));
+  const turn = (v: LocalPoint | null) =>
+    v
+      ? pointFrom<LocalPoint>(
+          axis === "x" ? v[0] + k * v[1] : v[0],
+          axis === "y" ? v[1] + k * v[0] : v[1],
+        )
+      : null;
+  const one = (c: {
+    points: readonly LocalPoint[];
+    handles: readonly PathPointHandles[];
+  }) => ({
+    points: c.points.map(move),
+    handles: c.handles.map((h) => ({ ...h, in: turn(h.in), out: turn(h.out) })),
+  });
+  return {
+    ...one(geometry),
+    ...(geometry.contours ? { contours: geometry.contours.map(one) } : {}),
+  };
+};

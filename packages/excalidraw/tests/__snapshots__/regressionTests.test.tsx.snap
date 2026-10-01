@@ -13353,7 +13353,14 @@ exports[`regression tests > should group elements and ungroup them > [end of tes
     "outline": true,
   },
   "frameToHighlight": null,
-  "gizmo": null,
+  "gizmo": {
+    "align": [],
+    "hover": {
+      "corner": "nw",
+      "kind": "rotate",
+    },
+    "readout": null,
+  },
   "gridModeEnabled": false,
   "gridOrigin": {
     "x": 0,
@@ -13395,8 +13402,6 @@ exports[`regression tests > should group elements and ungroup them > [end of tes
     "type": "selection",
   },
   "previousSelectedElementIds": {
-    "id0": true,
-    "id3": true,
     "id6": true,
   },
   "resizingElement": null,
@@ -13690,6 +13695,59 @@ exports[`regression tests > should group elements and ungroup them > [end of tes
   {
     "appState": AppStateDelta {
       "delta": Delta {
+        "deleted": {},
+        "inserted": {},
+      },
+    },
+    "elements": {
+      "added": {},
+      "removed": {},
+      "updated": {
+        "id0": {
+          "deleted": {
+            "angle": "2.91279",
+            "version": 6,
+            "x": "49.47879",
+            "y": "5.46384",
+          },
+          "inserted": {
+            "angle": 0,
+            "version": 4,
+            "x": 10,
+            "y": 10,
+          },
+        },
+        "id3": {
+          "deleted": {
+            "angle": "2.91279",
+            "version": 6,
+          },
+          "inserted": {
+            "angle": 0,
+            "version": 4,
+          },
+        },
+        "id6": {
+          "deleted": {
+            "angle": "2.91279",
+            "version": 6,
+            "x": "10.52121",
+            "y": "14.53616",
+          },
+          "inserted": {
+            "angle": 0,
+            "version": 4,
+            "x": 50,
+            "y": 10,
+          },
+        },
+      },
+    },
+    "id": "id16",
+  },
+  {
+    "appState": AppStateDelta {
+      "delta": Delta {
         "deleted": {
           "selectedGroupIds": {},
         },
@@ -13707,42 +13765,42 @@ exports[`regression tests > should group elements and ungroup them > [end of tes
         "id0": {
           "deleted": {
             "groupIds": [],
-            "version": 5,
+            "version": 7,
           },
           "inserted": {
             "groupIds": [
               "id12",
             ],
-            "version": 4,
+            "version": 6,
           },
         },
         "id3": {
           "deleted": {
             "groupIds": [],
-            "version": 5,
+            "version": 7,
           },
           "inserted": {
             "groupIds": [
               "id12",
             ],
-            "version": 4,
+            "version": 6,
           },
         },
         "id6": {
           "deleted": {
             "groupIds": [],
-            "version": 5,
+            "version": 7,
           },
           "inserted": {
             "groupIds": [
               "id12",
             ],
-            "version": 4,
+            "version": 6,
           },
         },
       },
     },
-    "id": "id17",
+    "id": "id18",
   },
 ]
 `;

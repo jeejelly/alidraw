@@ -15,6 +15,8 @@ export type PaletteState = Readonly<{
   /** the layers list lives in its own floating panel instead of a tab */
   layersDetached: boolean;
   layersPosition: { x: number; y: number };
+  /** width of the panel in px (docked or floating as a column) */
+  width: number;
   /** tools the user took off the Tools section (ids, see ToolsSection) */
   hiddenTools: readonly string[];
 }>;
@@ -28,6 +30,7 @@ export const DEFAULT_PALETTE_STATE: PaletteState = {
   position: { x: 80, y: 120 },
   layersDetached: false,
   layersPosition: { x: 120, y: 160 },
+  width: 264,
   hiddenTools: [],
 };
 
@@ -98,6 +101,12 @@ export const sanitizePaletteState = (raw: unknown): PaletteState => {
       Number.isFinite(value.layersPosition.y)
         ? { x: value.layersPosition.x, y: value.layersPosition.y }
         : DEFAULT_PALETTE_STATE.layersPosition,
+    width:
+      typeof value.width === "number" &&
+      Number.isFinite(value.width) &&
+      value.width >= 240
+        ? Math.min(720, Math.round(value.width))
+        : DEFAULT_PALETTE_STATE.width,
     hiddenTools: Array.isArray(value.hiddenTools)
       ? [
           ...new Set(
@@ -190,6 +199,18 @@ export const setToolHidden = (id: string, hidden: boolean) => {
   const rest = current.hiddenTools.filter((t) => t !== id);
   commit({ ...current, hiddenTools: hidden ? [...rest, id] : rest });
 };
+
+export const PALETTE_MIN_WIDTH = 240;
+export const PALETTE_MAX_WIDTH = 720;
+
+export const setPaletteWidth = (width: number) =>
+  commit({
+    ...getPaletteState(),
+    width: Math.min(
+      PALETTE_MAX_WIDTH,
+      Math.max(PALETTE_MIN_WIDTH, Math.round(width)),
+    ),
+  });
 
 export const setLayersPosition = (layersPosition: { x: number; y: number }) =>
   commit({ ...getPaletteState(), layersPosition });

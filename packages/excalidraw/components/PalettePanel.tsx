@@ -29,6 +29,8 @@ import {
   renameSwatch,
   setLayersDetached,
   setLayersPosition,
+  setPaletteWidth,
+  DEFAULT_PALETTE_STATE,
   setPaletteLayout,
   setPalettePosition,
   subscribePalette,
@@ -806,9 +808,37 @@ export const PalettePanel = ({ app }: { app: App }) => {
         className={className}
         data-testid="palette-panel"
         data-layout={layout}
-        style={docked ? undefined : { left: pos.x, top: pos.y }}
+        style={{
+          ...(docked ? {} : { left: pos.x, top: pos.y }),
+          ...(layout === "horizontal" ? {} : { width: palette.width }),
+        }}
         onKeyDown={(e) => e.stopPropagation()}
       >
+        {layout !== "horizontal" && (
+          <div
+            className={`inspector__grip inspector__grip--${
+              docked ? "left" : "right"
+            }`}
+            data-testid="palette-resize"
+            title={t("labels.palette.resize")}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const startX = e.clientX;
+              const startWidth = palette.width;
+              const sign = docked ? -1 : 1;
+              const move = (ev: PointerEvent) =>
+                setPaletteWidth(startWidth + sign * (ev.clientX - startX));
+              const up = () => {
+                window.removeEventListener("pointermove", move);
+                window.removeEventListener("pointerup", up);
+              };
+              window.addEventListener("pointermove", move);
+              window.addEventListener("pointerup", up);
+            }}
+            onDoubleClick={() => setPaletteWidth(DEFAULT_PALETTE_STATE.width)}
+          />
+        )}
         <div
           className="inspector__head"
           data-testid="palette-handle"

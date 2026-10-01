@@ -96,8 +96,7 @@ import {
 import {
   GIZMO_INNER,
   GIZMO_OUTER,
-  canRotateWithGizmo,
-  canSkewWithGizmo,
+  getGizmoTarget,
   gizmoToScene,
   sameZone,
   type GizmoZone,
@@ -1493,7 +1492,7 @@ const renderCornerGizmos = (
 const renderGizmo = (
   context: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
-  element: NonDeletedExcalidrawElement,
+  selected: readonly NonDeletedExcalidrawElement[],
   elementsMap: RenderableElementsMap,
 ) => {
   if (
@@ -1501,23 +1500,20 @@ const renderGizmo = (
     appState.viewModeEnabled ||
     appState.editingPath ||
     appState.editingTextElement ||
-    appState.croppingElementId ||
-    !canRotateWithGizmo(element as any)
+    appState.croppingElementId
   ) {
     return;
   }
+  const target = getGizmoTarget(selected, elementsMap);
+  if (!target) {
+    return;
+  }
   const z = appState.zoom.value;
-  const [x1, y1, x2, y2, cx, cy] = getElementAbsoluteCoords(
-    element,
-    elementsMap,
-  );
-  const hw = (x2 - x1) / 2;
-  const hh = (y2 - y1) / 2;
-  const skewable = canSkewWithGizmo(element as any);
+  const { cx, cy, hw, hh, angle } = target.frame;
+  const skewable = target.skewable;
   const hover = appState.gizmo?.hover ?? null;
   const accent = getThemedColor("#6965db", appState.theme);
-  const at = (lx: number, ly: number) =>
-    gizmoToScene(lx, ly, cx, cy, element.angle);
+  const at = (lx: number, ly: number) => gizmoToScene(lx, ly, cx, cy, angle);
   const inner = GIZMO_INNER / z;
   const mid = (GIZMO_INNER + 10) / z;
   const outer = GIZMO_OUTER / z;
@@ -1542,7 +1538,7 @@ const renderGizmo = (
     context.stroke();
   };
 
-  // Blender-style axes through the centre: the pivot and the element's own
+  // axes through the centre: the pivot and the selection's own
   // orientation, readable at a glance
   {
     const reach = Math.max(hw, hh) + (GIZMO_OUTER * 2.2) / z;
@@ -1606,7 +1602,7 @@ const renderGizmo = (
     context.globalAlpha = active ? 1 : 0.45;
     const [ox, oy] = at(sx * (hw + mid), sy * (hh + mid));
     const r = 10 / z;
-    const base = Math.atan2(sy, sx) + element.angle;
+    const base = Math.atan2(sy, sx) + angle;
     context.beginPath();
     context.arc(ox, oy, r, base - 0.9, base + 0.9);
     stroke();
@@ -1663,7 +1659,7 @@ const renderGizmo = (
         : at(sgn * (hw + mid), 0);
       const len = 11 / z;
       const slant = 4 / z;
-      const along = horizontal ? element.angle : element.angle + Math.PI / 2;
+      const along = horizontal ? angle : angle + Math.PI / 2;
       const ux = Math.cos(along);
       const uy = Math.sin(along);
       const nx = -uy;
@@ -2531,7 +2527,7 @@ const _renderInteractiveScene = ({
         );
       }
 
-      renderGizmo(context, appState, selectedElements[0], elementsMap);
+      renderGizmo(context, appState, selectedElements, elementsMap);
       renderCornerGizmos(context, appState, selectedElements[0], elementsMap);
       renderAnchorLink(context, appState, selectedElements[0], elementsMap);
 
@@ -2595,6 +2591,8 @@ const _renderInteractiveScene = ({
           0,
         );
       }
+      // the same rotate and skew zones as a single shape has
+      renderGizmo(context, appState, selectedElements, elementsMap);
     }
     context.restore();
   }

@@ -520,3 +520,28 @@ describe("transform of several shapes", () => {
     expect([live[0].x, live[1].x]).toEqual([30, 30]);
   });
 });
+
+describe("panel width", () => {
+  it("is resized by dragging its edge, kept, and reset by a double click", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({ paletteOpen: true });
+    const panel = screen.getByTestId("palette-panel");
+    expect(panel.style.width).toBe("264px");
+    const grip = screen.getByTestId("palette-resize");
+    fireEvent.pointerDown(grip, { clientX: 1000 });
+    // docked at the right: dragging the left edge to the left widens it
+    fireEvent.pointerMove(window, { clientX: 900 });
+    fireEvent.pointerUp(window, { clientX: 900 });
+    expect(screen.getByTestId("palette-panel").style.width).toBe("364px");
+    expect(JSON.parse(localStorage.getItem("excalidraw-palette")!).width).toBe(
+      364,
+    );
+    // never narrower than it can be used
+    fireEvent.pointerDown(grip, { clientX: 1000 });
+    fireEvent.pointerMove(window, { clientX: 1400 });
+    fireEvent.pointerUp(window, { clientX: 1400 });
+    expect(screen.getByTestId("palette-panel").style.width).toBe("240px");
+    fireEvent.doubleClick(grip);
+    expect(screen.getByTestId("palette-panel").style.width).toBe("264px");
+  });
+});

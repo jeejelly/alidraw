@@ -145,12 +145,12 @@ export const FlowPanel = ({ app }: { app: App }) => {
   };
 
   return (
-    <div data-testid="inspector-flow" style={{ padding: "0.5rem" }}>
-      <div className="inspector__row" style={{ marginTop: 0 }}>
+    <div data-testid="inspector-flow" className="flow">
+      <div className="flow__bar">
         {flows.length > 0 && (
           <select
             data-testid="flow-picker"
-            className="inspector__select"
+            className="flow__select"
             value={flowId ?? ""}
             onChange={(e) => {
               setChosen(e.target.value);
@@ -167,8 +167,7 @@ export const FlowPanel = ({ app }: { app: App }) => {
         )}
         <button
           type="button"
-          className="inspector__text"
-          style={{ cursor: "pointer", marginLeft: "auto" }}
+          className="flow__btn flow__btn--primary"
           data-testid="flow-new"
           onClick={newFlow}
         >
@@ -178,11 +177,11 @@ export const FlowPanel = ({ app }: { app: App }) => {
 
       {flowId ? (
         <>
-          <div className="inspector__row">
-            <span className="inspector__label">{t("labels.flow.name")}</span>
+          <label className="flow__field">
+            <span>{t("labels.flow.name")}</span>
             <input
               key={flowId}
-              className="inspector__layer-input"
+              className="flow__input"
               data-testid="flow-name"
               defaultValue={flowId}
               onBlur={(e) => {
@@ -200,10 +199,10 @@ export const FlowPanel = ({ app }: { app: App }) => {
                 }
               }}
             />
-          </div>
+          </label>
           <textarea
             data-testid="flow-source"
-            className="inspector__source"
+            className="flow__source"
             spellCheck={false}
             value={text}
             onChange={(e) => onEdit(e.target.value)}
@@ -223,11 +222,10 @@ export const FlowPanel = ({ app }: { app: App }) => {
               </div>
             ))}
           </div>
-          <div className="inspector__row">
+          <div className="flow__actions">
             <button
               type="button"
-              className="inspector__text"
-              style={{ cursor: "pointer" }}
+              className="flow__btn"
               data-testid="flow-adopt"
               disabled={!selected.length}
               title={t("labels.flow.adoptHint")}
@@ -237,8 +235,7 @@ export const FlowPanel = ({ app }: { app: App }) => {
             </button>
             <button
               type="button"
-              className="inspector__text"
-              style={{ cursor: "pointer" }}
+              className="flow__btn"
               data-testid="flow-select"
               onClick={selectAll}
             >
@@ -249,11 +246,10 @@ export const FlowPanel = ({ app }: { app: App }) => {
       ) : (
         <>
           <div className="inspector__hint">{t("labels.flow.empty")}</div>
-          <div className="inspector__row">
+          <div className="flow__actions">
             <button
               type="button"
-              className="inspector__text"
-              style={{ cursor: "pointer" }}
+              className="flow__btn"
               data-testid="flow-adopt"
               disabled={!selected.length}
               onClick={adopt}

@@ -293,6 +293,89 @@ describe("gizmo in the editor", () => {
     expect(abs[0][0] - 100).toBeCloseTo(-25);
   });
 
+  const setupGroup = async () => {
+    await render(<Excalidraw />);
+    const a = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    const b = API.createElement({
+      type: "rectangle",
+      x: 300,
+      y: 100,
+      width: 100,
+      height: 100,
+    });
+    API.setElements([a, b]);
+    API.setSelectedElements([a, b]);
+    return {
+      ids: [a.id, b.id],
+      canvas: document.querySelector("canvas.interactive")!,
+    };
+  };
+
+  it("a group rotates as one with the same gizmo: every shape about the box's centre", async () => {
+    const { canvas, ids } = await setupGroup();
+    // the box is (100,100)-(400,200), centre (250,150); outside its south-east corner
+    const start = Math.atan2(75, 175);
+    const target = start + (25 * Math.PI) / 180;
+    drag(
+      canvas,
+      [425, 225],
+      [250 + 250 * Math.cos(target), 150 + 250 * Math.sin(target)],
+    );
+    const [a, b] = ids.map((id) => h.elements.find((e) => e.id === id)!);
+    expect(a.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
+    expect(b.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
+    // the centres turned about (250, 150)
+    const rot = (x: number, y: number) => {
+      const t = (25 * Math.PI) / 180;
+      const dx = x - 250;
+      const dy = y - 150;
+      return [
+        250 + dx * Math.cos(t) - dy * Math.sin(t),
+        150 + dx * Math.sin(t) + dy * Math.cos(t),
+      ];
+    };
+    const [ax, ay] = rot(150, 150);
+    const [bx, by] = rot(350, 150);
+    expect(a.x + 50).toBeCloseTo(ax, 2);
+    expect(a.y + 50).toBeCloseTo(ay, 2);
+    expect(b.x + 50).toBeCloseTo(bx, 2);
+    expect(b.y + 50).toBeCloseTo(by, 2);
+  });
+
+  it("Escape in the middle of turning a group puts everything back", async () => {
+    const { canvas, ids } = await setupGroup();
+    fireEvent.pointerDown(canvas, { clientX: 425, clientY: 225 });
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 400 });
+    fireEvent.keyDown(window, { key: "Escape" });
+    for (const [i, id] of ids.entries()) {
+      const el = h.elements.find((e) => e.id === id)!;
+      expect(el.angle).toBe(0);
+      expect([el.x, el.y]).toEqual([i ? 300 : 100, 100]);
+    }
+  });
+
+  it("a group skews about one shared line", async () => {
+    const { canvas, ids } = await setupGroup();
+    // below the bottom edge's middle, 50 to the right
+    drag(canvas, [250, 225], [300, 225]);
+    for (const [i, id] of ids.entries()) {
+      const el = h.elements.find((e) => e.id === id) as any;
+      expect(el.type).toBe("path");
+      const abs = el.points.map((p: number[]) => [el.x + p[0], el.y + p[1]]);
+      const left = i ? 300 : 100;
+      // the top edge is the pivot, the bottom slid by 50
+      expect(abs[0][0]).toBeCloseTo(left);
+      expect(abs[2][0]).toBeCloseTo(left + 100 + 50);
+      expect(abs[3][0]).toBeCloseTo(left + 50);
+    }
+  });
+
   it("a plain click just outside the selection still deselects", async () => {
     const { canvas } = await setup();
     fireEvent.pointerDown(canvas, { clientX: 325, clientY: 225 });

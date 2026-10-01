@@ -507,6 +507,72 @@ const rotateMultipleElements = (
   scene.triggerUpdate();
 };
 
+/**
+ * Turns elements by `delta` around a point, each from the angle it had when
+ * the gesture began (`originalAngles`), so it can be called on every move and
+ * ends exactly where the pointer says. Labels follow their containers; arrows
+ * glued to something that is not turning let go.
+ */
+export const rotateElementsBy = (
+  elements: readonly NonDeletedExcalidrawElement[],
+  originalAngles: ReadonlyMap<ExcalidrawElement["id"], number>,
+  scene: Scene,
+  centerX: number,
+  centerY: number,
+  delta: number,
+) => {
+  const elementsMap = scene.getNonDeletedElementsMap();
+  const turning = new Map(elements.map((e) => [e.id, e]));
+  for (const element of elements) {
+    if (isFrameLikeElement(element)) {
+      continue;
+    }
+    const [x1, y1, x2, y2] = getElementAbsoluteCoords(element, elementsMap);
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    const origin = originalAngles.get(element.id) ?? element.angle;
+    const target = normalizeRadians((origin + delta) as Radians);
+    const [rotatedCX, rotatedCY] = pointRotateRads(
+      pointFrom(cx, cy),
+      pointFrom(centerX, centerY),
+      (target - element.angle) as Radians,
+    );
+    if (isElbowArrow(element)) {
+      scene.mutateElement(element, {
+        points: getArrowLocalFixedPoints(element, elementsMap),
+      });
+    } else {
+      scene.mutateElement(element, {
+        x: element.x + (rotatedCX - cx),
+        y: element.y + (rotatedCY - cy),
+        angle: target,
+      });
+    }
+    updateBoundElements(element, scene, { simultaneouslyUpdated: elements });
+    if (isBindingElement(element)) {
+      if (
+        element.startBinding &&
+        !turning.has(element.startBinding.elementId)
+      ) {
+        unbindBindingElement(element, "start", scene);
+      }
+      if (element.endBinding && !turning.has(element.endBinding.elementId)) {
+        unbindBindingElement(element, "end", scene);
+      }
+    }
+    const boundText = getBoundTextElement(element, elementsMap);
+    if (boundText && !isArrowElement(element)) {
+      const { x, y } = computeBoundTextPosition(
+        element,
+        boundText,
+        elementsMap,
+      );
+      scene.mutateElement(boundText, { x, y, angle: target });
+    }
+  }
+  scene.triggerUpdate();
+};
+
 export const getResizeOffsetXY = (
   transformHandleType: MaybeTransformHandleType,
   selectedElements: NonDeletedExcalidrawElement[],
