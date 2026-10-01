@@ -188,8 +188,19 @@
       "noLayers": "Nothing on the canvas yet",
       "tab_design": "Design",
       "tab_layers": "Layers",
+      "tab_flow": "Flow",
       "detachLayers": "Pop out the layers",
       "attachLayers": "Put the layers back in the inspector"
+    },
+    "flow": {
+      "new": "New flow",
+      "name": "Name",
+      "line": "Line",
+      "adopt": "Add selection to flow",
+      "insertLinked": "Insert as linked flow",
+      "adoptHint": "Shapes become steps, frames become screens",
+      "select": "Select the flow",
+      "empty": "A flow tells what happens when you click here or there: screens, buttons and the links between them. Start from Mermaid text, or select shapes and add them."
     },
     "mermaid": {
       "copy": "Copy as Mermaid",

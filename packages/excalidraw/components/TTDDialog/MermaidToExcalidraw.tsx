@@ -1,6 +1,10 @@
-import { useState, useRef, useEffect, useDeferredValue } from "react";
+import { useState, useRef, useEffect, useDeferredValue, useMemo } from "react";
 
 import { EDITOR_LS_KEYS, debounce, isDevEnv } from "@excalidraw/common";
+
+import { viewportCoordsToSceneCoords } from "@excalidraw/common";
+
+import { CaptureUpdateAction } from "@excalidraw/element";
 
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
@@ -12,10 +16,15 @@ import Trans from "../Trans";
 
 import { useUIAppState } from "../../context/ui-appState";
 
+import { applyFlow, listFlows } from "../../flow/flowCanvas";
+
+import { parseFlow } from "../../flow/flowGraph";
+
 import { TTDDialogInput } from "./TTDDialogInput";
 import { TTDDialogOutput } from "./TTDDialogOutput";
 import { TTDDialogPanel } from "./TTDDialogPanel";
 import { TTDDialogPanels } from "./TTDDialogPanels";
+
 import { TTDDialogSubmitShortcut } from "./TTDDialogSubmitShortcut";
 import {
   getMermaidErrorLineNumber,
@@ -223,6 +232,34 @@ const MermaidToExcalidraw = ({
     });
   };
 
+  // a flowchart the Flow view can own: inserting it keeps it editable from the
+  // inspector's Flow tab, as text and on the canvas
+  const flowParse = useMemo(() => parseFlow(text), [text]);
+  const canInsertAsFlow =
+    /^\s*(flowchart|graph)\b/i.test(text) &&
+    flowParse.graph.nodes.length > 0 &&
+    !flowParse.issues.some((i) => !i.warn);
+
+  const onInsertAsFlow = () => {
+    const taken = listFlows(app.scene.getElementsIncludingDeleted());
+    let n = taken.length + 1;
+    while (taken.includes(`Flow ${n}`)) {
+      n++;
+    }
+    const origin = viewportCoordsToSceneCoords(
+      {
+        clientX: app.state.offsetLeft + 80,
+        clientY: app.state.offsetTop + 120,
+      },
+      app.state,
+    );
+    applyFlow(app.scene, `Flow ${n}`, flowParse.graph, origin);
+    app.syncActionResult({
+      appState: { ...app.state, paletteOpen: true, openDialog: null },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+  };
+
   const onApplyAutoFix = () => {
     if (!autoFixCandidate) {
       return;
@@ -263,6 +300,15 @@ const MermaidToExcalidraw = ({
               icon: ArrowRightIcon,
               variant: "button",
             },
+            ...(canInsertAsFlow
+              ? [
+                  {
+                    action: onInsertAsFlow,
+                    label: t("labels.flow.insertLinked"),
+                    variant: "button" as const,
+                  },
+                ]
+              : []),
           ]}
           renderSubmitShortcut={() => <TTDDialogSubmitShortcut />}
         >
