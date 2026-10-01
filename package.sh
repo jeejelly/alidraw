@@ -11,7 +11,7 @@
 #   ./package.sh desktop-package  build and create a .deb in excalidraw-desktop/dist
 #
 # Run it as your own user, not with sudo: it asks for sudo itself where needed.
-# It installs what it needs: the latest Node (a private copy under .node/,
+# It installs what it needs: the latest LTS Node (a private copy under .node/,
 # nothing is changed system-wide) and the yarn packages.
 #
 # Env: EXCALIDRAW_PORT (3100), EXCALIDRAW_DIR (~/.local/share/excalidraw-local),
@@ -48,27 +48,33 @@ confirm() {
 
 node_major() { node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
 
-# Always the latest Node (nodejs.org/dist/latest): some dependencies need >= 20
+# Always the latest LTS Node (nodejs.org/dist/index.json): some dependencies need >= 20
 # and newer is better. It goes to .node/ and first on PATH; the system Node is
 # never touched. Offline, or if you decline, the system Node is used when it is
 # >= $NODE_MIN.
 ensure_node() {
-  local base="https://nodejs.org/dist/latest" arch sums tarball
+  local base arch sums tarball version
   case "$(uname -m)" in
     x86_64) arch=x64 ;;
     aarch64 | arm64) arch=arm64 ;;
     armv7l) arch=armv7l ;;
     *) arch="" ;;
   esac
+  # the newest release marked LTS in nodejs.org's index (first one listed)
+  local index
+  index="$(curl -fsSL --max-time 20 https://nodejs.org/dist/index.json 2>/dev/null || true)"
+  version="$(grep -m1 '"lts":"' <<<"$index" | sed -E 's/.*"version":"(v[0-9.]+)".*/\1/' || true)"
+  base="https://nodejs.org/dist/${version:-latest}"
   local system_ok=""
   command -v node >/dev/null && (( $(node_major) >= NODE_MIN )) && system_ok=1
   if [[ -n "$arch" ]] && command -v curl >/dev/null &&
+    [[ -n "$version" ]] &&
     sums="$(curl -fsSL --max-time 20 "$base/SHASUMS256.txt" 2>/dev/null)" &&
     tarball="$(awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' <<<"$sums" | head -n1)" &&
     [[ -n "$tarball" ]]; then
     local dir="$NODE_HOME/${tarball%.tar.xz}"
     if [[ ! -x "$dir/bin/node" ]]; then
-      if confirm "Latest Node is ${tarball#node-}; system has $(node -v 2>/dev/null || echo none). Download it into $NODE_HOME (system untouched)?"; then
+      if confirm "Latest LTS Node is ${tarball#node-}; system has $(node -v 2>/dev/null || echo none). Download it into $NODE_HOME (system untouched)?"; then
         say "node ${tarball%.tar.xz} -> $NODE_HOME"
         mkdir -p "$NODE_HOME"
         local tmp
@@ -87,7 +93,7 @@ ensure_node() {
     fi
   fi
   [[ -n "$system_ok" ]] ||
-    die "Node >= $NODE_MIN is required (system: $(node -v 2>/dev/null || echo none)): install it from https://nodejs.org, or re-run with EXCALIDRAW_YES=1 to let this script fetch the latest into .node/"
+    die "Node >= $NODE_MIN is required (system: $(node -v 2>/dev/null || echo none)): install it from https://nodejs.org, or re-run with EXCALIDRAW_YES=1 to let this script fetch the latest LTS into .node/"
   say "using system node $(node -v)"
 }
 
