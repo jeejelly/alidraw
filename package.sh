@@ -10,7 +10,13 @@
 #   ./package.sh desktop    build, package, install the Electron app
 #   ./package.sh desktop-package  build and create a .deb in excalidraw-desktop/dist
 #
-# Env: EXCALIDRAW_PORT (3100), EXCALIDRAW_DIR (~/.local/share/excalidraw-local)
+# Run it as your own user, not with sudo: it asks for sudo itself where needed.
+# It installs what it needs: Node >= 20 (a private copy under .node/ when the
+# system one is older, nothing is changed system-wide) and the yarn packages.
+#
+# Env: EXCALIDRAW_PORT (3100), EXCALIDRAW_DIR (~/.local/share/excalidraw-local),
+#      EXCALIDRAW_YES=1 (answer yes to the questions, e.g. fetching Node),
+#      FORCE_LOCAL_NODE=1 (use the private Node even if the system one is fine)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,11 +32,64 @@ VSCODE_EXTENSION="pomdtr.excalidraw-editor"
 VSCODE_DIR="${EXCALIDRAW_VSCODE_DIR:-$REPO-vscode}"
 VSCODE_VSIX="$VSCODE_DIR/excalidraw-editor-local.vsix"
 
+NODE_MIN=20
+NODE_SERIES=22
+NODE_HOME="$REPO/.node"
+
 say() { printf '== %s\n' "$*"; }
 die() { printf 'package.sh: %s\n' "$*" >&2; exit 1; }
 
+# ask before changing anything; -y / EXCALIDRAW_YES=1 answers yes, no terminal answers no
+confirm() {
+  [[ -n "${EXCALIDRAW_YES:-}" ]] && return 0
+  [[ -t 0 ]] || return 1
+  local reply
+  read -r -p "$1 [Y/n] " reply
+  [[ -z "$reply" || "$reply" =~ ^[Yy] ]]
+}
+
+node_major() { node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
+
+# Node >= $NODE_MIN is needed by some dependencies (marked, vite plugins). When
+# the system Node is older or missing, fetch the official build into .node/ and
+# put it first on PATH: the system stays untouched.
+ensure_node() {
+  if [[ -z "${FORCE_LOCAL_NODE:-}" ]] && command -v node >/dev/null && (( $(node_major) >= NODE_MIN )); then
+    return
+  fi
+  confirm "Node >= $NODE_MIN is required (system: $(node -v 2>/dev/null || echo none)). Download a private Node $NODE_SERIES into $NODE_HOME (system untouched)?" ||
+    die "Node >= $NODE_MIN is required: install it (https://nodejs.org), or re-run with EXCALIDRAW_YES=1 to let this script fetch a private copy"
+  local arch
+  case "$(uname -m)" in
+    x86_64) arch=x64 ;;
+    aarch64 | arm64) arch=arm64 ;;
+    armv7l) arch=armv7l ;;
+    *) die "no prebuilt Node for $(uname -m): install Node >= $NODE_MIN" ;;
+  esac
+  command -v curl >/dev/null || die "curl not found (needed to fetch Node $NODE_SERIES)"
+  local base="https://nodejs.org/dist/latest-v$NODE_SERIES.x"
+  local tarball
+  tarball="$(curl -fsSL "$base/SHASUMS256.txt" | awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' | head -n1)"
+  [[ -n "$tarball" ]] || die "could not find a Node $NODE_SERIES build for linux-$arch at $base"
+  local dir="$NODE_HOME/${tarball%.tar.xz}"
+  if [[ ! -x "$dir/bin/node" ]]; then
+    say "node $NODE_SERIES ($tarball) -> $NODE_HOME (system node is $(node -v 2>/dev/null || echo missing), need >= $NODE_MIN)"
+    mkdir -p "$NODE_HOME"
+    local tmp
+    tmp="$(mktemp -d)"
+    curl -fsSL "$base/$tarball" -o "$tmp/$tarball"
+    local want
+    want="$(curl -fsSL "$base/SHASUMS256.txt" | awk -v f="$tarball" '$2 == f {print $1}')"
+    [[ "$(sha256sum "$tmp/$tarball" | awk '{print $1}')" == "$want" ]] || die "checksum mismatch for $tarball"
+    tar -xJf "$tmp/$tarball" -C "$NODE_HOME"
+    rm -rf "$tmp"
+  fi
+  export PATH="$dir/bin:$PATH"
+  say "using node $(node -v)"
+}
+
 build() {
-  command -v node >/dev/null || die "node not found"
+  ensure_node
   cd "$REPO"
   if [[ ! -d node_modules ]] || [[ yarn.lock -nt node_modules ]]; then
     say "dependencies (yarn 1.22.22)"
@@ -105,6 +164,7 @@ check() {
 }
 
 desktop() {
+  ensure_node
   build
   say "package Electron app"
   (cd "$DESKTOP" && npm ci --no-audit --no-fund >/dev/null &&
@@ -127,6 +187,7 @@ desktop_package() {
 }
 
 vscode() {
+  ensure_node
   local vscode_cli="${VSCODE_CLI:-code}"
   command -v "$vscode_cli" >/dev/null || die "$vscode_cli not found"
   command -v npm >/dev/null || die "npm not found"
@@ -140,7 +201,12 @@ vscode() {
   "$vscode_cli" --install-extension "$VSCODE_VSIX" --force
 }
 
+if [[ "$(id -u)" == 0 && -n "${SUDO_USER:-}" ]]; then
+  die "run without sudo (sudo $0 would leave root-owned files and break the user service); it asks for sudo when it needs it"
+fi
+
 case "${1:-all}" in
+  node) ensure_node; node -v ;;
   all) stop_app; rm -rf "$DEST"; build; install_files; install_unit; check ;;
   build) build ;;
   install)

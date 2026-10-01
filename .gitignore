@@ -27,3 +27,6 @@ dev-dist
 html
 meta*.json
 .claude
+
+# private Node fetched by package.sh
+.node/
