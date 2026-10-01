@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { getCommonBounds, isPathfinderOperand } from "@excalidraw/element";
 
@@ -35,6 +35,14 @@ import {
   DistributeHorizontallyIcon,
   DistributeVerticallyIcon,
   EdgeRoundIcon,
+  ImageIcon,
+  EmbedIcon,
+  LassoIcon,
+  bucketFillIcon,
+  drawShapeToolIcon,
+  frameToolIcon,
+  laserPointerToolIcon,
+  mermaidLogoIcon,
   EdgeSharpIcon,
   knifeToolIcon,
   pathToolIcon,
@@ -45,7 +53,15 @@ import {
   actionConvertShapeToPath,
   actionEditPath,
   actionJoinPaths,
+  actionCopyAsMermaid,
 } from "../../actions";
+
+import {
+  getPaletteState,
+  setToolHidden,
+  subscribePalette,
+} from "../../palette";
+import { isToolButtonDisabled } from "../Tools";
 
 import { PathfinderIcon } from "./PathfinderIcons";
 import { NumberPill, Section } from "./primitives";
@@ -500,7 +516,6 @@ export const PathfinderSection = ({ app }: { app: App }) => {
  */
 export const PathSection = ({ app }: { app: App }) => {
   const selected = app.scene.getSelectedElements(app.state);
-  const tool = app.state.activeTool.type;
   const act = (action: any) => app.actionManager.executeAction(action, "ui");
   const canConvert = actionConvertShapeToPath.predicate?.(
     app.scene.getElementsIncludingDeleted(),
@@ -520,22 +535,6 @@ export const PathSection = ({ app }: { app: App }) => {
     boolean,
     () => void,
   ][] = [
-    [
-      "path-tool-pen",
-      pathToolIcon,
-      t("toolBar.path"),
-      true,
-      tool === "path",
-      () => app.setActiveTool({ type: "path" }),
-    ],
-    [
-      "path-tool-knife",
-      knifeToolIcon,
-      t("toolBar.knife"),
-      true,
-      tool === "knife",
-      () => app.setActiveTool({ type: "knife" }),
-    ],
     [
       "path-edit",
       "✎",
@@ -742,6 +741,167 @@ export const CornersSection = ({ app }: { app: App }) => {
           )}
         </>
       )}
+    </Section>
+  );
+};
+
+type ToolEntry = {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  shortcut?: string;
+  /** a tool to activate, or something else to open */
+  run: (app: App) => void;
+  tool?: string;
+};
+
+const getToolEntries = (): ToolEntry[] => [
+  {
+    id: "image",
+    icon: ImageIcon,
+    title: t("toolBar.image"),
+    shortcut: "9",
+    tool: "image",
+    run: (app) => app.setActiveTool({ type: "image" }),
+  },
+  {
+    id: "frame",
+    icon: frameToolIcon,
+    title: t("toolBar.frame"),
+    shortcut: "F",
+    tool: "frame",
+    run: (app) => app.setActiveTool({ type: "frame" }),
+  },
+  {
+    id: "embeddable",
+    icon: EmbedIcon,
+    title: t("toolBar.embeddable"),
+    tool: "embeddable",
+    run: (app) => app.setActiveTool({ type: "embeddable" }),
+  },
+  {
+    id: "autoshape",
+    icon: drawShapeToolIcon,
+    title: t("toolBar.autoshape"),
+    shortcut: "Shift+X",
+    tool: "autoshape",
+    run: (app) => app.setActiveTool({ type: "autoshape" }),
+  },
+  {
+    id: "laser",
+    icon: laserPointerToolIcon,
+    title: t("toolBar.laser"),
+    shortcut: "K",
+    tool: "laser",
+    run: (app) => app.setActiveTool({ type: "laser" }),
+  },
+  {
+    id: "bucketfill",
+    icon: bucketFillIcon,
+    title: t("toolBar.bucketfill"),
+    shortcut: "B",
+    tool: "bucketfill",
+    run: (app) => app.setActiveTool({ type: "bucketfill" }),
+  },
+  {
+    id: "path",
+    icon: pathToolIcon,
+    title: t("toolBar.path"),
+    shortcut: "P",
+    tool: "path",
+    run: (app) => app.setActiveTool({ type: "path" }),
+  },
+  {
+    id: "knife",
+    icon: knifeToolIcon,
+    title: t("toolBar.knife"),
+    shortcut: "C",
+    tool: "knife",
+    run: (app) => app.setActiveTool({ type: "knife" }),
+  },
+  {
+    id: "lasso",
+    icon: LassoIcon,
+    title: t("toolBar.lasso"),
+    tool: "lasso",
+    run: (app) => app.setActiveTool({ type: "lasso" }),
+  },
+  {
+    id: "mermaid-from",
+    icon: mermaidLogoIcon,
+    title: t("labels.mermaid.from"),
+    run: (app) => app.setOpenDialog({ name: "ttd", tab: "mermaid" }),
+  },
+  {
+    id: "mermaid-to",
+    icon: <span style={{ fontSize: "0.7rem", fontWeight: 700 }}>→M</span>,
+    title: t("labels.mermaid.to"),
+    run: (app) => app.actionManager.executeAction(actionCopyAsMermaid, "ui"),
+  },
+];
+
+/**
+ * Every tool the toolbar keeps in its overflow menu, as icons that are one
+ * click away, with Mermaid in and out. The gear chooses which ones show (kept
+ * per browser).
+ */
+export const ToolsSection = ({ app }: { app: App }) => {
+  const palette = useSyncExternalStore(subscribePalette, getPaletteState);
+  const [customizing, setCustomizing] = useState(false);
+  const active = app.state.activeTool.type;
+  const hidden = new Set(palette.hiddenTools);
+  const entries = getToolEntries().filter(
+    (e) => customizing || !hidden.has(e.id),
+  );
+  return (
+    <Section title={t("labels.tools.title")} testId="inspector-tools">
+      <div className="inspector__row" style={{ gap: 2, flexWrap: "wrap" }}>
+        {entries.map((e) => {
+          const off = hidden.has(e.id);
+          return (
+            <button
+              key={e.id}
+              type="button"
+              className="inspector__iconbtn"
+              style={{
+                width: "2rem",
+                height: "2rem",
+                opacity: customizing && off ? 0.35 : 1,
+              }}
+              data-testid={
+                e.id === "path"
+                  ? "path-tool-pen"
+                  : e.id === "knife"
+                  ? "path-tool-knife"
+                  : `tool-${e.id}`
+              }
+              title={`${e.title}${e.shortcut ? ` (${e.shortcut})` : ""}${
+                customizing ? ` — ${off ? "show" : "hide"}` : ""
+              }`}
+              aria-pressed={customizing ? !off : e.tool === active}
+              disabled={
+                !customizing && !!e.tool && isToolButtonDisabled(app, e.tool)
+              }
+              onClick={() =>
+                customizing ? setToolHidden(e.id, !off) : e.run(app)
+              }
+            >
+              {e.icon}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className="inspector__iconbtn"
+          style={{ width: "2rem", height: "2rem", marginLeft: "auto" }}
+          data-testid="tools-customize"
+          title={t("labels.tools.customize")}
+          aria-pressed={customizing}
+          onClick={() => setCustomizing(!customizing)}
+        >
+          ⚙
+        </button>
+      </div>
     </Section>
   );
 };

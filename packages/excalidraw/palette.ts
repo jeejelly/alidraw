@@ -15,6 +15,8 @@ export type PaletteState = Readonly<{
   /** the layers list lives in its own floating panel instead of a tab */
   layersDetached: boolean;
   layersPosition: { x: number; y: number };
+  /** tools the user took off the Tools section (ids, see ToolsSection) */
+  hiddenTools: readonly string[];
 }>;
 
 const STORAGE_KEY = "excalidraw-palette";
@@ -26,6 +28,7 @@ export const DEFAULT_PALETTE_STATE: PaletteState = {
   position: { x: 80, y: 120 },
   layersDetached: false,
   layersPosition: { x: 120, y: 160 },
+  hiddenTools: [],
 };
 
 // -----------------------------------------------------------------------------
@@ -95,6 +98,15 @@ export const sanitizePaletteState = (raw: unknown): PaletteState => {
       Number.isFinite(value.layersPosition.y)
         ? { x: value.layersPosition.x, y: value.layersPosition.y }
         : DEFAULT_PALETTE_STATE.layersPosition,
+    hiddenTools: Array.isArray(value.hiddenTools)
+      ? [
+          ...new Set(
+            value.hiddenTools.filter(
+              (t): t is string => typeof t === "string" && t.length < 40,
+            ),
+          ),
+        ]
+      : [],
   };
 };
 
@@ -172,6 +184,12 @@ export const setPaletteLayout = (layout: PaletteLayout) =>
 
 export const setLayersDetached = (layersDetached: boolean) =>
   commit({ ...getPaletteState(), layersDetached });
+
+export const setToolHidden = (id: string, hidden: boolean) => {
+  const current = getPaletteState();
+  const rest = current.hiddenTools.filter((t) => t !== id);
+  commit({ ...current, hiddenTools: hidden ? [...rest, id] : rest });
+};
 
 export const setLayersPosition = (layersPosition: { x: number; y: number }) =>
   commit({ ...getPaletteState(), layersPosition });

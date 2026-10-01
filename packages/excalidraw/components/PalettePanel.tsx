@@ -47,6 +47,7 @@ import {
   AlignSection,
   CornersSection,
   PathSection,
+  ToolsSection,
   AnchorSection,
   GridSection,
   PathfinderSection,
@@ -872,6 +873,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
             <>
               {transform}
               {multi}
+              <ToolsSection app={app} />
               <PathSection app={app} />
               <AlignSection app={app} />
               <PathfinderSection app={app} />

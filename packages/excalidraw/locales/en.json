@@ -191,6 +191,15 @@
       "detachLayers": "Pop out the layers",
       "attachLayers": "Put the layers back in the inspector"
     },
+    "mermaid": {
+      "copy": "Copy as Mermaid",
+      "from": "From Mermaid…",
+      "to": "To Mermaid (copy)"
+    },
+    "tools": {
+      "title": "Tools",
+      "customize": "Choose which tools show here"
+    },
     "layerPanel": {
       "new": "New layer",
       "delete": "Delete layer and its objects",
