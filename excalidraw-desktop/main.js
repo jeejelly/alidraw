@@ -11,6 +11,7 @@ const {
   BrowserWindow,
   dialog,
   ipcMain,
+  safeStorage,
   net,
   protocol,
   session,
@@ -222,7 +223,23 @@ const setupWorkspaces = () => {
       }
     },
   });
-  secrets = new Secrets(app.getPath("userData"));
+  secrets = new Secrets(app.getPath("userData"), {
+    // a plain-text fallback store is no protection: treated as unavailable
+    available: () =>
+      safeStorage.isEncryptionAvailable() &&
+      (process.platform !== "linux" ||
+        safeStorage.getSelectedStorageBackend?.() !== "basic_text"),
+    encrypt: (text) => safeStorage.encryptString(text),
+    decrypt: (buf) => safeStorage.decryptString(buf),
+  });
+  // a keychain-protected manifest opens by itself
+  if (secrets.status().mode === "keychain") {
+    try {
+      secrets.unlock();
+    } catch {
+      // stays locked; the panel says so
+    }
+  }
   backup = new Backup({
     workspaces,
     registry,
@@ -367,9 +384,11 @@ const setupWorkspaces = () => {
     }
   });
   handle("ws:secretsStatus", () => secrets.status());
-  handle("ws:secretsUnlock", ({ passphrase }) => {
+  handle("ws:secretsUnlock", ({ passphrase, keychain }) => {
     if (secrets.status().exists) {
       secrets.unlock(passphrase);
+    } else if (keychain === true) {
+      secrets.createWithKeychain();
     } else {
       secrets.create(passphrase);
     }

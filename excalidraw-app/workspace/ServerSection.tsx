@@ -7,6 +7,7 @@ import type {
   DesktopWorkspaceBridge,
   ServerConfig,
   ServerInfo,
+  VaultStatus,
 } from "./desktopBridge";
 
 const describe = (r: BackupResult): string => {
@@ -56,7 +57,10 @@ export const ServerSection = ({
   const [info, setInfo] = useState<ServerInfo | null>(null);
   const [form, setForm] = useState(empty);
   const [password, setPassword] = useState("");
-  const [vault, setVault] = useState({ exists: false, unlocked: false });
+  const [vault, setVault] = useState<VaultStatus>({
+    exists: false,
+    unlocked: false,
+  });
   const [passphrase, setPassphrase] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [unknownKey, setUnknownKey] = useState<string | null>(null);
@@ -136,7 +140,8 @@ export const ServerSection = ({
       <div className="workspace__setting" data-testid="server-vault">
         {vault.unlocked ? (
           <>
-            Passwords unlocked.
+            Passwords unlocked
+            {vault.mode === "keychain" ? " (OS keychain)" : ""}.
             <button
               type="button"
               onClick={() =>
@@ -168,6 +173,20 @@ export const ServerSection = ({
             >
               {vault.exists ? "Unlock" : "Create"}
             </button>
+            {!vault.exists && vault.keychainAvailable && (
+              <button
+                type="button"
+                data-testid="server-keychain"
+                disabled={busy}
+                onClick={() =>
+                  run(async () =>
+                    setVault(await bridge.secretsUnlock(undefined, true)),
+                  )
+                }
+              >
+                Use the OS keychain instead
+              </button>
+            )}
           </>
         )}
       </div>

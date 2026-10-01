@@ -35,7 +35,7 @@ describe("secrets manifest", () => {
     expect(secrets.getPassword("w1")).toBe("s3cret-pass");
 
     const later = new Secrets(path.join(tmp, "data"));
-    expect(later.status()).toEqual({ exists: true, unlocked: false });
+    expect(later.status()).toMatchObject({ exists: true, unlocked: false });
     expect(() => later.getPassword("w1")).toThrow(/unlock/);
     expect(() => later.unlock("wrong passphrase")).toThrow(/wrong passphrase/);
     later.unlock("correct horse battery");
@@ -230,5 +230,32 @@ describe("backup", () => {
   it("refuses names that are not content hashes", () => {
     expect(() => remote.safeName("../../etc/passwd")).toThrow();
     expect(() => remote.safeName(`${"a".repeat(64)}.png`)).not.toThrow();
+  });
+});
+
+describe("secrets in the OS keychain", () => {
+  const keychain = {
+    available: () => true,
+    encrypt: (t) => Buffer.from(`os:${t}`),
+    decrypt: (b) => b.toString().replace(/^os:/, ""),
+  };
+  it("keeps passwords without a passphrase and opens by itself", () => {
+    const a = new Secrets(path.join(tmp, "data"), keychain);
+    a.createWithKeychain();
+    a.setPassword("w", "kc-secret");
+    expect(a.status()).toMatchObject({ mode: "keychain", unlocked: true });
+    expect(fs.readFileSync(a.file, "utf8")).not.toContain("kc-secret");
+    const b = new Secrets(path.join(tmp, "data"), keychain);
+    expect(b.status().unlocked).toBe(false);
+    b.unlock();
+    expect(b.getPassword("w")).toBe("kc-secret");
+  });
+  it("is refused where there is no keychain", () => {
+    const a = new Secrets(path.join(tmp, "data"), {
+      ...keychain,
+      available: () => false,
+    });
+    expect(() => a.createWithKeychain()).toThrow(/not available/);
+    expect(new Secrets(path.join(tmp, "data")).keychainAvailable()).toBe(false);
   });
 });

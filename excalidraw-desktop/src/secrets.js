@@ -41,15 +41,23 @@ const open = (key, box, aad) => {
  * asked once per session; the deciphered seed lives only in memory.
  */
 class Secrets {
-  constructor(dir) {
+  /**
+   * `keychain` (optional) is the OS store: { available(), encrypt(text) -> Buffer,
+   * decrypt(Buffer) -> text }. With it the seed can be protected by the OS login
+   * instead of a passphrase.
+   */
+  constructor(dir, keychain = null) {
     this.file = path.join(dir, "secrets.json");
     this.seed = null;
+    this.keychain = keychain;
   }
 
   read() {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, "utf8"));
-      return data && data.seed && data.kdf ? data : null;
+      return data && data.seed && (data.kdf || data.mode === "keychain")
+        ? data
+        : null;
     } catch {
       return null;
     }
@@ -62,8 +70,46 @@ class Secrets {
     fs.renameSync(tmp, this.file);
   }
 
+  keychainAvailable() {
+    try {
+      return !!this.keychain && this.keychain.available() === true;
+    } catch {
+      return false;
+    }
+  }
+
   status() {
-    return { exists: !!this.read(), unlocked: !!this.seed };
+    const data = this.read();
+    return {
+      exists: !!data,
+      unlocked: !!this.seed,
+      mode: data
+        ? data.mode === "keychain"
+          ? "keychain"
+          : "passphrase"
+        : null,
+      keychainAvailable: this.keychainAvailable(),
+    };
+  }
+
+  /** the seed protected by the OS login: nothing to type, nothing a passphrase could leak */
+  createWithKeychain() {
+    if (!this.keychainAvailable()) {
+      throw new Error("the OS keychain is not available here");
+    }
+    if (this.read()) {
+      throw new Error("a passwords manifest already exists");
+    }
+    const seed = crypto.randomBytes(32);
+    this.write({
+      version: 1,
+      mode: "keychain",
+      seed: {
+        os: this.keychain.encrypt(seed.toString("base64")).toString("base64"),
+      },
+      entries: {},
+    });
+    this.seed = seed;
   }
 
   kek(passphrase, kdf) {
@@ -98,6 +144,18 @@ class Secrets {
     const data = this.read();
     if (!data) {
       throw new Error("no passwords manifest yet");
+    }
+    if (data.mode === "keychain") {
+      try {
+        this.seed = Buffer.from(
+          this.keychain.decrypt(Buffer.from(data.seed.os, "base64")),
+          "base64",
+        );
+      } catch {
+        this.seed = null;
+        throw new Error("the OS keychain could not open the passwords");
+      }
+      return;
     }
     try {
       this.seed = Buffer.from(

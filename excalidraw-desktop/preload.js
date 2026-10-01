@@ -43,7 +43,8 @@ contextBridge.exposeInMainWorld("excalidrawDesktop", {
     history: (id, path) => call("ws:history", { id, path }),
     showVersion: (id, hash, path) => call("ws:showVersion", { id, hash, path }),
     secretsStatus: () => call("ws:secretsStatus"),
-    secretsUnlock: (passphrase) => call("ws:secretsUnlock", { passphrase }),
+    secretsUnlock: (passphrase, keychain) =>
+      call("ws:secretsUnlock", { passphrase, keychain }),
     secretsLock: () => call("ws:secretsLock"),
     serverGet: (id) => call("ws:serverGet", { id }),
     serverSet: (id, server, password) =>

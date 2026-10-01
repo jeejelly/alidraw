@@ -72,6 +72,13 @@ export type Commit = {
   subject: string;
 };
 
+export type VaultStatus = {
+  exists: boolean;
+  unlocked: boolean;
+  mode?: "passphrase" | "keychain" | null;
+  keychainAvailable?: boolean;
+};
+
 export type ServerConfig = {
   protocol: "sftp" | "ftps" | "ftp";
   host: string;
@@ -179,11 +186,9 @@ export type DesktopWorkspaceBridge = {
   commitNow(id: string, message?: string): Promise<{ hash: string | null }>;
   history(id: string, path: string): Promise<Commit[]>;
   showVersion(id: string, hash: string, path: string): Promise<string>;
-  secretsStatus(): Promise<{ exists: boolean; unlocked: boolean }>;
-  secretsUnlock(
-    passphrase: string,
-  ): Promise<{ exists: boolean; unlocked: boolean }>;
-  secretsLock(): Promise<{ exists: boolean; unlocked: boolean }>;
+  secretsStatus(): Promise<VaultStatus>;
+  secretsUnlock(passphrase?: string, keychain?: boolean): Promise<VaultStatus>;
+  secretsLock(): Promise<VaultStatus>;
   serverGet(id: string): Promise<ServerInfo>;
   serverSet(
     id: string,
