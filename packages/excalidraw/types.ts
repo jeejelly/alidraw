@@ -1,5 +1,6 @@
 import type { FontUnit } from "@excalidraw/common";
 import type { Guide } from "./guides";
+import type { AnchorPoint } from "./anchors";
 import type { GizmoZone } from "./gizmo";
 import type {
   IMAGE_MIME_TYPES,
@@ -535,6 +536,12 @@ export interface AppState {
   guidesSnapEnabled: boolean;
   /** the colour palette panel stays open over the canvas */
   paletteOpen: boolean;
+  /** choosing the target of an anchor: click another element */
+  anchorPick: {
+    sourceId: ExcalidrawElement["id"];
+    from: AnchorPoint;
+    at: AnchorPoint;
+  } | null;
   /** the rotate/skew gizmo: the zone under the pointer, and a live readout */
   gizmo: {
     hover: GizmoZone | null;

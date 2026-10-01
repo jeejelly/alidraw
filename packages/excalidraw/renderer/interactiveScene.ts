@@ -53,7 +53,11 @@ import {
 
 import { renderSelectionElement } from "@excalidraw/element";
 
-import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
+import {
+  getCommonBounds,
+  getElementAbsoluteCoords,
+  getElementBounds,
+} from "@excalidraw/element";
 import {
   getGlobalFixedPointForBindableElement,
   isFocusPointVisible,
@@ -82,6 +86,12 @@ import type {
   NonDeletedSceneElementsMap,
 } from "@excalidraw/element/types";
 
+import {
+  getAnchor,
+  guideEdgeCoordinate,
+  isGuideAnchor,
+  pointOnBounds,
+} from "../anchors";
 import {
   GIZMO_INNER,
   GIZMO_OUTER,
@@ -1626,6 +1636,65 @@ const renderGizmo = (
   context.restore();
 };
 
+/** a dashed link from an anchored element to what it follows */
+const renderAnchorLink = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  element: NonDeletedExcalidrawElement,
+  elementsMap: RenderableElementsMap,
+) => {
+  const anchor = getAnchor(element);
+  if (!anchor) {
+    return;
+  }
+  const z = appState.zoom.value;
+  const box = getElementBounds(element, elementsMap);
+  let from: [number, number] | null = null;
+  let to: [number, number] | null = null;
+  if (isGuideAnchor(anchor)) {
+    const guide = appState.guides.find((g) => g.id === anchor.guide);
+    if (!guide) {
+      return;
+    }
+    const e = guideEdgeCoordinate(box, guide.axis, anchor.edge);
+    const mid = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+    from = guide.axis === "x" ? [e, mid[1]] : [mid[0], e];
+    to =
+      guide.axis === "x" ? [guide.position, mid[1]] : [mid[0], guide.position];
+  } else {
+    const target = elementsMap.get(anchor.to);
+    if (!target) {
+      return;
+    }
+    from = pointOnBounds(box, anchor.at);
+    to = pointOnBounds(getElementBounds(target, elementsMap), anchor.from);
+  }
+  const color = getThemedColor("#e0449b", appState.theme);
+  context.save();
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = 1.5 / z;
+  context.setLineDash([5 / z, 4 / z]);
+  context.beginPath();
+  context.moveTo(from[0], from[1]);
+  context.lineTo(to[0], to[1]);
+  context.stroke();
+  context.setLineDash([]);
+  context.beginPath();
+  context.arc(from[0], from[1], 3 / z, 0, Math.PI * 2);
+  context.fill();
+  // the anchored end is a small diamond
+  const d = 4.5 / z;
+  context.beginPath();
+  context.moveTo(to[0], to[1] - d);
+  context.lineTo(to[0] + d, to[1]);
+  context.lineTo(to[0], to[1] + d);
+  context.lineTo(to[0] - d, to[1]);
+  context.closePath();
+  context.fill();
+  context.restore();
+};
+
 const renderTransformHandles = (
   context: CanvasRenderingContext2D,
   renderConfig: InteractiveCanvasRenderConfig,
@@ -2342,6 +2411,7 @@ const _renderInteractiveScene = ({
       }
 
       renderGizmo(context, appState, selectedElements[0], elementsMap);
+      renderAnchorLink(context, appState, selectedElements[0], elementsMap);
 
       if (appState.croppingElementId && !appState.isCropping) {
         const croppingElement = elementsMap.get(appState.croppingElementId);

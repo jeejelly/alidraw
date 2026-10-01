@@ -90,6 +90,7 @@ export { actionUnbindText, actionBindText } from "./actionBoundText";
 export { actionLink } from "./actionLink";
 export { actionToggleElementLock } from "./actionElementLock";
 export { actionToggleLinearEditor } from "./actionLinearEditor";
+export { actionFitToGrid } from "./actionGrid";
 export {
   actionTogglePalette,
   actionOpenTransform,

@@ -423,6 +423,7 @@ import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
+import { AppAnchors } from "./App.anchors";
 import { Rulers } from "./Rulers";
 import { PalettePanel } from "./PalettePanel";
 import { PathEditorPanel } from "./PathEditorPanel";
@@ -745,6 +746,7 @@ class App extends React.Component<AppProps, AppState> {
   path = new AppPath(this);
   guides = new AppGuides(this);
   gizmo = new AppGizmo(this);
+  anchors = new AppAnchors(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
   lassoTrail = new LassoTrail(this);
@@ -3848,6 +3850,7 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     this.scene.onUpdate(this.triggerRender);
+    this.scene.onUpdate(this.anchors.refresh);
     this.addEventListeners();
 
     if (this.props.autoFocus && this.excalidrawContainerRef.current) {
@@ -3940,6 +3943,7 @@ class App extends React.Component<AppProps, AppState> {
     this.path.reset();
     this.guides.destroy();
     this.gizmo.destroy();
+    this.anchors.destroy();
     this.toolDrag.cancel();
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
@@ -4284,6 +4288,10 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
+    if (prevState.guides !== this.state.guides) {
+      // elements pinned to a guide follow it
+      this.anchors.refresh();
+    }
     const renderOverridesUpdatePending = this.renderOverridesUpdatePending;
     this.renderOverridesUpdatePending = false;
     // Only a requested visual update can skip the document pipeline. Real
@@ -7737,6 +7745,11 @@ class App extends React.Component<AppProps, AppState> {
     // else it will send pointer state & laser pointer events in collab when
     // panning
     if (this.pan.start(event)) {
+      return;
+    }
+
+    // choosing the target of an anchor takes the next click
+    if (this.anchors.handlePointerDown(event)) {
       return;
     }
 

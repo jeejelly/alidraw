@@ -39,6 +39,11 @@ import Dimension from "./Stats/Dimension";
 import Position from "./Stats/Position";
 import "./inspector/Inspector.scss";
 import {
+  AlignSection,
+  AnchorSection,
+  GridSection,
+} from "./inspector/LayoutSections";
+import {
   NumberPill,
   Section,
   Segmented,
@@ -797,10 +802,13 @@ export const PalettePanel = ({ app }: { app: App }) => {
           {tab === "design" || palette.layersDetached ? (
             <>
               {transform}
+              <AlignSection app={app} />
               {appearance}
               {swatches}
               {strokeSection}
               {typeSection}
+              <GridSection app={app} />
+              <AnchorSection app={app} />
             </>
           ) : (
             layersBody

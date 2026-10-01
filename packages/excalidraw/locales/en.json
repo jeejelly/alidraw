@@ -191,6 +191,33 @@
       "detachLayers": "Pop out the layers",
       "attachLayers": "Put the layers back in the inspector"
     },
+    "grid": {
+      "title": "Grid",
+      "spacing": "Spacing",
+      "subdivisions": "Subdivisions",
+      "fit": "Fit to grid"
+    },
+    "anchor": {
+      "title": "Anchor",
+      "thisPoint": "This point",
+      "targetPoint": "Target point",
+      "pick": "Anchor to an element…",
+      "picking": "Click the element to follow (Esc cancels)",
+      "release": "Release",
+      "followsElement": "Follows another element",
+      "followsGuide": "Pinned to a guide",
+      "gapX": "Gap X",
+      "gapY": "Gap Y",
+      "offset": "Offset",
+      "pin": "Pin to guide",
+      "noGuides": "Drag a guide off a ruler first",
+      "edge_start": "Start edge",
+      "edge_center": "Centre",
+      "edge_end": "End edge"
+    },
+    "alignPanel": {
+      "title": "Align"
+    },
     "rulers": {
       "toggle": "Rulers and guides",
       "snap": "Snap to guides (magnet)",
