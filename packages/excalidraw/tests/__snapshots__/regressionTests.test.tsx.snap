@@ -956,6 +956,7 @@ exports[`regression tests > Cmd/Ctrl-click exclusively select element under poin
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -1549,6 +1550,7 @@ exports[`regression tests > Drags selected element when hitting only bounding bo
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -1781,6 +1783,7 @@ exports[`regression tests > adjusts z order when grouping > [end of test] appSta
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -11908,6 +11911,7 @@ exports[`regression tests > noop interaction after undo shouldn't create history
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -12580,6 +12584,7 @@ exports[`regression tests > shift-click to multiselect, then drag > [end of test
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },

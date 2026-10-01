@@ -184,3 +184,51 @@ export const canSkewWithGizmo = (element: GizmoElement) =>
       element.type === "diamond" ||
       element.type === "ellipse") &&
       !(element.boundElements?.length ?? 0)));
+
+// -----------------------------------------------------------------------------
+// angle alignment
+// -----------------------------------------------------------------------------
+
+export type AlignCandidate = {
+  /** the angle of an axis to line up with */
+  angle: number;
+  /** a point on that axis, drawn so the match is visible */
+  x: number;
+  y: number;
+};
+
+/** how close a turning element must come to an axis to lock onto it */
+export const ALIGN_TOLERANCE = (3 * Math.PI) / 180;
+
+const QUARTER = Math.PI / 2;
+
+/**
+ * Locks a rotation onto the nearest axis of another element (or the page
+ * axes): the element's own axes are a quarter turn apart, so an angle matches
+ * any candidate angle plus a multiple of 90°.
+ */
+export const snapToAlignment = (
+  angle: number,
+  candidates: readonly AlignCandidate[],
+  tolerance = ALIGN_TOLERANCE,
+): { angle: number; matches: AlignCandidate[] } => {
+  let best = angle;
+  let bestD = tolerance + 1e-9;
+  for (const c of candidates) {
+    const turns = Math.round((angle - c.angle) / QUARTER);
+    const target = c.angle + turns * QUARTER;
+    const d = Math.abs(target - angle);
+    if (d < bestD) {
+      best = target;
+      bestD = d;
+    }
+  }
+  if (bestD > tolerance) {
+    return { angle, matches: [] };
+  }
+  const matches = candidates.filter((c) => {
+    const turns = Math.round((best - c.angle) / QUARTER);
+    return Math.abs(c.angle + turns * QUARTER - best) < 1e-6;
+  });
+  return { angle: best, matches };
+};

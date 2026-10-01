@@ -2985,6 +2985,7 @@ exports[`contextMenu element > selecting 'Group selection' in context menu group
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -4626,6 +4627,7 @@ exports[`contextMenu element > selecting 'Ungroup selection' in context menu ung
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -5989,6 +5991,7 @@ exports[`contextMenu element > shows 'Group selection' in context menu for multi
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -7284,6 +7287,7 @@ exports[`contextMenu element > shows 'Ungroup selection' in context menu for gro
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },

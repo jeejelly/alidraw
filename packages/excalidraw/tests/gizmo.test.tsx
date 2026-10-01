@@ -11,6 +11,7 @@ import {
   skewPivot,
   snapAngle,
   canSkewWithGizmo,
+  snapToAlignment,
 } from "../gizmo";
 import { Excalidraw } from "../index";
 
@@ -144,6 +145,34 @@ describe("skew math", () => {
   });
 });
 
+describe("angle alignment", () => {
+  const deg = (d: number) => (d * Math.PI) / 180;
+  const other = { angle: deg(20), x: 500, y: 300 };
+
+  it("locks onto another element's axis within a few degrees", () => {
+    const r = snapToAlignment(deg(22), [other]);
+    expect(r.angle).toBeCloseTo(deg(20));
+    expect(r.matches).toEqual([other]);
+  });
+
+  it("also matches the perpendicular axis (a quarter turn away)", () => {
+    expect(snapToAlignment(deg(111.5), [other]).angle).toBeCloseTo(deg(110));
+    expect(snapToAlignment(deg(200.8), [other]).angle).toBeCloseTo(deg(200));
+  });
+
+  it("leaves the angle alone beyond the tolerance", () => {
+    const r = snapToAlignment(deg(26), [other]);
+    expect(r.angle).toBeCloseTo(deg(26));
+    expect(r.matches).toEqual([]);
+  });
+
+  it("picks the nearest of several axes", () => {
+    const a = { angle: deg(10), x: 0, y: 0 };
+    const b = { angle: deg(14), x: 1, y: 1 };
+    expect(snapToAlignment(deg(13), [a, b]).angle).toBeCloseTo(deg(14));
+  });
+});
+
 describe("gizmo in the editor", () => {
   beforeAll(() => {
     mockBoundingClientRect({ width: 1000, height: 1000 });
@@ -193,6 +222,34 @@ describe("gizmo in the editor", () => {
     expect(el.angle).toBeCloseTo(expected, 3);
     expect(el.type).toBe("rectangle");
     expect([el.x, el.y]).toEqual([100, 100]);
+  });
+
+  it("rotation locks onto the angle of another element and shows its axis", async () => {
+    const { canvas, id } = await setup();
+    const other = API.createElement({
+      type: "rectangle",
+      x: 600,
+      y: 100,
+      width: 80,
+      height: 80,
+      angle: ((20 * Math.PI) / 180) as any,
+    });
+    API.setElements([h.elements[0], other]);
+    // aim for about 21 degrees: close enough to lock onto 20
+    const target = (21 * Math.PI) / 180;
+    const start = Math.atan2(75, 125);
+    const r = 200;
+    const to: [number, number] = [
+      200 + r * Math.cos(start + target),
+      150 + r * Math.sin(start + target),
+    ];
+    fireEvent.pointerDown(canvas, { clientX: 325, clientY: 225 });
+    fireEvent.pointerMove(window, { clientX: to[0], clientY: to[1] });
+    const el = h.elements.find((e) => e.id === id)!;
+    expect((el.angle * 180) / Math.PI).toBeCloseTo(20, 5);
+    expect(h.state.gizmo?.align.length).toBeGreaterThan(0);
+    fireEvent.pointerUp(window, { clientX: to[0], clientY: to[1] });
+    expect(h.state.gizmo?.align).toEqual([]);
   });
 
   it("Shift rotates in 15 degree steps", async () => {

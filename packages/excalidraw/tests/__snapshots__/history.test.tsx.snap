@@ -6715,6 +6715,7 @@ exports[`history > multiplayer undo/redo > should iterate through the history wh
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -9236,6 +9237,7 @@ exports[`history > multiplayer undo/redo > should not let remote changes to inte
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -9982,6 +9984,7 @@ exports[`history > multiplayer undo/redo > should not let remote changes to inte
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -15829,6 +15832,7 @@ exports[`history > singleplayer undo/redo > should iterate through the history w
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -16102,6 +16106,7 @@ exports[`history > singleplayer undo/redo > should not clear the redo stack on s
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -17425,6 +17430,7 @@ exports[`history > singleplayer undo/redo > should not override appstate changes
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -21638,6 +21644,7 @@ exports[`history > singleplayer undo/redo > should support changes in elements' 
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },
@@ -22690,6 +22697,7 @@ exports[`history > singleplayer undo/redo > should support element creation, del
   },
   "frameToHighlight": null,
   "gizmo": {
+    "align": [],
     "hover": null,
     "readout": null,
   },

@@ -32,6 +32,8 @@ import {
   sameZone,
   skewPivot,
   snapAngle,
+  snapToAlignment,
+  type AlignCandidate,
   type GizmoZone,
 } from "../gizmo";
 
@@ -141,6 +143,7 @@ export class AppGizmo {
       gizmo: {
         hover: prev.gizmo?.hover ?? null,
         readout: prev.gizmo?.readout ?? null,
+        align: prev.gizmo?.align ?? [],
         ...patch,
       },
     }));
@@ -286,6 +289,26 @@ export class AppGizmo {
     });
   };
 
+  /** the page axes, and every other element's own axes through its centre */
+  private alignCandidates = (exceptId: string): AlignCandidate[] => {
+    const map = this.app.scene.getNonDeletedElementsMap();
+    const out: AlignCandidate[] = [];
+    for (const other of this.app.scene.getNonDeletedElements()) {
+      if (other.id === exceptId || other.isDeleted) {
+        continue;
+      }
+      const [, , , , cx, cy] = getElementAbsoluteCoords(other, map);
+      out.push({ angle: other.angle, x: cx, y: cy });
+    }
+    // the page axes, through the turning element's own centre
+    const self = this.app.scene.getNonDeletedElement(exceptId);
+    if (self) {
+      const [, , , , cx, cy] = getElementAbsoluteCoords(self, map);
+      out.push({ angle: 0, x: cx, y: cy });
+    }
+    return out;
+  };
+
   private move = (event: PointerEvent) => {
     const g = this.gesture;
     if (!g) {
@@ -308,13 +331,25 @@ export class AppGizmo {
     }
     if (g.kind === "rotate") {
       let angle = g.angle0 + (Math.atan2(p.y - g.cy, p.x - g.cx) - g.theta0);
+      let matches: { angle: number; x: number; y: number }[] = [];
       if (event.shiftKey) {
         angle = snapAngle(angle);
+      } else if (!event.altKey) {
+        // lock onto the axes of the other elements and of the page
+        const snapped = snapToAlignment(angle, this.alignCandidates(g.id));
+        angle = snapped.angle;
+        matches = snapped.matches;
       }
       angle = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
       setSingleElementAngle(el, this.app.scene, angle as Radians);
       updateBoundElements(el, this.app.scene);
-      this.readout(event, `${Math.round((angle * 180) / Math.PI)}°`);
+      this.readout(
+        event,
+        `${Math.round((angle * 180) / Math.PI)}°${matches.length ? " ⟂" : ""}`,
+      );
+      this.setGizmo({
+        align: matches.map((m) => ({ x: m.x, y: m.y, angle: m.angle })),
+      });
       return;
     }
     const base = g.base;
@@ -370,7 +405,7 @@ export class AppGizmo {
     }
     this.app.store.scheduleCapture();
     this.app.setState((prev) => ({
-      gizmo: { hover: prev.gizmo?.hover ?? null, readout: null },
+      gizmo: { hover: prev.gizmo?.hover ?? null, readout: null, align: [] },
     }));
   };
 

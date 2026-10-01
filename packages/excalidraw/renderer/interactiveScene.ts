@@ -1463,6 +1463,59 @@ const renderGizmo = (
     context.stroke();
   };
 
+  // Blender-style axes through the centre: the pivot and the element's own
+  // orientation, readable at a glance
+  {
+    const reach = Math.max(hw, hh) + (GIZMO_OUTER * 2.2) / z;
+    const axes: [number, number, string][] = [
+      [1, 0, "#e5484d"],
+      [0, 1, "#30a46c"],
+    ];
+    context.save();
+    context.setLineDash([6 / z, 4 / z]);
+    context.lineWidth = 1 / z;
+    for (const [ax, ay, color] of axes) {
+      const [sx, sy] = at(-ax * reach, -ay * reach);
+      const [ex, ey] = at(ax * reach, ay * reach);
+      context.strokeStyle = getThemedColor(color, appState.theme);
+      context.globalAlpha = 0.55;
+      context.beginPath();
+      context.moveTo(sx, sy);
+      context.lineTo(ex, ey);
+      context.stroke();
+    }
+    context.restore();
+    context.save();
+    context.fillStyle = accent;
+    context.strokeStyle = getThemedColor("#ffffff", appState.theme);
+    context.lineWidth = 2 / z;
+    context.beginPath();
+    context.arc(cx, cy, 4 / z, 0, Math.PI * 2);
+    context.stroke();
+    context.fill();
+    context.restore();
+  }
+
+  // axes of other elements this rotation is locked onto
+  for (const line of appState.gizmo?.align ?? []) {
+    const len = 4000 / z;
+    context.save();
+    context.strokeStyle = getThemedColor("#e0449b", appState.theme);
+    context.lineWidth = 1 / z;
+    context.globalAlpha = 0.9;
+    context.beginPath();
+    context.moveTo(
+      line.x - Math.cos(line.angle) * len,
+      line.y - Math.sin(line.angle) * len,
+    );
+    context.lineTo(
+      line.x + Math.cos(line.angle) * len,
+      line.y + Math.sin(line.angle) * len,
+    );
+    context.stroke();
+    context.restore();
+  }
+
   const hot = (zone: GizmoZone) => hover && sameZone(hover, zone);
 
   // rotate: an arc with an arrowhead around each corner

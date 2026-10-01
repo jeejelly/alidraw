@@ -539,6 +539,8 @@ export interface AppState {
   gizmo: {
     hover: GizmoZone | null;
     readout: { x: number; y: number; text: string } | null;
+    /** axes of other elements the rotation is locked onto, as lines */
+    align: { x: number; y: number; angle: number }[];
   } | null;
   viewModeEnabled: boolean;
 
