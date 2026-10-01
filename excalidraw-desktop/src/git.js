@@ -83,7 +83,11 @@ const init = async (root, branch = "main") => {
     await run(root, ["init"]);
     await run(root, ["symbolic-ref", "HEAD", `refs/heads/${branch}`]);
   }
-  // commits need an identity; use a neutral local one only when none is set
+  await ensureIdentity(root);
+};
+
+/** commits need an identity; a neutral local one is set only when none is configured */
+const ensureIdentity = async (root) => {
   for (const [key, value] of [
     ["user.name", "Excalidraw workspace"],
     ["user.email", "workspace@localhost"],
@@ -199,7 +203,113 @@ const showFile = (root, hash, relPath) => {
   return run(root, ["show", `${hash}:${relPath}`]);
 };
 
+/** a remote URL the app will accept: https, ssh, scp-like, file or an absolute path */
+const checkRemoteUrl = (url) => {
+  const u = String(url ?? "").trim();
+  if (
+    !u ||
+    u.startsWith("-") ||
+    /[\s\u0000-\u001f]/.test(u) ||
+    u.includes("::")
+  ) {
+    throw new Error("that is not a valid remote address");
+  }
+  const ok =
+    /^https:\/\/[^/]+\/.+/.test(u) ||
+    /^ssh:\/\/[^/]+\/.+/.test(u) ||
+    /^[\w.-]+@[\w.-]+:[^\s]+$/.test(u) ||
+    /^file:\/\/\/.+/.test(u) ||
+    /^\/[^\s]*$/.test(u) ||
+    /^[A-Za-z]:[\\/][^\s]*$/.test(u);
+  if (!ok) {
+    throw new Error(
+      "use an https:// or ssh:// address, user@host:path, or a folder path",
+    );
+  }
+  return u;
+};
+
+/** @returns {{name, url}[]} fetch urls */
+const remotes = async (root) => {
+  const out = await run(root, ["remote", "-v"]);
+  const seen = new Map();
+  for (const line of out.split("\n")) {
+    const m = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line.trim());
+    if (m && !seen.has(m[1])) {
+      seen.set(m[1], m[2]);
+    }
+  }
+  return [...seen].map(([name, url]) => ({ name, url }));
+};
+
+const setRemote = async (root, url, name = "origin") => {
+  const checked = checkRemoteUrl(url);
+  const have = (await remotes(root)).some((r) => r.name === name);
+  await run(root, ["remote", have ? "set-url" : "add", name, checked]);
+  return checked;
+};
+
+const fetchRemote = (root, name = "origin") =>
+  run(root, ["fetch", "--prune", name], { timeout: 180000 });
+
+const head = async (root) => (await run(root, ["rev-parse", "HEAD"])).trim();
+
+/** fast-forward only: never makes a merge commit, never discards anything */
+const mergeFastForward = (root) => run(root, ["merge", "--ff-only", "@{u}"]);
+
+/** push the current branch; never forced */
+const pushCurrent = (root, name = "origin") =>
+  run(root, ["push", "-u", name, "HEAD"], { timeout: 180000 });
+
+/** merge the upstream in; on conflict, undo it completely and say which files clash */
+const mergeUpstream = async (root) => {
+  try {
+    await run(root, ["merge", "--no-edit", "@{u}"]);
+    return { merged: true, conflicts: [] };
+  } catch (error) {
+    let conflicts = [];
+    try {
+      conflicts = (await run(root, ["diff", "--name-only", "--diff-filter=U"]))
+        .split("\n")
+        .filter(Boolean);
+    } catch {
+      // not in a merge
+    }
+    try {
+      await run(root, ["merge", "--abort"]);
+    } catch {
+      // nothing to abort
+    }
+    return { merged: false, conflicts, message: error.message };
+  }
+};
+
+/** a new local branch at the current commit, pushed with its own upstream */
+const branchOff = async (root, branch, name = "origin") => {
+  if (!/^[A-Za-z0-9._\/-]{1,80}$/.test(branch) || branch.startsWith("-")) {
+    throw new Error("invalid branch name");
+  }
+  await run(root, ["switch", "-c", branch]);
+  await run(root, ["push", "-u", name, branch], { timeout: 180000 });
+  return branch;
+};
+
+/** files that differ between two commits */
+const changedBetween = async (root, a, b) =>
+  (await run(root, ["diff", "--name-only", a, b])).split("\n").filter(Boolean);
+
 module.exports = {
+  ensureIdentity,
+  checkRemoteUrl,
+  remotes,
+  setRemote,
+  fetchRemote,
+  head,
+  mergeFastForward,
+  pushCurrent,
+  mergeUpstream,
+  branchOff,
+  changedBetween,
   run,
   version,
   isRepo,

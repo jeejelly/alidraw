@@ -10,6 +10,7 @@ import {
   type Commit,
   type GitStatus,
   type SceneEntry,
+  type SyncOutcome,
   type WorkspaceEntry,
 } from "./desktopBridge";
 import { openWorkspaceScene } from "./openWorkspaceScene";
@@ -52,6 +53,8 @@ export const WorkspaceDialog = ({
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [settings, setSettings] = useState<WorkspaceEntry["settings"]>({});
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
 
   const fileHandle = api?.getAppState().fileHandle as unknown as
     | { workspaceId?: string; path?: string }
@@ -82,7 +85,11 @@ export const WorkspaceDialog = ({
       setGitInfo(await bridge.gitInfo());
       if (active) {
         setScenes(await bridge.scenes(active.id));
-        setStatus(await bridge.status(active.id));
+        const st = await bridge.status(active.id);
+        setStatus(st);
+        if ("remote" in st) {
+          setRemoteUrl((cur) => cur || st.remote?.url || "");
+        }
         setSettings(await bridge.getSettings(active.id));
         setHistory(
           currentPath ? await bridge.history(active.id, currentPath) : [],
@@ -114,8 +121,62 @@ export const WorkspaceDialog = ({
     return null;
   }
 
-  const select = (w: WorkspaceEntry) =>
+  const select = (w: WorkspaceEntry) => {
+    setRemoteUrl("");
+    setNotice(null);
     setWorkspaceActive({ id: w.id, name: w.name });
+    // pulls what others pushed, when the workspace is set to
+    bridge.activate(w.id).catch(() => {});
+  };
+
+  const describe = (r: SyncOutcome) => {
+    switch (r.outcome) {
+      case "pushed":
+        return "Pushed.";
+      case "pulled":
+        return `Pulled ${r.files.length} file${
+          r.files.length === 1 ? "" : "s"
+        }.`;
+      case "in-sync":
+        return "Up to date.";
+      case "diverged":
+        return "Both sides have new commits: choose what to do below.";
+      case "no-remote":
+        return "Set a remote address first.";
+      case "paused":
+        return "Network is paused.";
+      default:
+        return r.message ?? "Could not sync.";
+    }
+  };
+
+  const runSync = (options?: { pull?: boolean; push?: boolean }) =>
+    guard(async () => {
+      if (!active) {
+        return;
+      }
+      setNotice("Syncing…");
+      setNotice(describe(await bridge.sync(active.id, options)));
+    }).then(refresh);
+
+  const resolve = (choice: "merge" | "branch") =>
+    guard(async () => {
+      if (!active) {
+        return;
+      }
+      const r = await bridge.resolve(active.id, choice);
+      setNotice(
+        r.outcome === "merged"
+          ? "Merged. Push to share it."
+          : r.outcome === "branched"
+          ? `Continuing on ${r.branch}.`
+          : r.outcome === "conflict"
+          ? `Cannot merge automatically: ${r.conflicts.join(
+              ", ",
+            )} changed on both sides. Nothing was changed.`
+          : null,
+      );
+    }).then(refresh);
 
   const create = () =>
     guard(async () => {
@@ -185,6 +246,9 @@ export const WorkspaceDialog = ({
     });
 
   const changes = status && "changes" in status ? status.changes : [];
+  const hasRemote = !!(status && "remote" in status && status.remote);
+  const syncInfo = status && "sync" in status ? status.sync : null;
+  const paused = !!(status && "paused" in status && status.paused);
 
   return (
     <Dialog
@@ -213,6 +277,17 @@ export const WorkspaceDialog = ({
           </button>
         </div>
       )}
+      <label className="workspace__setting workspace__pause">
+        <input
+          type="checkbox"
+          data-testid="workspace-pause"
+          checked={paused}
+          onChange={(e) =>
+            guard(() => bridge.setPaused(e.target.checked)).then(refresh)
+          }
+        />
+        Pause all network use (pushing, pulling, fetching)
+      </label>
       {error && (
         <div className="workspace__error" role="alert">
           {error}
@@ -343,6 +418,124 @@ export const WorkspaceDialog = ({
                 />
                 s without edits
               </label>
+
+              <h5>Sharing</h5>
+              <div className="workspace__remote">
+                <input
+                  data-testid="workspace-remote"
+                  placeholder="Remote address: https://…, ssh://…, user@host:path"
+                  value={remoteUrl}
+                  onChange={(e) => setRemoteUrl(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+                <button
+                  type="button"
+                  data-testid="workspace-remote-save"
+                  disabled={!remoteUrl.trim()}
+                  onClick={() =>
+                    guard(async () => {
+                      await bridge.remoteSet(active.id, remoteUrl.trim());
+                      setNotice("Remote saved.");
+                    }).then(refresh)
+                  }
+                >
+                  Save
+                </button>
+              </div>
+              <label className="workspace__setting">
+                Share
+                <select
+                  data-testid="workspace-push"
+                  value={settings.push ?? "manual"}
+                  onChange={(e) => save({ push: e.target.value as any })}
+                >
+                  <option value="manual">only when I press Sync</option>
+                  <option value="afterCommit">
+                    after each automatic commit
+                  </option>
+                  <option value="interval">every few minutes</option>
+                </select>
+                {settings.push === "interval" && (
+                  <>
+                    <input
+                      type="number"
+                      min={30}
+                      value={settings.syncEverySec ?? 300}
+                      onChange={(e) => save({ syncEverySec: +e.target.value })}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                    s
+                  </>
+                )}
+              </label>
+              <label className="workspace__setting">
+                <input
+                  type="checkbox"
+                  data-testid="workspace-pull-on-open"
+                  checked={settings.pullOnOpen !== false}
+                  onChange={(e) => save({ pullOnOpen: e.target.checked })}
+                />
+                Pull when I open this workspace
+              </label>
+              <div className="workspace__git">
+                <button
+                  type="button"
+                  data-testid="workspace-sync"
+                  disabled={!hasRemote}
+                  onClick={() => runSync()}
+                >
+                  Sync now
+                </button>
+                <button
+                  type="button"
+                  data-testid="workspace-pull"
+                  disabled={!hasRemote}
+                  onClick={() => runSync({ push: false })}
+                >
+                  Pull
+                </button>
+                <button
+                  type="button"
+                  data-testid="workspace-push-now"
+                  disabled={!hasRemote}
+                  onClick={() => runSync({ pull: false })}
+                >
+                  Push
+                </button>
+              </div>
+              {(notice || syncInfo?.message) && (
+                <div
+                  className="workspace__hint"
+                  data-testid="workspace-sync-message"
+                >
+                  {notice ?? syncInfo?.message}
+                </div>
+              )}
+              {syncInfo?.state === "diverged" && (
+                <div
+                  className="workspace__banner"
+                  data-testid="workspace-diverged"
+                >
+                  Both this workspace and its remote have new commits. Nothing
+                  has been pushed or overwritten.
+                  <div className="workspace__choices">
+                    <button
+                      type="button"
+                      data-testid="workspace-merge"
+                      onClick={() => resolve("merge")}
+                    >
+                      Try to merge
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="workspace-branch"
+                      onClick={() => resolve("branch")}
+                    >
+                      Continue on a new branch
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <h5>Scenes</h5>
               <button

@@ -41,3 +41,6 @@ Commands SHALL be run without a shell with argument lists; remote URLs SHALL be 
 3. Remote: push, pull, policies, diverged state.
 4. External assets by content hash.
 5. Server: backup and fetch-on-open, keychain, pause switch.
+
+## Status
+Phases 1-3 are built: workspaces and scenes without dialogs, auto commit with history and restore, remote with push and pull (manual, after each commit, or on an interval; pull on open; fast-forward only), the diverged state with "try to merge" (undone completely when a file clashes) or "continue on a new branch", a switch that pauses all network use, and a reload offer when a pull changes the open scene. Phases 4 (linked or embedded images) and 5 (server backup, ciphered passwords manifest) remain.

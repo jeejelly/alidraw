@@ -284,3 +284,20 @@ describe("auto commit", () => {
     expect(message(["a", "b", "c", "d"])).toBe("Update 4 files");
   });
 });
+
+describe("app settings", () => {
+  it("are kept apart from the workspaces and survive changes to them", async () => {
+    expect(ws.registry.appSettings()).toEqual({});
+    ws.registry.setAppSettings({ paused: true });
+    const w = await ws.create({
+      name: "K",
+      parent: path.join(tmp, "projects"),
+      useGit: false,
+    });
+    expect(ws.registry.appSettings()).toEqual({ paused: true });
+    ws.forget(w.id);
+    expect(ws.registry.appSettings()).toEqual({ paused: true });
+    ws.registry.setAppSettings({ paused: false });
+    expect(ws.registry.appSettings()).toEqual({ paused: false });
+  });
+});

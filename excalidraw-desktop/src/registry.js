@@ -8,23 +8,42 @@ class Registry {
     this.file = path.join(dir, "workspaces.json");
   }
 
-  read() {
+  readAll() {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, "utf8"));
-      return Array.isArray(data.workspaces) ? data.workspaces : [];
+      return {
+        workspaces: Array.isArray(data.workspaces) ? data.workspaces : [],
+        app: data.app && typeof data.app === "object" ? data.app : {},
+      };
     } catch {
-      return [];
+      return { workspaces: [], app: {} };
     }
   }
 
-  write(list) {
+  read() {
+    return this.readAll().workspaces;
+  }
+
+  writeAll(all) {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const tmp = `${this.file}.${process.pid}.tmp`;
-    fs.writeFileSync(
-      tmp,
-      JSON.stringify({ version: 1, workspaces: list }, null, 2),
-    );
+    fs.writeFileSync(tmp, JSON.stringify({ version: 1, ...all }, null, 2));
     fs.renameSync(tmp, this.file);
+  }
+
+  write(list) {
+    this.writeAll({ ...this.readAll(), workspaces: list });
+  }
+
+  /** settings of the app itself on this machine (not of one workspace) */
+  appSettings() {
+    return this.readAll().app;
+  }
+
+  setAppSettings(patch) {
+    const all = this.readAll();
+    this.writeAll({ ...all, app: { ...all.app, ...patch } });
+    return this.appSettings();
   }
 
   /** most recently opened first */

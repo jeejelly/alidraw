@@ -5,7 +5,13 @@ export type WorkspaceEntry = {
   path: string;
   lastOpened?: number;
   exists?: boolean;
-  settings: { autoCommit?: boolean; delaySec?: number };
+  settings: {
+    autoCommit?: boolean;
+    delaySec?: number;
+    push?: "manual" | "afterCommit" | "interval";
+    syncEverySec?: number;
+    pullOnOpen?: boolean;
+  };
   gitNote?: string | null;
 };
 
@@ -16,6 +22,31 @@ export type SceneEntry = {
   size: number;
 };
 
+export type SyncInfo = {
+  state:
+    | "idle"
+    | "syncing"
+    | "ahead"
+    | "behind"
+    | "diverged"
+    | "error"
+    | "paused"
+    | "no-remote";
+  message: string | null;
+  at?: string;
+  files?: string[];
+};
+
+export type SyncOutcome =
+  | { outcome: "in-sync" | "pushed" | "diverged" | "no-remote" | "paused" }
+  | { outcome: "pulled"; files: string[] }
+  | { outcome: "blocked"; message?: string };
+
+export type ResolveOutcome =
+  | { outcome: "merged"; files: string[] }
+  | { outcome: "conflict"; conflicts: string[] }
+  | { outcome: "branched"; branch: string };
+
 export type GitStatus =
   | { git: false }
   | { git: true; repo: false }
@@ -23,6 +54,9 @@ export type GitStatus =
       git: true;
       repo: true;
       pending: boolean;
+      remote: { name: string; url: string } | null;
+      sync: SyncInfo;
+      paused: boolean;
       branch: string | null;
       upstream: string | null;
       ahead: number;
@@ -39,6 +73,8 @@ export type Commit = {
 };
 
 export type WorkspaceEvent =
+  | ({ type: "sync"; id: string } & SyncInfo)
+  | { type: "pulled"; id: string; files: string[] }
   | { type: "commit"; id: string; ok: true; hash: string | null }
   | { type: "commit"; id: string; ok: false; error: string };
 
@@ -82,6 +118,14 @@ export type DesktopWorkspaceBridge = {
     settings: WorkspaceEntry["settings"],
   ): Promise<WorkspaceEntry>;
   status(id: string): Promise<GitStatus>;
+  remoteSet(id: string, url: string): Promise<{ name: string; url: string }>;
+  sync(
+    id: string,
+    options?: { pull?: boolean; push?: boolean },
+  ): Promise<SyncOutcome>;
+  resolve(id: string, choice: "merge" | "branch"): Promise<ResolveOutcome>;
+  setPaused(paused: boolean): Promise<{ paused?: boolean }>;
+  activate(id: string): Promise<void>;
   commitNow(id: string, message?: string): Promise<{ hash: string | null }>;
   history(id: string, path: string): Promise<Commit[]>;
   showVersion(id: string, hash: string, path: string): Promise<string>;

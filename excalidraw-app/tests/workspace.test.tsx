@@ -10,6 +10,7 @@ import {
   screen,
   waitFor,
 } from "@excalidraw/excalidraw/tests/test-utils";
+import { render as rtlRender } from "@testing-library/react";
 import React from "react";
 
 import { appJotaiStore, Provider } from "../app-jotai";
@@ -65,12 +66,20 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
       repo: true,
       pending: false,
       branch: "main",
+      remote: null,
+      sync: { state: "no-remote", message: null },
+      paused: false,
       upstream: null,
       ahead: 0,
       behind: 0,
       changes: [],
       clean: true,
     }),
+    remoteSet: async (_id, url) => ({ name: "origin", url }),
+    sync: async () => ({ outcome: "in-sync" }),
+    resolve: async () => ({ outcome: "branched", branch: "ws/x" }),
+    setPaused: async () => ({}),
+    activate: async () => {},
     commitNow: async () => ({ hash: null }),
     history: async () => [],
     showVersion: async () => "{}",
@@ -309,5 +318,164 @@ describe("opening a workspace scene", () => {
       name: "W",
     });
     expect(appJotaiStore.get(autosaveToFileAtom)).toBe(true);
+  });
+});
+
+describe("sharing", () => {
+  const withRemote = (sync: any, extra: Partial<DesktopWorkspaceBridge> = {}) =>
+    fakeBridge({
+      list: async () => [
+        { id: "w1", name: "W", path: "/w", exists: true, settings: {} },
+      ],
+      status: async () => ({
+        git: true,
+        repo: true,
+        pending: false,
+        remote: { name: "origin", url: "git@host:w.git" },
+        sync,
+        paused: false,
+        branch: "main",
+        upstream: "origin/main",
+        ahead: 1,
+        behind: 2,
+        changes: [],
+        clean: true,
+      }),
+      ...extra,
+    });
+
+  const openActive = async (bridge: DesktopWorkspaceBridge) => {
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    await render(
+      <Provider store={appJotaiStore}>
+        <Excalidraw>
+          <WorkspaceDialog api={null} />
+        </Excalidraw>
+      </Provider>,
+    );
+    act(() => appJotaiStore.set(workspaceDialogOpenAtom, true));
+    await waitFor(() => screen.getAllByTestId("workspace-item"));
+    fireEvent.click(screen.getByTestId("workspace-item"));
+    await waitFor(() => screen.getByTestId("workspace-remote"));
+  };
+
+  it("shows the remote, saves a new one, syncs and says what happened", async () => {
+    const saved: string[] = [];
+    const syncs: any[] = [];
+    const { bridge } = withRemote(
+      { state: "ahead", message: null },
+      {
+        remoteSet: async (_id, url) => {
+          saved.push(url);
+          return { name: "origin", url };
+        },
+        sync: async (_id, options) => {
+          syncs.push(options ?? {});
+          return { outcome: "pulled", files: ["a.excalidraw", "b.excalidraw"] };
+        },
+      },
+    );
+    await openActive(bridge);
+    expect(
+      (screen.getByTestId("workspace-remote") as HTMLInputElement).value,
+    ).toBe("git@host:w.git");
+    fireEvent.change(screen.getByTestId("workspace-remote"), {
+      target: { value: "https://h/p.git" },
+    });
+    fireEvent.click(screen.getByTestId("workspace-remote-save"));
+    await waitFor(() => expect(saved).toEqual(["https://h/p.git"]));
+    fireEvent.click(screen.getByTestId("workspace-pull"));
+    await waitFor(() =>
+      expect(screen.getByTestId("workspace-sync-message").textContent).toBe(
+        "Pulled 2 files.",
+      ),
+    );
+    fireEvent.click(screen.getByTestId("workspace-push-now"));
+    await waitFor(() =>
+      expect(syncs).toEqual([{ push: false }, { pull: false }]),
+    );
+  });
+
+  it("a diverged workspace offers to merge or branch, never to overwrite", async () => {
+    const chosen: string[] = [];
+    const { bridge } = withRemote(
+      { state: "diverged", message: "both moved" },
+      {
+        resolve: async (_id, choice) => {
+          chosen.push(choice);
+          return choice === "merge"
+            ? { outcome: "conflict", conflicts: ["a.excalidraw"] }
+            : { outcome: "branched", branch: "ws/pc-1" };
+        },
+      },
+    );
+    await openActive(bridge);
+    expect(screen.getByTestId("workspace-diverged").textContent).toContain(
+      "Nothing has been pushed or overwritten",
+    );
+    fireEvent.click(screen.getByTestId("workspace-merge"));
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("workspace-sync-message").textContent,
+      ).toContain("a.excalidraw changed on both sides"),
+    );
+    fireEvent.click(screen.getByTestId("workspace-branch"));
+    await waitFor(() => expect(chosen).toEqual(["merge", "branch"]));
+    expect(screen.getByTestId("workspace-sync-message").textContent).toBe(
+      "Continuing on ws/pc-1.",
+    );
+  });
+
+  it("sets the push policy, pull on open and the network pause", async () => {
+    const settings: any[] = [];
+    const paused: boolean[] = [];
+    const { bridge } = withRemote(
+      { state: "idle", message: null },
+      {
+        setSettings: async (id, s) => {
+          settings.push(s);
+          return { id, name: "", path: "", settings: s };
+        },
+        setPaused: async (p) => {
+          paused.push(p);
+          return {};
+        },
+      },
+    );
+    await openActive(bridge);
+    fireEvent.change(screen.getByTestId("workspace-push"), {
+      target: { value: "afterCommit" },
+    });
+    fireEvent.click(screen.getByTestId("workspace-pull-on-open"));
+    fireEvent.click(screen.getByTestId("workspace-pause"));
+    await waitFor(() => expect(paused).toEqual([true]));
+    expect(settings).toContainEqual({ push: "afterCommit" });
+    expect(settings).toContainEqual({ pullOnOpen: false });
+  });
+
+  it("offers to reload the open scene when a pull changed it, and does not reload unasked", async () => {
+    const { bridge } = fakeBridge();
+    let emit: (e: any) => void = () => {};
+    bridge.onEvent = (cb) => {
+      emit = cb;
+      return () => {};
+    };
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    const { WorkspaceWatcher } = await import("../workspace/WorkspaceWatcher");
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "W" });
+    const handle = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
+    const api: any = { getAppState: () => ({ fileHandle: handle }) };
+    rtlRender(
+      <Provider store={appJotaiStore}>
+        <WorkspaceWatcher api={api} />
+      </Provider>,
+    );
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    act(() => emit({ type: "pulled", id: "w1", files: ["other.excalidraw"] }));
+    expect(confirm).not.toHaveBeenCalled();
+    act(() => emit({ type: "pulled", id: "w1", files: ["a.excalidraw"] }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm.mock.calls[0][0]).toContain("a.excalidraw");
+    confirm.mockRestore();
   });
 });

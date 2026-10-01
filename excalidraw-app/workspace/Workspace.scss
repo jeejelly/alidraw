@@ -80,6 +80,23 @@
       min-width: 0;
     }
   }
+  .workspace__remote {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 0.4rem;
+    input {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+  .workspace__choices {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+  }
+  .workspace__pause {
+    margin-bottom: 0.5rem;
+  }
   .workspace__git {
     display: flex;
     gap: 0.75rem;

@@ -58,6 +58,7 @@ import { STORAGE_KEYS, SYNC_BROWSER_TABS_TIMEOUT } from "./app_constants";
 import { AppFooter } from "./components/AppFooter";
 import { installWorkspaceSave } from "./workspace/workspaceSave";
 import { WorkspaceDialog } from "./workspace/WorkspaceDialog";
+import { WorkspaceWatcher } from "./workspace/WorkspaceWatcher";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
@@ -549,6 +550,7 @@ const ExcalidrawWrapper = () => {
         </OverwriteConfirmDialog>
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />
         <WorkspaceDialog api={excalidrawAPI} />
+        <WorkspaceWatcher api={excalidrawAPI} />
         {localStorageQuotaExceeded && (
           <div className="alert alert--danger">
             {t("alerts.localStorageQuotaExceeded")}

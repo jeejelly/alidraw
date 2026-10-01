@@ -19,6 +19,7 @@ const {
 const git = require("./src/git");
 const { AutoCommit } = require("./src/autocommit");
 const { Registry } = require("./src/registry");
+const { Sync } = require("./src/sync");
 const { Workspaces } = require("./src/workspace");
 const { resolveInside } = require("./src/paths");
 
@@ -157,6 +158,9 @@ const createWindow = () => {
 
 let workspaces;
 let autoCommit;
+let registry;
+let sync;
+const syncTimers = new Map();
 // folders the user picked in a dialog; the page names them by token, never by path
 const pickedFolders = new Map();
 
@@ -196,16 +200,48 @@ const takeFolder = (token) => {
 };
 
 const setupWorkspaces = () => {
-  workspaces = new Workspaces({
-    registry: new Registry(app.getPath("userData")),
-  });
+  registry = new Registry(app.getPath("userData"));
+  workspaces = new Workspaces({ registry });
   autoCommit = new AutoCommit({
     delayFor: (id) => {
       const s = workspaces.settings(id);
       return s.autoCommit ? Math.max(5, s.delaySec ?? 60) * 1000 : null;
     },
-    onResult: (id, result) => broadcast({ type: "commit", id, ...result }),
+    onResult: (id, result) => {
+      broadcast({ type: "commit", id, ...result });
+      if (
+        result.ok &&
+        result.hash &&
+        workspaces.settings(id).push === "afterCommit"
+      ) {
+        sync.sync(id).catch(() => {});
+      }
+    },
   });
+  sync = new Sync({
+    workspaces,
+    isPaused: () => registry.appSettings().paused === true,
+    // only what the app itself saved is committed on the way to a push
+    flush: (id) => (autoCommit.hasPending(id) ? autoCommit.flush(id) : null),
+    emit: broadcast,
+  });
+
+  /** the timer of the "every N seconds" push policy */
+  const schedule = (id) => {
+    clearInterval(syncTimers.get(id));
+    syncTimers.delete(id);
+    const s = workspaces.settings(id);
+    if (s.push === "interval") {
+      const every = Math.min(86400, Math.max(30, s.syncEverySec ?? 300)) * 1000;
+      syncTimers.set(
+        id,
+        setInterval(() => sync.sync(id).catch(() => {}), every),
+      );
+    }
+  };
+  for (const w of workspaces.list()) {
+    schedule(w.id);
+  }
 
   handle("ws:gitInfo", async () => {
     const v = await git.version();
@@ -303,13 +339,27 @@ const setupWorkspaces = () => {
     if (typeof settings?.autoCommit === "boolean") {
       allowed.autoCommit = settings.autoCommit;
     }
+    if (["manual", "afterCommit", "interval"].includes(settings?.push)) {
+      allowed.push = settings.push;
+    }
+    if (Number.isFinite(settings?.syncEverySec)) {
+      allowed.syncEverySec = Math.min(
+        86400,
+        Math.max(30, Math.round(settings.syncEverySec)),
+      );
+    }
+    if (typeof settings?.pullOnOpen === "boolean") {
+      allowed.pullOnOpen = settings.pullOnOpen;
+    }
     if (Number.isFinite(settings?.delaySec)) {
       allowed.delaySec = Math.min(
         3600,
         Math.max(5, Math.round(settings.delaySec)),
       );
     }
-    return workspaces.setSettings(id, allowed);
+    const entry = workspaces.setSettings(id, allowed);
+    schedule(id);
+    return entry;
   });
   handle("ws:status", async ({ id }) => {
     const root = workspaces.root(id);
@@ -323,8 +373,29 @@ const setupWorkspaces = () => {
       git: true,
       repo: true,
       pending: autoCommit.hasPending(id),
+      remote: await sync.remote(id),
+      sync: sync.info(id),
+      paused: registry.appSettings().paused === true,
       ...(await git.status(root)),
     };
+  });
+  handle("ws:remoteSet", ({ id, url }) => sync.setRemote(id, url));
+  handle("ws:sync", ({ id, pull, push }) =>
+    sync.sync(id, { pull: pull !== false, push: push !== false }),
+  );
+  handle("ws:resolve", ({ id, choice }) => sync.resolve(id, choice));
+  handle("ws:setPaused", ({ paused }) =>
+    registry.setAppSettings({ paused: paused === true }),
+  );
+  // a workspace became the one in use: pull what others pushed, if asked to
+  handle("ws:activate", async ({ id }) => {
+    workspaces.touch(id);
+    if (
+      workspaces.settings(id).pullOnOpen !== false &&
+      (await sync.remote(id))
+    ) {
+      sync.sync(id, { push: false }).catch(() => {});
+    }
   });
   handle("ws:commitNow", async ({ id, message }) => {
     const root = workspaces.root(id);

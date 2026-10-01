@@ -135,7 +135,9 @@ class Workspaces {
     // a folder that becomes a workspace is put under git, when git is there
     let gitNote = null;
     if (useGit && (await git.version())) {
-      if (!(await git.isRepo(folder))) {
+      if (await git.isRepo(folder)) {
+        await git.ensureIdentity(folder);
+      } else {
         await git.init(folder);
         if (!fs.existsSync(path.join(folder, ".gitignore"))) {
           writeAtomic(path.join(folder, ".gitignore"), git.DEFAULT_IGNORE);
