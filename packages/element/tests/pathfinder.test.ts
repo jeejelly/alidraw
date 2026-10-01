@@ -1,4 +1,5 @@
 import {
+  cutOutlines,
   getOutline,
   isPathfinderOperand,
   outlineArea,
@@ -137,5 +138,61 @@ describe("pathfinder operands", () => {
         points: [1, 2, 3],
       } as any),
     ).toBe(false);
+  });
+});
+
+describe("knife cuts", () => {
+  const a = rect(0, 0, 100, 100);
+
+  it("a line through the shape gives two pieces that tile it", async () => {
+    const [pieces] = await cutOutlines([a], [50, -20], [50, 120]);
+    expect(pieces).toHaveLength(2);
+    expect(area(pieces!)).toBeCloseTo(10000, 3);
+    const boxes = pieces!.map(bounds).sort((p, q) => p[0] - q[0]);
+    expect(boxes[0].map(Math.round)).toEqual([0, 0, 50, 100]);
+    expect(boxes[1].map(Math.round)).toEqual([50, 0, 100, 100]);
+  });
+
+  it("a slanted line cuts at that angle", async () => {
+    const [pieces] = await cutOutlines([a], [-20, -20], [120, 120]);
+    expect(pieces).toHaveLength(2);
+    expect(area(pieces!)).toBeCloseTo(10000, 3);
+    // the diagonal splits a square into two equal triangles
+    expect(area([pieces![0]])).toBeCloseTo(5000, 3);
+  });
+
+  it("a segment that stops inside the shape cuts nothing", async () => {
+    expect((await cutOutlines([a], [50, 20], [50, 80]))[0]).toBeNull();
+    expect((await cutOutlines([a], [50, -20], [50, 60]))[0]).toBeNull();
+  });
+
+  it("a line beside the shape cuts nothing; others in the batch still do", async () => {
+    const far = rect(500, 0, 50, 50);
+    const r = await cutOutlines([a, far], [50, -20], [50, 120]);
+    expect(r[0]).toHaveLength(2);
+    expect(r[1]).toBeNull();
+  });
+
+  it("curves survive the cut", async () => {
+    const k = 0.5522847498 * 50;
+    const circle: Outline = {
+      points: [
+        [50, 0],
+        [100, 50],
+        [50, 100],
+        [0, 50],
+      ] as any,
+      handles: [
+        { mode: "smooth", in: [-k, 0] as any, out: [k, 0] as any },
+        { mode: "smooth", in: [0, -k] as any, out: [0, k] as any },
+        { mode: "smooth", in: [k, 0] as any, out: [-k, 0] as any },
+        { mode: "smooth", in: [0, k] as any, out: [0, -k] as any },
+      ],
+    };
+    const [pieces] = await cutOutlines([circle], [50, -20], [50, 120]);
+    expect(pieces).toHaveLength(2);
+    expect(pieces!.every((p) => p.handles.some((h) => h.in || h.out))).toBe(
+      true,
+    );
   });
 });

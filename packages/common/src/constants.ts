@@ -585,6 +585,7 @@ export const TOOL_TYPE = {
   autoshape: "autoshape",
   bucketfill: "bucketfill",
   path: "path",
+  knife: "knife",
 } as const;
 
 export const EDITOR_LS_KEYS = {

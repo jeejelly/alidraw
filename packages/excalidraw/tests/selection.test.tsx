@@ -1391,7 +1391,8 @@ describe("tool locking & selection", () => {
         value !== "embeddable" &&
         value !== "autoshape" &&
         value !== "bucketfill" &&
-        value !== "path"
+        value !== "path" &&
+        value !== "knife"
       ) {
         const element = UI.createElement(value);
         expect(h.state.selectedElementIds[element.id]).not.toBe(true);

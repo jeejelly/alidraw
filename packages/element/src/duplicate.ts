@@ -450,6 +450,23 @@ export const duplicateElements = (
     origIdToDuplicateId,
   );
 
+  // a copy anchored to a copied element follows its own copy
+  for (const duplicate of duplicatedElements) {
+    const anchor = (duplicate.customData as any)?.anchor;
+    const copyOfTarget =
+      typeof anchor?.to === "string"
+        ? origIdToDuplicateId.get(anchor.to)
+        : undefined;
+    if (copyOfTarget) {
+      Object.assign(duplicate, {
+        customData: {
+          ...duplicate.customData,
+          anchor: { ...anchor, to: copyOfTarget },
+        },
+      });
+    }
+  }
+
   if (opts.overrides) {
     for (const duplicateElement of duplicatedElements) {
       const origElement = origElementsMap.get(

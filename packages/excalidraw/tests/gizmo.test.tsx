@@ -215,11 +215,16 @@ describe("gizmo in the editor", () => {
 
   it("rotates around the centre, relative to where the drag began", async () => {
     const { canvas, id } = await setup();
-    // outside the south-east corner; a quarter of the way round
-    drag(canvas, [325, 225], [200, 300]);
+    // outside the south-east corner, then turned by 25 degrees (clear of the magnet angles)
+    const start = Math.atan2(75, 125);
+    const target = start + (25 * Math.PI) / 180;
+    drag(
+      canvas,
+      [325, 225],
+      [200 + 200 * Math.cos(target), 150 + 200 * Math.sin(target)],
+    );
     const el = h.elements.find((e) => e.id === id)!;
-    const expected = Math.PI / 2 - Math.atan2(75, 125);
-    expect(el.angle).toBeCloseTo(expected, 3);
+    expect(el.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
     expect(el.type).toBe("rectangle");
     expect([el.x, el.y]).toEqual([100, 100]);
   });

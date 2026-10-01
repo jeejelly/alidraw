@@ -1,7 +1,5 @@
 import type { FontUnit } from "@excalidraw/common";
-import type { Guide } from "./guides";
-import type { AnchorPoint } from "./anchors";
-import type { GizmoZone } from "./gizmo";
+
 import type {
   IMAGE_MIME_TYPES,
   UserIdleState,
@@ -56,6 +54,10 @@ import type {
   OnDuplicateData,
 } from "@excalidraw/element";
 import type { GlobalPoint } from "@excalidraw/math";
+
+import type { GizmoZone } from "./gizmo";
+import type { AnchorPoint } from "./anchors";
+import type { Guide } from "./guides";
 
 import type { Action } from "./actions/types";
 import type { Spreadsheet } from "./charts";
@@ -169,7 +171,8 @@ export type ToolType =
   | "laser"
   | "autoshape"
   | "bucketfill"
-  | "path";
+  | "path"
+  | "knife";
 
 export type ElementOrToolType = ExcalidrawElementType | ToolType | "custom";
 
@@ -240,6 +243,7 @@ export type InteractiveCanvasAppState = Readonly<
     gridModeEnabled: AppState["gridModeEnabled"];
     guides: AppState["guides"];
     gizmo: AppState["gizmo"];
+    knife: AppState["knife"];
     suggestedBinding: AppState["suggestedBinding"];
     textToolHover: AppState["textToolHover"];
     isRotating: AppState["isRotating"];
@@ -536,6 +540,14 @@ export interface AppState {
   guidesSnapEnabled: boolean;
   /** the colour palette panel stays open over the canvas */
   paletteOpen: boolean;
+  /** an angle gesture is running: the keys that lock it, and the one held */
+  angleHelper: { active: string | null } | null;
+  /** the knife's cut line while it is drawn */
+  knife: {
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    label: string;
+  } | null;
   /** choosing the target of an anchor: click another element */
   anchorPick: {
     sourceId: ExcalidrawElement["id"];

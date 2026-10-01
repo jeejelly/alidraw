@@ -30,7 +30,11 @@ const fakeHandle = (
       close: async () => {},
     })),
   };
-  return { handle: handle as unknown as FileSystemFileHandle, raw: handle, written };
+  return {
+    handle: handle as unknown as FileSystemFileHandle,
+    raw: handle,
+    written,
+  };
 };
 
 describe("writeSceneToHandle", () => {

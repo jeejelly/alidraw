@@ -652,6 +652,17 @@ export const pathToolIcon = createIcon(
   tablerIconProps,
 );
 
+// a blade cutting through a shape
+export const knifeToolIcon = createIcon(
+  <g strokeWidth={1.5}>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M4 20l9-9" />
+    <path d="M13 11l5-6 3 3-6 5z" />
+    <path d="M6 14l-2 2" strokeDasharray="1.5 2" />
+  </g>,
+  tablerIconProps,
+);
+
 // simple / icon
 export const slashIcon = createIcon(
   <g strokeWidth={1.5}>

@@ -215,6 +215,10 @@
       "edge_center": "Centre",
       "edge_end": "End edge"
     },
+    "knife": {
+      "cut": "Cut shapes along the line",
+      "keys": "Hold a number key to lock the angle"
+    },
     "pathfinder": {
       "title": "Pathfinder",
       "unite": "Unite",
@@ -433,6 +437,7 @@
     "laser": "Laser pointer",
     "autoshape": "Draw to shape",
     "bucketfill": "Bucket fill",
+    "knife": "Knife (cut shapes along a line)",
     "path": "Path (click to add points, drag for curves)",
     "hand": "Hand (panning tool)",
     "extraTools": "More tools",

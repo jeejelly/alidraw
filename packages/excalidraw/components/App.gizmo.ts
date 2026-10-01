@@ -24,6 +24,14 @@ import type {
 import type { Radians } from "@excalidraw/math";
 
 import {
+  AngleKeys,
+  lockAngle,
+  magnetAngle,
+  normalizeAngle,
+  toDegrees,
+} from "../remarkableAngles";
+
+import {
   canRotateWithGizmo,
   canSkewWithGizmo,
   getGizmoZone,
@@ -80,6 +88,7 @@ type Gesture =
  */
 export class AppGizmo {
   private gesture: Gesture | null = null;
+  private keys = new AngleKeys();
   private teardown: (() => void) | null = null;
   /** where the press began: a release that never left it is a plain click */
   private pressedAt: { x: number; y: number } | null = null;
@@ -240,6 +249,13 @@ export class AppGizmo {
       };
     }
     this.listen();
+    if (this.gesture?.kind === "rotate") {
+      // number keys lock the angle while held; show what they do
+      this.app.setState({ angleHelper: { active: null } });
+      this.keys.start(this.app.ownerWindow, () =>
+        this.app.setState({ angleHelper: { active: this.keys.key } }),
+      );
+    }
     return true;
   };
 
@@ -332,20 +348,44 @@ export class AppGizmo {
     if (g.kind === "rotate") {
       let angle = g.angle0 + (Math.atan2(p.y - g.cy, p.x - g.cx) - g.theta0);
       let matches: { angle: number; x: number; y: number }[] = [];
-      if (event.shiftKey) {
+      let how = "free";
+      const key = this.keys.key;
+      if (key) {
+        // a held number key asks for that angle outright
+        angle = lockAngle(key, angle, Math.PI / 2) ?? angle;
+        how = "key";
+      } else if (event.shiftKey) {
         angle = snapAngle(angle);
+        how = "step";
       } else if (!event.altKey) {
-        // lock onto the axes of the other elements and of the page
+        // the axes of the other elements first, then the remarkable angles
         const snapped = snapToAlignment(angle, this.alignCandidates(g.id));
-        angle = snapped.angle;
-        matches = snapped.matches;
+        if (snapped.matches.length) {
+          angle = snapped.angle;
+          matches = snapped.matches;
+          how = "align";
+        } else {
+          const magnet = magnetAngle(normalizeAngle(angle));
+          if (magnet.snapped) {
+            angle = magnet.angle;
+            how = "magnet";
+          }
+        }
       }
-      angle = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      angle = normalizeAngle(angle);
       setSingleElementAngle(el, this.app.scene, angle as Radians);
       updateBoundElements(el, this.app.scene);
       this.readout(
         event,
-        `${Math.round((angle * 180) / Math.PI)}°${matches.length ? " ⟂" : ""}`,
+        `${toDegrees(angle)}°${
+          how === "align"
+            ? " ⟂"
+            : how === "key"
+            ? ` ⌨${key}`
+            : how === "magnet"
+            ? " ◆"
+            : ""
+        }`,
       );
       this.setGizmo({
         align: matches.map((m) => ({ x: m.x, y: m.y, angle: m.angle })),
@@ -379,6 +419,8 @@ export class AppGizmo {
     this.gesture = null;
     this.teardown?.();
     this.teardown = null;
+    this.keys.end();
+    this.app.setState({ angleHelper: null });
     if (g && cancel) {
       const el = this.app.scene.getNonDeletedElement(g.id);
       if (el) {

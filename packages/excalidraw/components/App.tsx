@@ -424,6 +424,8 @@ import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
 import { AppAnchors } from "./App.anchors";
+import { AppKnife } from "./App.knife";
+import { AngleHelper } from "./AngleHelper";
 import { Rulers } from "./Rulers";
 import { PalettePanel } from "./PalettePanel";
 import { PathEditorPanel } from "./PathEditorPanel";
@@ -747,6 +749,7 @@ class App extends React.Component<AppProps, AppState> {
   guides = new AppGuides(this);
   gizmo = new AppGizmo(this);
   anchors = new AppAnchors(this);
+  knife = new AppKnife(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
   lassoTrail = new LassoTrail(this);
@@ -2513,6 +2516,11 @@ class App extends React.Component<AppProps, AppState> {
                           {this.state.paletteOpen && (
                             <PalettePanel app={this} />
                           )}
+                          {this.state.angleHelper && (
+                            <AngleHelper
+                              active={this.state.angleHelper.active}
+                            />
+                          )}
                           {this.state.editingPath && (
                             <PathEditorPanel app={this} />
                           )}
@@ -3946,6 +3954,7 @@ class App extends React.Component<AppProps, AppState> {
     this.guides.destroy();
     this.gizmo.destroy();
     this.anchors.destroy();
+    this.knife.destroy();
     this.toolDrag.cancel();
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
@@ -5866,7 +5875,11 @@ class App extends React.Component<AppProps, AppState> {
                 multiElement: null,
               }),
         };
-      } else if (nextActiveTool.type !== "selection") {
+      } else if (
+        nextActiveTool.type !== "selection" &&
+        // the knife cuts what is selected, so it keeps the selection
+        nextActiveTool.type !== "knife"
+      ) {
         return {
           ...prevState,
           ...commonResets,
@@ -7755,6 +7768,11 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    // the knife draws its cut line
+    if (this.knife.handlePointerDown(event)) {
+      return;
+    }
+
     // the rotate / skew zones around the selection
     if (this.gizmo.handlePointerDown(event)) {
       return;
@@ -8052,7 +8070,8 @@ class App extends React.Component<AppProps, AppState> {
       this.state.activeTool.type !== "eraser" &&
       this.state.activeTool.type !== "hand" &&
       this.state.activeTool.type !== "image" &&
-      this.state.activeTool.type !== "path"
+      this.state.activeTool.type !== "path" &&
+      this.state.activeTool.type !== "knife"
     ) {
       this.createGenericElementOnPointerDown(
         this.state.activeTool.type,

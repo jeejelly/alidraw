@@ -15,12 +15,7 @@ import { useApp, useExcalidrawSetAppState } from "./App";
 import ConfirmDialog from "./ConfirmDialog";
 import { isLibraryMenuOpenAtom } from "./LibraryMenu";
 import DropdownMenu from "./dropdownMenu/DropdownMenu";
-import {
-  DotsIcon,
-  ExportIcon,
-  LoadIcon,
-  TrashIcon,
-} from "./icons";
+import { DotsIcon, ExportIcon, LoadIcon, TrashIcon } from "./icons";
 
 import type Library from "../data/library";
 import type { LibraryItem, LibraryItems, UIAppState } from "../types";

@@ -222,3 +222,75 @@ export const outlineArea = (outline: Outline) => {
   }
   return area / 2;
 };
+
+// -----------------------------------------------------------------------------
+//                                   knife
+// -----------------------------------------------------------------------------
+
+/**
+ * Cuts closed outlines along the segment p0 -> p1. An outline is cut only when
+ * the segment really goes through it: every crossing of the line with the
+ * outline lies on the drawn segment, and there are at least two. Pieces keep
+ * their curves.
+ * @returns one entry per outline: its pieces, or null when it was not cut
+ */
+export const cutOutlines = async (
+  outlines: readonly Outline[],
+  p0: [number, number],
+  p1: [number, number],
+): Promise<(Outline[] | null)[]> => {
+  const ctx = await loadPaper();
+  const { scope: s } = ctx;
+  const dx = p1[0] - p0[0];
+  const dy = p1[1] - p0[1];
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-6) {
+    return outlines.map(() => null);
+  }
+  const ux = dx / length;
+  const uy = dy / length;
+  const nx = -uy;
+  const ny = ux;
+
+  return outlines.map((outline) => {
+    const path = toPaper(ctx, outline);
+    // size the cutting planes to the outline and the line
+    const reach =
+      Math.max(
+        Math.abs(path.bounds.width),
+        Math.abs(path.bounds.height),
+        length,
+        Math.hypot(path.bounds.center.x - p0[0], path.bounds.center.y - p0[1]),
+      ) *
+        4 +
+      1000;
+    const a = new s.Point(p0[0] - ux * reach, p0[1] - uy * reach);
+    const b = new s.Point(p0[0] + ux * reach, p0[1] + uy * reach);
+    const line = new s.Path.Line({ from: a, to: b, insert: false });
+    const hits = path.getIntersections(line);
+    if (hits.length < 2) {
+      return null;
+    }
+    // the segment must cover every crossing
+    const eps = 1e-6 * (1 + length);
+    for (const hit of hits) {
+      const t = (hit.point.x - p0[0]) * ux + (hit.point.y - p0[1]) * uy;
+      if (t < -eps || t > length + eps) {
+        return null;
+      }
+    }
+    const half = (side: 1 | -1) => {
+      const poly = new s.Path({ insert: false, closed: true });
+      poly.add(a, b);
+      poly.add(
+        new s.Point(b.x + nx * reach * side, b.y + ny * reach * side),
+        new s.Point(a.x + nx * reach * side, a.y + ny * reach * side),
+      );
+      return poly;
+    };
+    const left = path.intersect(half(1));
+    const right = path.intersect(half(-1));
+    const pieces = [...loopsOf(ctx, left), ...loopsOf(ctx, right)];
+    return pieces.length >= 2 ? pieces.map(fromPaper) : null;
+  });
+};

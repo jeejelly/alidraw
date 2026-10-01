@@ -2,16 +2,12 @@ import type { MaybePromise } from "@excalidraw/common/utility-types";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
+import { t } from "../i18n";
+
 import { getFileHandleType, isImageFileHandleType } from "./blob";
 
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import {
-  exportCanvas,
-  exportToImageBlob,
-  prepareElementsForExport,
-} from ".";
-
-import { t } from "../i18n";
+import { exportCanvas, exportToImageBlob, prepareElementsForExport } from ".";
 
 import type { AppState, BinaryFiles } from "../types";
 

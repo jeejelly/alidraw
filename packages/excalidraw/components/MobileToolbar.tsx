@@ -32,6 +32,7 @@ import {
   drawShapeToolIcon,
   bucketFillIcon,
   pathToolIcon,
+  knifeToolIcon,
   mermaidLogoIcon,
   MagicIcon,
   stickyNoteToolIcon,
@@ -123,6 +124,7 @@ export const MobileToolbar = ({ app, setAppState }: MobileToolbarProps) => {
       "laser",
       "bucketfill",
       "path",
+      "knife",
       "magicframe",
     ] as const
   ).filter((tool) => {
@@ -152,6 +154,8 @@ export const MobileToolbar = ({ app, setAppState }: MobileToolbarProps) => {
       ? bucketFillIcon
       : activeTool.type === "path"
       ? pathToolIcon
+      : activeTool.type === "knife"
+      ? knifeToolIcon
       : activeTool.type === "magicframe"
       ? MagicIcon
       : DotsIcon

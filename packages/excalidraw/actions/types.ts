@@ -134,6 +134,7 @@ export type ActionName =
   | "toggleRulers"
   | "togglePalette"
   | "fitToGrid"
+  | "knifeCut"
   | "pathfinderUnite"
   | "pathfinderIntersect"
   | "pathfinderSubtract"

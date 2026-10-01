@@ -1695,6 +1695,56 @@ const renderAnchorLink = (
   context.restore();
 };
 
+/** the knife's cut line with its angle */
+const renderKnife = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+) => {
+  const knife = appState.knife;
+  if (!knife) {
+    return;
+  }
+  const z = appState.zoom.value;
+  const color = getThemedColor("#e0449b", appState.theme);
+  context.save();
+  context.lineCap = "round";
+  context.strokeStyle = getThemedColor("#ffffff", appState.theme);
+  context.lineWidth = 4 / z;
+  context.beginPath();
+  context.moveTo(knife.from.x, knife.from.y);
+  context.lineTo(knife.to.x, knife.to.y);
+  context.stroke();
+  context.strokeStyle = color;
+  context.lineWidth = 1.75 / z;
+  context.setLineDash([7 / z, 5 / z]);
+  context.stroke();
+  context.setLineDash([]);
+  context.fillStyle = color;
+  for (const p of [knife.from, knife.to]) {
+    context.beginPath();
+    context.arc(p.x, p.y, 3.5 / z, 0, Math.PI * 2);
+    context.fill();
+  }
+  if (knife.label) {
+    context.font = `${12 / z}px sans-serif`;
+    const w = context.measureText(knife.label).width + 10 / z;
+    const h = 18 / z;
+    const x = knife.to.x + 12 / z;
+    const y = knife.to.y + 12 / z;
+    context.beginPath();
+    if (context.roundRect) {
+      context.roundRect(x, y, w, h, 9 / z);
+    } else {
+      context.rect(x, y, w, h);
+    }
+    context.fill();
+    context.fillStyle = "#fff";
+    context.textBaseline = "middle";
+    context.fillText(knife.label, x + 5 / z, y + h / 2);
+  }
+  context.restore();
+};
+
 const renderTransformHandles = (
   context: CanvasRenderingContext2D,
   renderConfig: InteractiveCanvasRenderConfig,
@@ -2066,6 +2116,8 @@ const _renderInteractiveScene = ({
       }
     }
   });
+
+  renderKnife(context, appState);
 
   if (appState.editingPath) {
     const editingPath = elementsMap.get(appState.editingPath.elementId);

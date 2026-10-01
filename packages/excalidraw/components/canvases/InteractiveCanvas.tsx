@@ -255,6 +255,7 @@ const getRelevantAppStateProps = (
   gridModeEnabled: appState.gridModeEnabled,
   guides: appState.guides,
   gizmo: appState.gizmo,
+  knife: appState.knife,
   suggestedBinding: appState.suggestedBinding,
   textToolHover: appState.textToolHover,
   isRotating: appState.isRotating,

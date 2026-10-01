@@ -247,6 +247,7 @@ export const AllowedExcalidrawActiveTools: Record<
   laser: false,
   autoshape: false,
   path: true,
+  knife: false,
   magicframe: false,
   bucketfill: true,
 };

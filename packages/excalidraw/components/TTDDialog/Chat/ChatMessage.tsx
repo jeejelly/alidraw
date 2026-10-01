@@ -77,9 +77,7 @@ export const ChatMessage: React.FC<{
               {customOverride ? (
                 customOverride
               ) : message.warningType === "messageLimitExceeded" ? (
-                <>
-                  {t("chat.rateLimit.messageLimit")}
-                </>
+                <>{t("chat.rateLimit.messageLimit")}</>
               ) : (
                 t("chat.rateLimit.generalRateLimit")
               )}

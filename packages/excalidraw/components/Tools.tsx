@@ -26,6 +26,7 @@ import {
   laserPointerToolIcon,
   bucketFillIcon,
   pathToolIcon,
+  knifeToolIcon,
   LassoIcon,
   handIcon,
   frameToolIcon,
@@ -159,6 +160,11 @@ export const TOOLS = defineTools({
     icon: pathToolIcon,
     letterKey: KEYS.P,
     fillable: true,
+  },
+  knife: {
+    icon: knifeToolIcon,
+    letterKey: KEYS.C,
+    fillable: false,
   },
   lasso: {
     icon: LassoIcon,

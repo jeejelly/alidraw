@@ -15,7 +15,9 @@ export class WritePermissionNeededError extends Error {
 type PermissionDescriptor = { mode: "read" | "readwrite" };
 
 type PermissionedHandle = FileSystemFileHandle & {
-  queryPermission?: (descriptor: PermissionDescriptor) => Promise<PermissionState>;
+  queryPermission?: (
+    descriptor: PermissionDescriptor,
+  ) => Promise<PermissionState>;
   requestPermission?: (
     descriptor: PermissionDescriptor,
   ) => Promise<PermissionState>;
@@ -51,7 +53,9 @@ export const writeSceneToHandle = async (
   fileHandle: FileSystemFileHandle,
   { askPermission = false }: { askPermission?: boolean } = {},
 ): Promise<void> => {
-  if (!(await hasWriteAccess(fileHandle as PermissionedHandle, askPermission))) {
+  if (
+    !(await hasWriteAccess(fileHandle as PermissionedHandle, askPermission))
+  ) {
     throw new WritePermissionNeededError(fileHandle.name);
   }
   const blob = isImageFileHandle(fileHandle)
