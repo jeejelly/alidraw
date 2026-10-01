@@ -1,5 +1,5 @@
 # Typography: font choice and size units
-[sw-_file-verdict]: # '@validated(v=438052e7f0bee36faec8ee40051b3dd5ba907305, by="jeejelly", at=2026-09-20)'
+[sw-_file-verdict]: # '@validated(v=438052e7f0bee36faec8ee40051b3dd5ba907305, by="maintainer", at=2026-09-20)'
 
 [sw-_file-status]: # '@status(value=open, at=2026-09-20)'
 

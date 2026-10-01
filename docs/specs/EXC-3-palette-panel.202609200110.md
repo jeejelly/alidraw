@@ -1,5 +1,5 @@
 # Palette panel
-[sw-_file-verdict]: # '@validated(v=e9eedb5c424a529fddfa8b57f3f67d2e56c79a62, by="jeejelly", at=2026-09-20)'
+[sw-_file-verdict]: # '@validated(v=e9eedb5c424a529fddfa8b57f3f67d2e56c79a62, by="maintainer", at=2026-09-20)'
 
 [sw-_file-status]: # '@status(value=open, at=2026-09-20)'
 

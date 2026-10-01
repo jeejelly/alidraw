@@ -1,5 +1,5 @@
 # Layers: named containers that own objects
-[sw-_file-verdict]: # '@validated(by="jeejelly", at=2026-10-02)'
+[sw-_file-verdict]: # '@validated(by="maintainer", at=2026-10-02)'
 
 [sw-_file-status]: # '@status(value=done, at=2026-10-02)'
 

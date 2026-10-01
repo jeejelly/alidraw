@@ -1,5 +1,5 @@
 # Rulers and guides
-[sw-_file-verdict]: # '@validated(v=73e0f7637610829dbdc6e2faa7b76b3c5216b712, by="jeejelly", at=2026-09-20)'
+[sw-_file-verdict]: # '@validated(v=73e0f7637610829dbdc6e2faa7b76b3c5216b712, by="maintainer", at=2026-09-20)'
 
 [sw-_file-status]: # '@status(value=open, at=2026-09-20)'
 

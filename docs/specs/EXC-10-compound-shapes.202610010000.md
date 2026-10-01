@@ -1,5 +1,5 @@
 # Compound shapes (holes)
-[sw-_file-verdict]: # '@validated(by="jeejelly", at=2026-10-01)'
+[sw-_file-verdict]: # '@validated(by="maintainer", at=2026-10-01)'
 
 [sw-_file-status]: # '@status(value=done, at=2026-10-01)'
 

@@ -49,7 +49,7 @@
   </figure>
 </div>
 
-## By Jeejelly
+## About this fork
 
 Changes in this fork, branch `jeejelly`:
 

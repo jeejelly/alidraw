@@ -1,5 +1,5 @@
 # Path editing with tangent handles
-[sw-_file-verdict]: # '@validated(v=6643dc255daf129764909b7f513eb1877eae604e, by="jeejelly", at=2026-09-20)'
+[sw-_file-verdict]: # '@validated(v=6643dc255daf129764909b7f513eb1877eae604e, by="maintainer", at=2026-09-20)'
 
 [sw-_file-status]: # '@status(value=open, at=2026-09-20)'
 
@@ -33,6 +33,6 @@ A point SHALL be inserted on a segment and deleted from the path without moving 
 A rectangle, ellipse or diamond SHALL convert to a path whose points and handles are editable.
 
 ## Requirement: A file written before handles opens unchanged
-[sw-a-file-written-before-handles-opens-unchanged-verdict]: # '@validated(v=6643dc255daf129764909b7f513eb1877eae604e, by="jeejelly", at=2026-09-20)'
+[sw-a-file-written-before-handles-opens-unchanged-verdict]: # '@validated(v=6643dc255daf129764909b7f513eb1877eae604e, by="maintainer", at=2026-09-20)'
 
 A document holding no handle SHALL render exactly as it does today.
