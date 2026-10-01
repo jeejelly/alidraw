@@ -92,6 +92,14 @@ export { actionToggleElementLock } from "./actionElementLock";
 export { actionToggleLinearEditor } from "./actionLinearEditor";
 export { actionFitToGrid } from "./actionGrid";
 export {
+  actionPathfinderUnite,
+  actionPathfinderIntersect,
+  actionPathfinderSubtract,
+  actionPathfinderExclude,
+  actionPathfinderDivide,
+  PATHFINDER_ACTIONS,
+} from "./actionPathfinder";
+export {
   actionTogglePalette,
   actionOpenTransform,
   actionChangeStrokeWidthValue,

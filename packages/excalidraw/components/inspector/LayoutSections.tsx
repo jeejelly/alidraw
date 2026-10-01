@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { isPathfinderOperand } from "@excalidraw/element";
+
 import {
   getAnchor,
   isGuideAnchor,
@@ -18,6 +20,7 @@ import {
   distributeVertically,
   actionFitToGrid,
   actionToggleGridMode,
+  PATHFINDER_ACTIONS,
 } from "../../actions";
 import { t } from "../../i18n";
 
@@ -339,6 +342,40 @@ export const AnchorSection = ({ app }: { app: App }) => {
             </button>
           </>
         )}
+      </div>
+    </Section>
+  );
+};
+
+const PATHFINDER_GLYPH: Record<string, string> = {
+  unite: "∪",
+  subtract: "−",
+  intersect: "∩",
+  exclude: "⊻",
+  divide: "÷",
+};
+
+/** boolean operations on the selected closed shapes */
+export const PathfinderSection = ({ app }: { app: App }) => {
+  const selected = app.scene.getSelectedElements(app.state);
+  const ready = selected.length >= 2 && selected.every(isPathfinderOperand);
+  return (
+    <Section title={t("labels.pathfinder.title")} testId="inspector-pathfinder">
+      <div className="inspector__row" style={{ gap: 2 }}>
+        {PATHFINDER_ACTIONS.map(([op, action]) => (
+          <button
+            key={op}
+            type="button"
+            className="inspector__iconbtn"
+            style={{ width: "2rem", fontSize: "1rem" }}
+            data-testid={`pathfinder-${op}`}
+            title={t(`labels.pathfinder.${op}` as any)}
+            disabled={!ready}
+            onClick={() => app.actionManager.executeAction(action, "ui")}
+          >
+            {PATHFINDER_GLYPH[op]}
+          </button>
+        ))}
       </div>
     </Section>
   );

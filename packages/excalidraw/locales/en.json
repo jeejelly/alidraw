@@ -215,6 +215,14 @@
       "edge_center": "Centre",
       "edge_end": "End edge"
     },
+    "pathfinder": {
+      "title": "Pathfinder",
+      "unite": "Unite",
+      "intersect": "Intersect",
+      "subtract": "Subtract (minus front)",
+      "exclude": "Exclude overlap",
+      "divide": "Divide"
+    },
     "alignPanel": {
       "title": "Align"
     },

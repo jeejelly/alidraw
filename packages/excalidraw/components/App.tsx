@@ -2510,7 +2510,9 @@ class App extends React.Component<AppProps, AppState> {
                           />
                           {this.isDefaultUIEnabled() && <CursorHint />}
                           {this.state.rulersEnabled && <Rulers app={this} />}
-                          {this.state.paletteOpen && <PalettePanel app={this} />}
+                          {this.state.paletteOpen && (
+                            <PalettePanel app={this} />
+                          )}
                           {this.state.editingPath && (
                             <PathEditorPanel app={this} />
                           )}

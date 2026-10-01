@@ -84,6 +84,7 @@ export * from "./linearElementEditor";
 export * from "./mutateElement";
 export * from "./newElement";
 export * from "./path";
+export * from "./pathfinder";
 export * from "./positionElementsOnGrid";
 export * from "./renderElement";
 export * from "./resizeElements";

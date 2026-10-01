@@ -42,6 +42,7 @@ import {
   AlignSection,
   AnchorSection,
   GridSection,
+  PathfinderSection,
 } from "./inspector/LayoutSections";
 import {
   NumberPill,
@@ -803,6 +804,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
             <>
               {transform}
               <AlignSection app={app} />
+              <PathfinderSection app={app} />
               {appearance}
               {swatches}
               {strokeSection}
