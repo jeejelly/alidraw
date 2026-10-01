@@ -1,9 +1,26 @@
 // Excalidraw as a desktop window: the web build served from disk under app://excalidraw/,
 // with every request that is not to that origin refused.
-const { app, BrowserWindow, net, protocol, session } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const { randomUUID } = require("node:crypto");
+const { execFile } = require("node:child_process");
+
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  net,
+  protocol,
+  session,
+} = require("electron");
+
+const git = require("./src/git");
+const { AutoCommit } = require("./src/autocommit");
+const { Registry } = require("./src/registry");
+const { Workspaces } = require("./src/workspace");
+const { resolveInside } = require("./src/paths");
 
 const SCHEME = "app";
 const ORIGIN = `${SCHEME}://excalidraw`;
@@ -85,7 +102,8 @@ const refuseNetwork = () => {
   // navigation and new windows are refused, so the only page that can ask is the app's own
   const decide = (permission, origin, details) => {
     const granted =
-      origin.startsWith(ORIGIN) || (origin === "" && permission === "fileSystem");
+      origin.startsWith(ORIGIN) ||
+      (origin === "" && permission === "fileSystem");
     if (permission === "fileSystem" || !granted) {
       console.warn(
         `excalidraw-desktop: ${granted ? "granted" : "denied"} ${permission} ` +
@@ -96,9 +114,7 @@ const refuseNetwork = () => {
   };
   session.defaultSession.setPermissionRequestHandler(
     (webContents, permission, callback, details) =>
-      callback(
-        decide(permission, originOf("", details, webContents), details),
-      ),
+      callback(decide(permission, originOf("", details, webContents), details)),
   );
   session.defaultSession.setPermissionCheckHandler(
     (webContents, permission, requestingOrigin, details) =>
@@ -122,6 +138,7 @@ const createWindow = () => {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -132,6 +149,215 @@ const createWindow = () => {
   });
   window.loadURL(`${ORIGIN}/`);
   return window;
+};
+
+// -----------------------------------------------------------------------------
+// workspaces: named project folders, git-backed (see docs/specs, EXC-14)
+// -----------------------------------------------------------------------------
+
+let workspaces;
+let autoCommit;
+// folders the user picked in a dialog; the page names them by token, never by path
+const pickedFolders = new Map();
+
+const broadcast = (data) => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send("ws:event", data);
+  }
+};
+
+const GIT_HELP = {
+  linux:
+    "Install git with your package manager, for example: sudo apt install git",
+  darwin: "Install git with: xcode-select --install",
+  win32: "Install git from https://git-scm.com/download/win",
+};
+
+/** one handler: only the app's own page may ask, errors come back as values */
+const handle = (channel, fn) =>
+  ipcMain.handle(channel, async (event, payload) => {
+    if (!event.senderFrame || !event.senderFrame.url.startsWith(ORIGIN)) {
+      return { ok: false, error: "refused" };
+    }
+    try {
+      return { ok: true, value: await fn(payload ?? {}, event) };
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
+  });
+
+const takeFolder = (token) => {
+  const folder = pickedFolders.get(token);
+  if (!folder) {
+    throw new Error("choose a folder first");
+  }
+  pickedFolders.delete(token);
+  return folder;
+};
+
+const setupWorkspaces = () => {
+  workspaces = new Workspaces({
+    registry: new Registry(app.getPath("userData")),
+  });
+  autoCommit = new AutoCommit({
+    delayFor: (id) => {
+      const s = workspaces.settings(id);
+      return s.autoCommit ? Math.max(5, s.delaySec ?? 60) * 1000 : null;
+    },
+    onResult: (id, result) => broadcast({ type: "commit", id, ...result }),
+  });
+
+  handle("ws:gitInfo", async () => {
+    const v = await git.version();
+    return {
+      installed: !!v,
+      version: v,
+      help: GIT_HELP[process.platform] ?? GIT_HELP.linux,
+    };
+  });
+
+  handle("ws:installGit", async (_args, event) => {
+    if (await git.version()) {
+      return { installed: true };
+    }
+    const canInstall =
+      process.platform === "linux" &&
+      fs.existsSync("/usr/bin/apt-get") &&
+      fs.existsSync("/usr/bin/pkexec");
+    if (!canInstall) {
+      return {
+        installed: false,
+        help: GIT_HELP[process.platform] ?? GIT_HELP.linux,
+      };
+    }
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const { response } = await dialog.showMessageBox(window, {
+      type: "question",
+      buttons: ["Install git", "Cancel"],
+      defaultId: 0,
+      cancelId: 1,
+      message: "Install git?",
+      detail:
+        "This runs: pkexec apt-get install -y git\nYou will be asked for your password.",
+    });
+    if (response !== 0) {
+      return { installed: false, cancelled: true };
+    }
+    await new Promise((resolve, reject) =>
+      execFile(
+        "pkexec",
+        ["apt-get", "install", "-y", "git"],
+        { timeout: 600000 },
+        (error) => (error ? reject(error) : resolve()),
+      ),
+    );
+    return { installed: !!(await git.version()) };
+  });
+
+  handle("ws:pickFolder", async (_args, event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (canceled || !filePaths[0]) {
+      return null;
+    }
+    const token = randomUUID();
+    pickedFolders.set(token, filePaths[0]);
+    return { token, display: filePaths[0] };
+  });
+
+  handle("ws:list", () => workspaces.list());
+  handle("ws:create", ({ name, useGit, token }) =>
+    workspaces.create({
+      name,
+      useGit: useGit !== false,
+      parent: takeFolder(token),
+    }),
+  );
+  handle("ws:open", ({ token, useGit }) =>
+    workspaces.open(takeFolder(token), { useGit: useGit !== false }),
+  );
+  handle("ws:saveNew", ({ id, name, text, dir }) => {
+    const rel = workspaces.saveNewScene(id, name, text, dir);
+    autoCommit.touch(id, workspaces.root(id), rel);
+    return { path: rel };
+  });
+  handle("ws:forget", ({ id }) => workspaces.forget(id));
+  handle("ws:scenes", ({ id }) => {
+    workspaces.touch(id);
+    return workspaces.scenes(id);
+  });
+  handle("ws:read", ({ id, path: rel }) => workspaces.readScene(id, rel));
+  handle("ws:write", ({ id, path: rel, text }) => {
+    const result = workspaces.writeScene(id, rel, text);
+    autoCommit.touch(id, workspaces.root(id), result.path);
+    return result;
+  });
+  handle("ws:newScene", ({ id, name, dir }) =>
+    workspaces.newScene(id, name, dir),
+  );
+  handle("ws:getSettings", ({ id }) => workspaces.settings(id));
+  handle("ws:setSettings", ({ id, settings }) => {
+    const allowed = {};
+    if (typeof settings?.autoCommit === "boolean") {
+      allowed.autoCommit = settings.autoCommit;
+    }
+    if (Number.isFinite(settings?.delaySec)) {
+      allowed.delaySec = Math.min(
+        3600,
+        Math.max(5, Math.round(settings.delaySec)),
+      );
+    }
+    return workspaces.setSettings(id, allowed);
+  });
+  handle("ws:status", async ({ id }) => {
+    const root = workspaces.root(id);
+    if (!(await git.version())) {
+      return { git: false };
+    }
+    if (!(await git.isRepo(root))) {
+      return { git: true, repo: false };
+    }
+    return {
+      git: true,
+      repo: true,
+      pending: autoCommit.hasPending(id),
+      ...(await git.status(root)),
+    };
+  });
+  handle("ws:commitNow", async ({ id, message }) => {
+    const root = workspaces.root(id);
+    const hash = await autoCommit.flush(
+      id,
+      root,
+      typeof message === "string" && message.trim()
+        ? message.trim()
+        : "Update workspace",
+    );
+    return { hash };
+  });
+  handle("ws:history", ({ id, path: rel }) => {
+    const root = workspaces.root(id);
+    resolveInside(root, rel);
+    return git.log(root, rel);
+  });
+  handle("ws:showVersion", ({ id, hash, path: rel }) => {
+    const root = workspaces.root(id);
+    resolveInside(root, rel);
+    return git.showFile(root, hash, rel);
+  });
+
+  // what is waiting is committed before the app closes
+  let closing = false;
+  app.on("before-quit", (event) => {
+    if (closing || !autoCommit) {
+      return;
+    }
+    event.preventDefault();
+    closing = true;
+    autoCommit.flushAll().finally(() => app.quit());
+  });
 };
 
 if (!app.requestSingleInstanceLock()) {
@@ -149,6 +375,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     serveWebBuild();
     refuseNetwork();
+    setupWorkspaces();
     createWindow();
   });
   app.on("window-all-closed", () => app.quit());

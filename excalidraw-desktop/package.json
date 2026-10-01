@@ -23,6 +23,9 @@
     },
     "files": [
       "main.js",
+      "preload.js",
+      "src/**/*.js",
+      "!src/**/*.test.js",
       "package.json"
     ],
     "extraResources": [

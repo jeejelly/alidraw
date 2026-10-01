@@ -46,6 +46,24 @@ export const fileOpen = async <M extends boolean | undefined = false>(opts: {
   return (await normalizeFile(files)) as RetType;
 };
 
+/**
+ * A host (the desktop app) can take over saving a scene file: no file dialog,
+ * it decides where the file goes (a workspace folder) and returns a handle for
+ * later saves. Image exports are not affected.
+ */
+type FileSaveProvider = (
+  blob: Blob | Promise<Blob>,
+  opts: { name: string; extension: string },
+) => Promise<FileSystemFileHandle | null>;
+
+let fileSaveProvider: FileSaveProvider | null = null;
+
+export const setFileSaveProvider = (provider: FileSaveProvider | null) => {
+  fileSaveProvider = provider;
+};
+
+export const hasFileSaveProvider = () => fileSaveProvider !== null;
+
 export const fileSave = (
   blob: Blob | Promise<Blob>,
   opts: {
@@ -59,6 +77,9 @@ export const fileSave = (
     fileHandle?: FileSystemFileHandle | null;
   },
 ) => {
+  if (fileSaveProvider && opts.extension === "excalidraw") {
+    return fileSaveProvider(blob, opts) as Promise<any>;
+  }
   return _fileSave(
     blob,
     {

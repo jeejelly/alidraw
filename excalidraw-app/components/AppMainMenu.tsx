@@ -8,6 +8,9 @@ import type { Theme } from "@excalidraw/element/types";
 
 import { LanguageList } from "../app-language/LanguageList";
 import { AutosaveMenuItem } from "../autosave/AutosaveMenuItem";
+import { useSetAtom } from "../app-jotai";
+import { getWorkspaceBridge } from "../workspace/desktopBridge";
+import { workspaceDialogOpenAtom } from "../workspace/workspaceState";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -15,8 +18,17 @@ export const AppMainMenu: React.FC<{
   theme: Theme | "system";
   refresh: () => void;
 }> = React.memo((props) => {
+  const openWorkspaces = useSetAtom(workspaceDialogOpenAtom);
   return (
     <MainMenu>
+      {getWorkspaceBridge() && (
+        <MainMenu.Item
+          data-testid="workspaces-menu"
+          onSelect={() => openWorkspaces(true)}
+        >
+          Workspaces…
+        </MainMenu.Item>
+      )}
       <MainMenu.DefaultItems.LoadScene />
       <MainMenu.DefaultItems.SaveToActiveFile />
       <MainMenu.DefaultItems.Export />
@@ -43,7 +55,9 @@ export const AppMainMenu: React.FC<{
         </MainMenu.Item>
       )}
       <MainMenu.Separator />
-      <MainMenu.DefaultItems.Preferences additionalItems={<AutosaveMenuItem />} />
+      <MainMenu.DefaultItems.Preferences
+        additionalItems={<AutosaveMenuItem />}
+      />
       <MainMenu.DefaultItems.ToggleTheme allowSystemTheme theme={props.theme} />
       <MainMenu.ItemCustom>
         <LanguageList style={{ width: "100%" }} />

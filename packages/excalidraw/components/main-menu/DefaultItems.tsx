@@ -4,6 +4,9 @@ import { THEME } from "@excalidraw/common";
 
 import type { Theme } from "@excalidraw/element/types";
 
+import { actionSaveFileToDisk } from "../../actions/actionExport";
+import { hasFileSaveProvider } from "../../data/filesystem";
+
 import {
   actionClearCanvas,
   actionLoadScene,
@@ -353,10 +356,16 @@ ChangeCanvasBackground.displayName = "ChangeCanvasBackground";
 export const Export = () => {
   const { t } = useI18n();
   const setAppState = useExcalidrawSetAppState();
+  const actionManager = useExcalidrawActionManager();
   return (
     <DropdownMenuItem
       icon={ExportIcon}
       onSelect={() => {
+        if (hasFileSaveProvider()) {
+          // the host chooses where the file goes: no dialog to click through
+          actionManager.executeAction(actionSaveFileToDisk, "ui");
+          return;
+        }
         setAppState({ openDialog: { name: "jsonExport" } });
       }}
       data-testid="json-export-button"

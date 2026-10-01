@@ -53,16 +53,11 @@ import type {
 import type { ResolvablePromise } from "@excalidraw/common/utils";
 
 import CustomStats from "./CustomStats";
-import {
-  Provider,
-  useAtomValue,
-  appJotaiStore,
-} from "./app-jotai";
-import {
-  STORAGE_KEYS,
-  SYNC_BROWSER_TABS_TIMEOUT,
-} from "./app_constants";
+import { Provider, useAtomValue, appJotaiStore } from "./app-jotai";
+import { STORAGE_KEYS, SYNC_BROWSER_TABS_TIMEOUT } from "./app_constants";
 import { AppFooter } from "./components/AppFooter";
+import { installWorkspaceSave } from "./workspace/workspaceSave";
+import { WorkspaceDialog } from "./workspace/WorkspaceDialog";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
@@ -163,7 +158,6 @@ const ExcalidrawWrapper = () => {
 
   const [langCode, setLangCode] = useAppLangCode();
 
-
   // initial state
   // ---------------------------------------------------------------------------
 
@@ -177,6 +171,9 @@ const ExcalidrawWrapper = () => {
 
   const debugCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // in the desktop app, saving a scene file goes to a workspace, with no file dialog
+  useEffect(() => installWorkspaceSave(), []);
+
   useEffect(() => {
     trackEvent("load", "frame", getFrame());
     // Delayed so that the app has a time to load the latest SW
@@ -184,7 +181,6 @@ const ExcalidrawWrapper = () => {
       trackEvent("load", "version", getVersion());
     }, VERSION_TIMEOUT);
   }, []);
-
 
   useHandleLibrary({
     excalidrawAPI,
@@ -264,7 +260,6 @@ const ExcalidrawWrapper = () => {
     const data = initializeScene();
     loadImages(data, /* isInitialLoad */ true);
     initialStatePromiseRef.current.promise.resolve(data.scene);
-
 
     const syncData = debounce(() => {
       if (isTestEnv()) {
@@ -427,7 +422,6 @@ const ExcalidrawWrapper = () => {
     }
   };
 
-
   const renderCustomStats = (
     elements: readonly NonDeletedExcalidrawElement[],
     appState: UIAppState,
@@ -512,12 +506,8 @@ const ExcalidrawWrapper = () => {
     );
   }
 
-
   return (
-    <div
-      style={{ height: "100%" }}
-      className="excalidraw-app"
-    >
+    <div style={{ height: "100%" }} className="excalidraw-app">
       <Excalidraw
         onChange={onChange}
         onExport={onExport}
@@ -527,8 +517,7 @@ const ExcalidrawWrapper = () => {
         UIOptions={{
           canvasActions: {
             toggleTheme: true,
-            export: {
-            },
+            export: {},
           },
         }}
         langCode={langCode}
@@ -559,6 +548,7 @@ const ExcalidrawWrapper = () => {
           <OverwriteConfirmDialog.Actions.SaveToDisk />
         </OverwriteConfirmDialog>
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />
+        <WorkspaceDialog api={excalidrawAPI} />
         {localStorageQuotaExceeded && (
           <div className="alert alert--danger">
             {t("alerts.localStorageQuotaExceeded")}
