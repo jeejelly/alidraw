@@ -219,6 +219,7 @@ export type StaticCanvasAppState = Readonly<
     selectedElementsAreBeingDragged: AppState["selectedElementsAreBeingDragged"];
     gridSize: AppState["gridSize"];
     gridStep: AppState["gridStep"];
+    gridOrigin: AppState["gridOrigin"];
     frameRendering: AppState["frameRendering"];
     currentHoveredFontFamily: AppState["currentHoveredFontFamily"];
     hoveredElementIds: AppState["hoveredElementIds"];
@@ -531,6 +532,8 @@ export interface AppState {
   /** grid cell px size */
   gridSize: number;
   gridStep: number;
+  /** scene point the grid lines count from */
+  gridOrigin: { x: number; y: number };
   gridModeEnabled: boolean;
   /** edge rulers (px) along the top and left of the canvas */
   rulersEnabled: boolean;
@@ -597,6 +600,8 @@ export interface AppState {
   editingPath: {
     elementId: ExcalidrawElement["id"];
     selectedPoint: number | null;
+    /** the outline being edited: 0 is the main one, k the (k-1)th contour */
+    loop?: number;
   } | null;
 
   /** null if no search matches found / search closed */

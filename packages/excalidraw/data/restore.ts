@@ -1431,6 +1431,10 @@ export const restoreAppState = (
     gridStep: getNormalizedGridStep(
       isFiniteNumber(appState.gridStep) ? appState.gridStep : DEFAULT_GRID_STEP,
     ),
+    gridOrigin: {
+      x: isFiniteNumber(appState.gridOrigin?.x) ? appState.gridOrigin.x : 0,
+      y: isFiniteNumber(appState.gridOrigin?.y) ? appState.gridOrigin.y : 0,
+    },
     currentItemStickynoteStrokeColor: normalizeStickyNoteStrokeColor(
       nextAppState.currentItemStickynoteStrokeColor,
     ),

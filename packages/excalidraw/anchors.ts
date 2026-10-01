@@ -162,16 +162,25 @@ export const solveGuideAnchor = (
 export const fitBoundsToGrid = (
   [x1, y1, x2, y2]: Bounds,
   size: number,
-  { keepSize }: { keepSize: boolean },
+  {
+    keepSize,
+    origin = { x: 0, y: 0 },
+  }: {
+    keepSize: boolean;
+    origin?: { x: number; y: number };
+  },
 ): Bounds => {
-  const snap = (v: number) => Math.round(v / size) * size;
-  const nx1 = snap(x1);
-  const ny1 = snap(y1);
+  const snapX = (v: number) =>
+    Math.round((v - origin.x) / size) * size + origin.x;
+  const snapY = (v: number) =>
+    Math.round((v - origin.y) / size) * size + origin.y;
+  const nx1 = snapX(x1);
+  const ny1 = snapY(y1);
   if (keepSize) {
     return [nx1, ny1, nx1 + (x2 - x1), ny1 + (y2 - y1)];
   }
-  let nx2 = snap(x2);
-  let ny2 = snap(y2);
+  let nx2 = snapX(x2);
+  let ny2 = snapY(y2);
   if (nx2 - nx1 < size) {
     nx2 = nx1 + size;
   }

@@ -9,7 +9,9 @@ import {
   NO_HANDLES,
   deletePathPoint,
   dragPathHandle,
-  getClosestPathSegment,
+  getClosestPathLoopSegment,
+  getPathLoopView,
+  withPathLoopGeometry,
   getElementAbsoluteCoords,
   getPathUpdate,
   insertPathPoint,
@@ -48,6 +50,7 @@ type Pt = { x: number; y: number };
 type Gesture =
   | {
       kind: "anchor";
+      loop: number;
       index: number;
       orig: ExcalidrawPathElement;
       /** anchor position minus pointer, local to `orig` */
@@ -55,6 +58,7 @@ type Gesture =
     }
   | {
       kind: "handle";
+      loop: number;
       index: number;
       side: "in" | "out";
       orig: ExcalidrawPathElement;
@@ -147,6 +151,7 @@ export class AppPath {
       handles: readonly PathPointHandles[];
     },
     closed?: boolean,
+    loop = this.app.state.editingPath?.loop ?? 0,
   ) => {
     const current = this.app.scene.getElement(
       element.id,
@@ -157,7 +162,7 @@ export class AppPath {
     this.app.scene.mutateElement(current, {
       ...getPathUpdate(
         { ...element, closed: closed ?? element.closed },
-        geometry,
+        withPathLoopGeometry(element, loop, geometry),
       ),
       ...(closed !== undefined ? { closed } : {}),
     });
@@ -172,9 +177,10 @@ export class AppPath {
   private setEditing = (
     elementId: string | null,
     selectedPoint: number | null = null,
+    loop = 0,
   ) => {
     this.app.setState({
-      editingPath: elementId ? { elementId, selectedPoint } : null,
+      editingPath: elementId ? { elementId, selectedPoint, loop } : null,
     });
   };
 
@@ -374,36 +380,47 @@ export class AppPath {
   private hitPoint = (
     element: ExcalidrawPathElement,
     p: Pt,
-  ): { index: number } | { index: number; side: "in" | "out" } | null => {
+  ):
+    | { loop: number; index: number }
+    | { loop: number; index: number; side: "in" | "out" }
+    | null => {
     const r = HIT_RADIUS / this.app.state.zoom.value;
-    const selected = this.app.state.editingPath?.selectedPoint ?? null;
+    const editing = this.app.state.editingPath;
+    const selected = editing?.selectedPoint ?? null;
+    const activeLoop = editing?.loop ?? 0;
+    const active = getPathLoopView(element, activeLoop);
 
     // handles of the selected point come first: they sit on top
     if (
       selected != null &&
-      element.handles[selected]?.mode !== "corner" &&
-      element.handles[selected]
+      active.handles[selected]?.mode !== "corner" &&
+      active.handles[selected]
     ) {
       for (const side of ["out", "in"] as const) {
-        const h = element.handles[selected][side];
+        const h = active.handles[selected][side];
         if (h) {
           const s = this.toScene(
             element,
             pointFrom<LocalPoint>(
-              element.points[selected][0] + h[0],
-              element.points[selected][1] + h[1],
+              active.points[selected][0] + h[0],
+              active.points[selected][1] + h[1],
             ),
           );
           if (Math.hypot(s[0] - p.x, s[1] - p.y) <= r) {
-            return { index: selected, side };
+            return { loop: activeLoop, index: selected, side };
           }
         }
       }
     }
-    for (let i = element.points.length - 1; i >= 0; i--) {
-      const s = this.toScene(element, element.points[i]);
-      if (Math.hypot(s[0] - p.x, s[1] - p.y) <= r) {
-        return { index: i };
+    // the main outline is on top of the holes
+    const loops = 1 + (element.contours?.length ?? 0);
+    for (let loop = 0; loop < loops; loop++) {
+      const view = getPathLoopView(element, loop);
+      for (let i = view.points.length - 1; i >= 0; i--) {
+        const s = this.toScene(element, view.points[i]);
+        if (Math.hypot(s[0] - p.x, s[1] - p.y) <= r) {
+          return { loop, index: i };
+        }
       }
     }
     return null;
@@ -430,6 +447,7 @@ export class AppPath {
     if (hit && "side" in hit) {
       this.gesture = {
         kind: "handle",
+        loop: hit.loop,
         index: hit.index,
         side: hit.side,
         orig: element,
@@ -442,16 +460,21 @@ export class AppPath {
       if (isDouble || event.altKey) {
         // double click or alt+click toggles corner <-> smooth
         const mode: PathPointMode =
-          element.handles[hit.index]?.mode === "corner" ? "smooth" : "corner";
+          getPathLoopView(element, hit.loop).handles[hit.index]?.mode ===
+          "corner"
+            ? "smooth"
+            : "corner";
+        this.setEditing(element.id, hit.index, hit.loop);
         this.setPointMode(mode, hit.index);
         this.lastClick = null;
         return true;
       }
-      this.setEditing(element.id, hit.index);
-      const a = element.points[hit.index];
+      this.setEditing(element.id, hit.index, hit.loop);
+      const a = getPathLoopView(element, hit.loop).points[hit.index];
       const local = this.toLocal(element, p);
       this.gesture = {
         kind: "anchor",
+        loop: hit.loop,
         index: hit.index,
         orig: element,
         grab: [a[0] - local[0], a[1] - local[1]],
@@ -462,17 +485,17 @@ export class AppPath {
 
     // double click on the outline inserts a point
     const local = this.toLocal(element, p);
-    const closest = getClosestPathSegment(element, local);
+    const closest = getClosestPathLoopSegment(element, local);
     if (closest && closest.distance <= HIT_RADIUS / zoom) {
       if (isDouble) {
         const inserted = insertPathPoint(
-          element,
+          getPathLoopView(element, closest.loop),
           closest.segmentIndex,
           closest.t,
         );
         if (inserted) {
-          this.apply(element, inserted);
-          this.setEditing(element.id, inserted.index);
+          this.apply(element, inserted, undefined, closest.loop);
+          this.setEditing(element.id, inserted.index, closest.loop);
           this.commit();
           this.lastClick = null;
         }
@@ -494,6 +517,7 @@ export class AppPath {
       return;
     }
     const local = this.toLocal(g.orig, p);
+    const view = getPathLoopView(g.orig, g.loop);
     if (g.kind === "anchor") {
       let to = pointFrom<LocalPoint>(
         local[0] + g.grab[0],
@@ -505,20 +529,25 @@ export class AppPath {
       if (snapped.x !== anchor[0] || snapped.y !== anchor[1]) {
         to = this.toLocal(g.orig, snapped);
       }
-      this.apply(g.orig, movePathPoint(g.orig, g.index, to));
+      this.apply(g.orig, movePathPoint(view, g.index, to), undefined, g.loop);
     } else {
-      const anchor = g.orig.points[g.index];
+      const anchor = view.points[g.index];
       const offset = pointFrom<LocalPoint>(
         local[0] - anchor[0],
         local[1] - anchor[1],
       );
-      const current = g.orig.handles[g.index] ?? NO_HANDLES;
-      this.apply(g.orig, {
-        points: g.orig.points,
-        handles: g.orig.handles.map((h, i) =>
-          i === g.index ? dragPathHandle(current, g.side, offset) : h,
-        ),
-      });
+      const current = view.handles[g.index] ?? NO_HANDLES;
+      this.apply(
+        g.orig,
+        {
+          points: view.points,
+          handles: view.handles.map((h, i) =>
+            i === g.index ? dragPathHandle(current, g.side, offset) : h,
+          ),
+        },
+        undefined,
+        g.loop,
+      );
     }
   };
 
@@ -528,14 +557,19 @@ export class AppPath {
     if (!element || target == null) {
       return;
     }
-    this.apply(element, setPathPointMode(element, target, mode));
+    const loop = this.app.state.editingPath?.loop ?? 0;
+    this.apply(
+      element,
+      setPathPointMode(getPathLoopView(element, loop), target, mode),
+    );
     this.commit();
   };
 
   /** closes an open path / opens a closed one */
   toggleClosed = () => {
     const element = this.getEditedElement();
-    if (!element) {
+    if (!element || element.contours?.length) {
+      // a shape with holes stays closed
       return;
     }
     const next = setPathClosed(element, !element.closed);
@@ -552,6 +586,9 @@ export class AppPath {
     const element = this.getEditedElement();
     const target = this.app.state.editingPath?.selectedPoint ?? null;
     if (!element || target == null) {
+      return;
+    }
+    if ((this.app.state.editingPath?.loop ?? 0) > 0) {
       return;
     }
     const parts = splitPathAt(element, target);
@@ -590,12 +627,13 @@ export class AppPath {
     if (!element || target == null) {
       return;
     }
-    const next = deletePathPoint(element, target);
+    const loop = this.app.state.editingPath?.loop ?? 0;
+    const next = deletePathPoint(getPathLoopView(element, loop), target);
     if (!next) {
       return;
     }
     this.apply(element, next);
-    this.setEditing(element.id, null);
+    this.setEditing(element.id, null, loop);
     this.commit();
   };
 
@@ -670,8 +708,12 @@ export class AppPath {
         const element = this.getEditedElement();
         const index = this.app.state.editingPath.selectedPoint;
         if (element) {
+          const view = getPathLoopView(
+            element,
+            this.app.state.editingPath.loop ?? 0,
+          );
           this.setPointMode(
-            element.handles[index]?.mode === "corner" ? "smooth" : "corner",
+            view.handles[index]?.mode === "corner" ? "smooth" : "corner",
             index,
           );
         }

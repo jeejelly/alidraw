@@ -70,6 +70,10 @@ exports[`exportToSvg > with default arguments 1`] = `
   "frameToHighlight": null,
   "gizmo": null,
   "gridModeEnabled": false,
+  "gridOrigin": {
+    "x": 0,
+    "y": 0,
+  },
   "gridSize": 20,
   "gridStep": 5,
   "guides": [],

@@ -58,6 +58,7 @@ import {
   normalizeLink,
   toValidURL,
   getGridPoint,
+  setGridOrigin,
   debounce,
   distance,
   getFontString,
@@ -3808,6 +3809,7 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   public async componentDidMount() {
+    setGridOrigin(this.state.gridOrigin.x, this.state.gridOrigin.y);
     this.unmounted = false;
     this.api = this.createExcalidrawAPI();
 
@@ -4299,6 +4301,9 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
+    if (prevState.gridOrigin !== this.state.gridOrigin) {
+      setGridOrigin(this.state.gridOrigin.x, this.state.gridOrigin.y);
+    }
     if (prevState.guides !== this.state.guides) {
       // elements pinned to a guide follow it
       this.anchors.refresh();

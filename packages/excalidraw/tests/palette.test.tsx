@@ -487,3 +487,36 @@ describe("panel snapping", () => {
     });
   });
 });
+
+describe("transform of several shapes", () => {
+  it("shows the fields for a multi selection and sets each shape", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({ paletteOpen: true });
+    const a = API.createElement({
+      type: "rectangle",
+      x: 10,
+      y: 10,
+      width: 50,
+      height: 50,
+    });
+    const b = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 50,
+      height: 50,
+    });
+    API.setElements([a, b]);
+    API.setSelectedElements([a, b]);
+    const x = screen
+      .getByTestId("inspector-transform")
+      .querySelector(
+        '[data-testid="X"] input, input[data-testid="X"]',
+      ) as HTMLInputElement;
+    expect(x).toBeTruthy();
+    fireEvent.change(x, { target: { value: "30" } });
+    fireEvent.blur(x);
+    const live = window.h.elements as any[];
+    expect([live[0].x, live[1].x]).toEqual([30, 30]);
+  });
+});

@@ -1,8 +1,12 @@
 import React from "react";
 
 import { KEYS, reseed } from "@excalidraw/common";
-import { CaptureUpdateAction, isPathElement } from "@excalidraw/element";
-import { pointFrom, type LocalPoint } from "@excalidraw/math";
+import {
+  CaptureUpdateAction,
+  isPathElement,
+  isPointInElement,
+} from "@excalidraw/element";
+import { pointFrom, type GlobalPoint, type LocalPoint } from "@excalidraw/math";
 
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
 
@@ -437,5 +441,108 @@ describe("path in files", () => {
     expect(restored.points).toHaveLength(2);
     expect(restored.handles).toHaveLength(2);
     expect(restored.handles.every((hd) => hd.mode === "corner")).toBe(true);
+  });
+});
+
+describe("shape with a hole", () => {
+  beforeAll(() => {
+    mockBoundingClientRect({ width: 1000, height: 1000 });
+  });
+  afterAll(() => {
+    restoreOriginalGetBoundingClientRect();
+  });
+
+  const square = (x: number, y: number, s: number) => {
+    const points = [
+      pointFrom<LocalPoint>(x, y),
+      pointFrom<LocalPoint>(x + s, y),
+      pointFrom<LocalPoint>(x + s, y + s),
+      pointFrom<LocalPoint>(x, y + s),
+    ];
+    return {
+      points,
+      handles: points.map(() => ({
+        mode: "corner" as const,
+        in: null,
+        out: null,
+      })),
+    };
+  };
+
+  const setup = async () => {
+    const utils = await render(<Excalidraw handleKeyboardGlobally />);
+    const canvas = utils.container.querySelector("canvas.interactive")!;
+    const outer = square(0, 0, 300);
+    const path = API.createElement({
+      type: "path",
+      x: 100,
+      y: 100,
+      width: 300,
+      height: 300,
+      points: outer.points,
+      backgroundColor: "#ff0000",
+    });
+    const shape = {
+      ...path,
+      handles: outer.handles,
+      closed: true,
+      contours: [square(100, 100, 100)],
+    } as ExcalidrawPathElement;
+    API.updateScene({
+      elements: [shape],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    API.setSelectedElements([shape as any]);
+    return { canvas };
+  };
+
+  it("a click inside the hole does not hit the shape, one on the fill does", async () => {
+    await setup();
+    const shape = getPath();
+    const map = h.app.scene.getNonDeletedElementsMap();
+    const at = (x: number, y: number) =>
+      isPointInElement(pointFrom<GlobalPoint>(x, y), shape, map);
+    expect(at(150, 150)).toBe(true);
+    expect(at(250, 250)).toBe(false);
+  });
+
+  it("drags a point of the hole", async () => {
+    const { canvas } = await setup();
+    API.executeAction(actionEditPath);
+    fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200 });
+    expect(h.state.editingPath?.loop).toBe(1);
+    fireEvent.pointerMove(window, { clientX: 220, clientY: 230 });
+    fireEvent.pointerUp(window, { clientX: 220, clientY: 230 });
+    const shape = getPath();
+    const hole = shape.contours![0].points;
+    expect([shape.x + hole[0][0], shape.y + hole[0][1]]).toEqual([220, 230]);
+    // the main outline did not move
+    expect([shape.x, shape.y]).toEqual([100, 100]);
+    expect(shape.points[0]).toEqual([0, 0]);
+  });
+
+  it("inserts and deletes a point on the hole", async () => {
+    const { canvas } = await setup();
+    API.executeAction(actionEditPath);
+    const dbl = (x: number, y: number) => {
+      fireEvent.pointerDown(canvas, {
+        clientX: x,
+        clientY: y,
+        timeStamp: 1000,
+      });
+      fireEvent.pointerUp(window, { clientX: x, clientY: y });
+      fireEvent.pointerDown(canvas, {
+        clientX: x,
+        clientY: y,
+        timeStamp: 1100,
+      });
+      fireEvent.pointerUp(window, { clientX: x, clientY: y });
+    };
+    dbl(250, 200);
+    expect(getPath().contours![0].points).toHaveLength(5);
+    expect(getPath().points).toHaveLength(4);
+    expect(h.state.editingPath?.loop).toBe(1);
+    Keyboard.keyPress(KEYS.DELETE);
+    expect(getPath().contours![0].points).toHaveLength(4);
   });
 });

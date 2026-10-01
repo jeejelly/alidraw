@@ -14,5 +14,5 @@ Make compound shape (Ctrl+8) SHALL merge selected shapes into one; Release (Ctrl
 ## Requirement: Whole-shape behaviour
 Move, scale, skew, bounds, fit-to-grid and save/restore SHALL carry the contours; restore SHALL drop invalid contours.
 
-## Open
-Editing hole points in the path editor, hit-testing inside holes.
+## Requirement: Holes are editable and hit-tested
+The path editor SHALL select, drag, insert and delete points on any outline (`editingPath.loop`); a click inside a hole SHALL NOT hit the shape.

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { isPathfinderOperand } from "@excalidraw/element";
+import { getCommonBounds, isPathfinderOperand } from "@excalidraw/element";
 
 import {
   getAnchor,
@@ -69,7 +69,7 @@ export const AlignSection = ({ app }: { app: App }) => {
 
 /** grid on/off, spacing, subdivisions, and fitting the selection to it */
 export const GridSection = ({ app }: { app: App }) => {
-  const { gridModeEnabled, gridSize, gridStep } = app.state;
+  const { gridModeEnabled, gridSize, gridStep, gridOrigin } = app.state;
   return (
     <Section title={t("labels.grid.title")} testId="inspector-grid">
       <div className="inspector__row">
@@ -111,6 +111,58 @@ export const GridSection = ({ app }: { app: App }) => {
           max={20}
           onCommit={(v) => app.setState({ gridStep: Math.round(v) })}
         />
+      </div>
+      <div className="inspector__row">
+        <span className="inspector__label">{t("labels.grid.origin")}</span>
+        <NumberPill
+          label="X"
+          testId="grid-origin-x"
+          value={gridOrigin.x}
+          min={-100000}
+          max={100000}
+          unit="px"
+          onCommit={(v) =>
+            app.setState({ gridOrigin: { ...gridOrigin, x: Math.round(v) } })
+          }
+        />
+        <NumberPill
+          label="Y"
+          testId="grid-origin-y"
+          value={gridOrigin.y}
+          min={-100000}
+          max={100000}
+          unit="px"
+          onCommit={(v) =>
+            app.setState({ gridOrigin: { ...gridOrigin, y: Math.round(v) } })
+          }
+        />
+      </div>
+      <div className="inspector__row">
+        <button
+          type="button"
+          className="inspector__text"
+          style={{ cursor: "pointer" }}
+          data-testid="grid-origin-selection"
+          disabled={!app.scene.getSelectedElements(app.state).length}
+          onClick={() => {
+            const selected = app.scene.getSelectedElements(app.state);
+            const [x1, y1] = getCommonBounds(selected);
+            app.setState({
+              gridOrigin: { x: Math.round(x1), y: Math.round(y1) },
+            });
+          }}
+        >
+          {t("labels.grid.originToSelection")}
+        </button>
+        <button
+          type="button"
+          className="inspector__text"
+          style={{ cursor: "pointer" }}
+          data-testid="grid-origin-reset"
+          onClick={() => app.setState({ gridOrigin: { x: 0, y: 0 } })}
+        >
+          {t("labels.grid.originReset")}
+        </button>
       </div>
       <div className="inspector__row">
         <button

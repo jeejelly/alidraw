@@ -13,3 +13,9 @@ An element SHALL be anchored to a ruler guide or to another element (`customData
 
 ## Requirement: Align
 An Align section SHALL align and distribute the selection.
+
+## Requirement: Movable grid origin
+The grid SHALL count from `gridOrigin` (scene point, saved with the file); drawing, magnet snapping and Fit to grid SHALL use it; the inspector SHALL set it numerically, from the selection, or reset it.
+
+## Requirement: Transform of several shapes
+The inspector's Transform section SHALL also show X, Y, W, H and angle for a multi selection.

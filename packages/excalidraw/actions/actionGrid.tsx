@@ -50,7 +50,10 @@ export const actionFitToGrid = register({
         RESIZABLE.has(el.type) &&
         el.angle === 0 &&
         !getBoundTextElement(el, map);
-      const fitted = fitBoundsToGrid(box, size, { keepSize: !canResize });
+      const fitted = fitBoundsToGrid(box, size, {
+        keepSize: !canResize,
+        origin: appState.gridOrigin,
+      });
       if (canResize) {
         if (isPathElement(el)) {
           const geometry = scalePathGeometry(

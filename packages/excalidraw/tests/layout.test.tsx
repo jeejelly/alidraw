@@ -2,8 +2,11 @@ import React from "react";
 
 import { reseed } from "@excalidraw/common";
 
+import { getGridPoint } from "@excalidraw/common";
+
 import { getAnchor } from "../anchors";
 import { actionFitToGrid } from "../actions";
+
 import { Excalidraw } from "../index";
 
 import { API } from "./helpers/api";
@@ -251,6 +254,31 @@ describe("layout controls in the inspector", () => {
     expect(h.state.gridStep).toBe(4);
     fireEvent.click(screen.getByTestId("grid-toggle"));
     expect(h.state.gridModeEnabled).toBe(true);
+  });
+
+  it("moves the grid origin, and fit to grid counts from it", async () => {
+    await open();
+    const r = API.createElement({
+      type: "rectangle",
+      x: 13,
+      y: 27,
+      width: 75,
+      height: 34,
+    });
+    API.setElements([r]);
+    API.setSelectedElements([r]);
+    API.setAppState({ gridSize: 20 });
+    fireEvent.click(screen.getByTestId("grid-origin-selection"));
+    expect(h.state.gridOrigin).toEqual({ x: 13, y: 27 });
+    // already on the shifted grid: nothing moves
+    API.executeAction(actionFitToGrid);
+    expect([get(r.id).x, get(r.id).y]).toEqual([13, 27]);
+    expect([get(r.id).width, get(r.id).height]).toEqual([80, 40]);
+    // magnet points follow the origin too
+    expect(getGridPoint(34, 49, 20 as any)).toEqual([33, 47]);
+    fireEvent.click(screen.getByTestId("grid-origin-reset"));
+    expect(h.state.gridOrigin).toEqual({ x: 0, y: 0 });
+    expect(getGridPoint(34, 49, 20 as any)).toEqual([40, 40]);
   });
 
   it("anchors the selection to the next element clicked", async () => {

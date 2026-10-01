@@ -36,7 +36,11 @@ import {
 
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";
+import MultiAngle from "./Stats/MultiAngle";
+import MultiDimension from "./Stats/MultiDimension";
+import MultiPosition from "./Stats/MultiPosition";
 import Position from "./Stats/Position";
+import { getAtomicUnits } from "./Stats/utils";
 import "./inspector/Inspector.scss";
 import {
   AlignSection,
@@ -283,6 +287,42 @@ export const PalettePanel = ({ app }: { app: App }) => {
         <Angle
           property="angle"
           element={single}
+          scene={app.scene}
+          appState={app.state}
+        />
+      </div>
+    </Section>
+  );
+
+  // several shapes: the fields set every shape (mixed values read as "Mixed")
+  const multi = selected.length > 1 && (
+    <Section title={t("labels.palette.transform")} testId="inspector-transform">
+      <div className="inspector__grid">
+        {(["x", "y"] as const).map((property) => (
+          <MultiPosition
+            key={property}
+            property={property}
+            elements={selected}
+            elementsMap={app.scene.getNonDeletedElementsMap()}
+            atomicUnits={getAtomicUnits(selected, app.state)}
+            scene={app.scene}
+            appState={app.state}
+          />
+        ))}
+        {(["width", "height"] as const).map((property) => (
+          <MultiDimension
+            key={property}
+            property={property}
+            elements={selected}
+            elementsMap={app.scene.getNonDeletedElementsMap()}
+            atomicUnits={getAtomicUnits(selected, app.state)}
+            scene={app.scene}
+            appState={app.state}
+          />
+        ))}
+        <MultiAngle
+          property="angle"
+          elements={selected}
           scene={app.scene}
           appState={app.state}
         />
@@ -803,6 +843,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
           {tab === "design" || palette.layersDetached ? (
             <>
               {transform}
+              {multi}
               <AlignSection app={app} />
               <PathfinderSection app={app} />
               {appearance}

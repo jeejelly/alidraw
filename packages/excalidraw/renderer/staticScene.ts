@@ -71,6 +71,7 @@ const strokeGrid = (
   gridSize: number,
   /** setting to 1 will disble bold lines */
   gridStep: number,
+  gridOrigin: { x: number; y: number },
   scrollX: number,
   scrollY: number,
   zoom: Zoom,
@@ -79,8 +80,8 @@ const strokeGrid = (
   height: number,
   scale: number,
 ) => {
-  const offsetX = (scrollX % gridSize) - gridSize;
-  const offsetY = (scrollY % gridSize) - gridSize;
+  const offsetX = ((scrollX + gridOrigin.x) % gridSize) - gridSize;
+  const offsetY = ((scrollY + gridOrigin.y) % gridSize) - gridSize;
 
   const actualGridSize = gridSize * zoom.value;
 
@@ -119,7 +120,8 @@ const strokeGrid = (
   // vertical lines
   for (let x = offsetX; x < offsetX + width + gridSize * 2; x += gridSize) {
     const isBold =
-      gridStep > 1 && Math.round(x - scrollX) % (gridStep * gridSize) === 0;
+      gridStep > 1 &&
+      Math.round(x - scrollX - gridOrigin.x) % (gridStep * gridSize) === 0;
     // don't render regular lines when zoomed out and they're barely visible
     if (!isBold && actualGridSize < 10) {
       continue;
@@ -141,7 +143,8 @@ const strokeGrid = (
 
   for (let y = offsetY; y < offsetY + height + gridSize * 2; y += gridSize) {
     const isBold =
-      gridStep > 1 && Math.round(y - scrollY) % (gridStep * gridSize) === 0;
+      gridStep > 1 &&
+      Math.round(y - scrollY - gridOrigin.y) % (gridStep * gridSize) === 0;
     if (!isBold && actualGridSize < 10) {
       continue;
     }
@@ -315,6 +318,7 @@ const _renderStaticScene = ({
       context,
       appState.gridSize,
       appState.gridStep,
+      appState.gridOrigin ?? { x: 0, y: 0 },
       appState.scrollX,
       appState.scrollY,
       appState.zoom,

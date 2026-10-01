@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { isPathElement } from "@excalidraw/element";
+import { getPathLoopView, isPathElement } from "@excalidraw/element";
 
 import type { PathPointMode } from "@excalidraw/element/types";
 
@@ -47,7 +47,11 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
     return null;
   }
   const selected = editing.selectedPoint;
-  const mode = selected != null ? element.handles[selected]?.mode : null;
+  const inHole = (editing.loop ?? 0) > 0;
+  const mode =
+    selected != null
+      ? getPathLoopView(element, editing.loop ?? 0).handles[selected]?.mode
+      : null;
 
   return (
     <div
@@ -92,8 +96,15 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
       <button
         type="button"
         data-testid="path-toggle-closed"
-        style={buttonStyle(false, !element.closed && element.points.length < 3)}
-        disabled={!element.closed && element.points.length < 3}
+        style={buttonStyle(
+          false,
+          !!element.contours?.length ||
+            (!element.closed && element.points.length < 3),
+        )}
+        disabled={
+          !!element.contours?.length ||
+          (!element.closed && element.points.length < 3)
+        }
         onClick={() => app.path.toggleClosed()}
       >
         {t(element.closed ? "labels.path.openPath" : "labels.path.closePath")}
@@ -101,8 +112,8 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
       <button
         type="button"
         data-testid="path-split"
-        disabled={selected == null}
-        style={buttonStyle(false, selected == null)}
+        disabled={selected == null || inHole}
+        style={buttonStyle(false, selected == null || inHole)}
         onClick={() => app.path.splitAtSelectedPoint()}
       >
         {t("labels.path.split")}

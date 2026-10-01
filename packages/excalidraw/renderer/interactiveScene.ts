@@ -55,6 +55,7 @@ import { renderSelectionElement } from "@excalidraw/element";
 
 import {
   getCommonBounds,
+  getPathLoopView,
   getElementAbsoluteCoords,
   getElementBounds,
 } from "@excalidraw/element";
@@ -1103,48 +1104,53 @@ const renderPathEditor = (
   const fillSelected = getThemedColor("#5e5ad8", appState.theme);
   const r = 5 / zoom;
 
-  const selected = editing.selectedPoint;
-  if (
-    selected != null &&
-    element.handles[selected]?.mode !== "corner" &&
-    element.handles[selected]
-  ) {
-    const anchor = toScene(element.points[selected]);
-    for (const side of ["in", "out"] as const) {
-      const h = element.handles[selected][side];
-      if (!h) {
-        continue;
+  const loops = 1 + (element.contours?.length ?? 0);
+  for (let loop = 0; loop < loops; loop++) {
+    const view = getPathLoopView(element, loop);
+    const selected =
+      loop === (editing.loop ?? 0) ? editing.selectedPoint : null;
+    if (
+      selected != null &&
+      view.handles[selected]?.mode !== "corner" &&
+      view.handles[selected]
+    ) {
+      const anchor = toScene(view.points[selected]);
+      for (const side of ["in", "out"] as const) {
+        const h = view.handles[selected][side];
+        if (!h) {
+          continue;
+        }
+        const tip = toScene([
+          view.points[selected][0] + h[0],
+          view.points[selected][1] + h[1],
+        ]);
+        context.strokeStyle = accent;
+        context.beginPath();
+        context.moveTo(anchor[0], anchor[1]);
+        context.lineTo(tip[0], tip[1]);
+        context.stroke();
+        context.fillStyle = fill;
+        context.beginPath();
+        context.arc(tip[0], tip[1], r * 0.8, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
       }
-      const tip = toScene([
-        element.points[selected][0] + h[0],
-        element.points[selected][1] + h[1],
-      ]);
+    }
+
+    view.points.forEach((point, index) => {
+      const p = toScene(point);
       context.strokeStyle = accent;
+      context.fillStyle = index === selected ? fillSelected : fill;
       context.beginPath();
-      context.moveTo(anchor[0], anchor[1]);
-      context.lineTo(tip[0], tip[1]);
-      context.stroke();
-      context.fillStyle = fill;
-      context.beginPath();
-      context.arc(tip[0], tip[1], r * 0.8, 0, Math.PI * 2);
+      if (view.handles[index]?.mode === "corner") {
+        context.rect(p[0] - r, p[1] - r, r * 2, r * 2);
+      } else {
+        context.arc(p[0], p[1], r, 0, Math.PI * 2);
+      }
       context.fill();
       context.stroke();
-    }
+    });
   }
-
-  element.points.forEach((point, index) => {
-    const p = toScene(point);
-    context.strokeStyle = accent;
-    context.fillStyle = index === selected ? fillSelected : fill;
-    context.beginPath();
-    if (element.handles[index]?.mode === "corner") {
-      context.rect(p[0] - r, p[1] - r, r * 2, r * 2);
-    } else {
-      context.arc(p[0], p[1], r, 0, Math.PI * 2);
-    }
-    context.fill();
-    context.stroke();
-  });
   context.restore();
 };
 

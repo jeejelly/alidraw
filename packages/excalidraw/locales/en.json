@@ -195,7 +195,10 @@
       "title": "Grid",
       "spacing": "Spacing",
       "subdivisions": "Subdivisions",
-      "fit": "Fit to grid"
+      "fit": "Fit to grid",
+      "origin": "Origin",
+      "originToSelection": "Origin to selection",
+      "originReset": "Reset origin"
     },
     "anchor": {
       "title": "Anchor",
