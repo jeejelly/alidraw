@@ -597,6 +597,27 @@ export const CornersSection = ({ app }: { app: App }) => {
   if (!paths.length && !rounded.length && !editing && !noSelection) {
     return null;
   }
+  // a plain rectangle or diamond: each corner can be rounded on its own, which
+  // makes it a path (anchors = corners) with one bevel per anchor
+  const single = selected.length === 1 ? selected[0] : null;
+  const cornerShape =
+    single &&
+    (single.type === "rectangle" || single.type === "diamond") &&
+    !(single.boundElements?.length ?? 0)
+      ? single
+      : null;
+  const cornerLabels =
+    cornerShape?.type === "diamond"
+      ? ["T", "R", "B", "L"]
+      : ["TL", "TR", "BR", "BL"];
+  const bevelCorner = (index: number | null, radius: number) => {
+    if (!cornerShape) {
+      return;
+    }
+    const id = cornerShape.id;
+    app.actionManager.executeAction(actionConvertShapeToPath, "ui");
+    app.path.setBevelOf(id, index, radius);
+  };
   const roundness = rounded.length
     ? rounded.every((el) => el.roundness)
       ? "round"
@@ -628,6 +649,62 @@ export const CornersSection = ({ app }: { app: App }) => {
             >
               {icon}
             </button>
+          ))}
+        </div>
+      )}
+      {cornerShape && (
+        <>
+          <div className="inspector__row">
+            <span className="inspector__label">
+              {t("labels.path.bevelAll")}
+            </span>
+            <NumberPill
+              label={t("labels.path.bevelAll")}
+              testId="corner-all"
+              value={0}
+              min={0}
+              max={1000}
+              unit="px"
+              onCommit={(v) => bevelCorner(null, v)}
+            />
+          </div>
+          <div className="inspector__grid">
+            {cornerLabels.map((label, i) => (
+              <div className="inspector__row" key={label}>
+                <span className="inspector__label" style={{ width: "1.5rem" }}>
+                  {label}
+                </span>
+                <NumberPill
+                  label={`${t("labels.path.bevelPoint")} ${label}`}
+                  testId={`corner-${i}`}
+                  value={0}
+                  min={0}
+                  max={1000}
+                  unit="px"
+                  onCommit={(v) => bevelCorner(i, v)}
+                />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {single?.type === "path" && single.points.length <= 16 && (
+        <div className="inspector__grid" data-testid="path-corners">
+          {single.points.map((_, i) => (
+            <div className="inspector__row" key={i}>
+              <span className="inspector__label" style={{ width: "1.5rem" }}>
+                {i + 1}
+              </span>
+              <NumberPill
+                label={`${t("labels.path.bevelPoint")} ${i + 1}`}
+                testId={`path-corner-${i}`}
+                value={single.handles[i]?.radius ?? 0}
+                min={0}
+                max={1000}
+                unit="px"
+                onCommit={(v) => app.path.setBevelOf(single.id, i, v)}
+              />
+            </div>
           ))}
         </div>
       )}

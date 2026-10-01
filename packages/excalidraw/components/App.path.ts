@@ -630,6 +630,25 @@ export class AppPath {
     this.commit();
   };
 
+  /** one anchor's bevel (or all with `null`) of a given path, editing or not */
+  setBevelOf = (elementId: string, index: number | null, radius: number) => {
+    const el = this.app.scene.getNonDeletedElement(elementId);
+    if (!el || !isPathElement(el)) {
+      return;
+    }
+    this.app.scene.mutateElement(
+      el,
+      getPathUpdate(el, {
+        ...setPathBevel(el, radius, index === null ? undefined : [index]),
+        contours:
+          index === null
+            ? el.contours?.map((c) => setPathBevel(c, radius))
+            : el.contours,
+      }),
+    );
+    this.commit();
+  };
+
   /** closes an open path / opens a closed one */
   toggleClosed = () => {
     const element = this.getEditedElement();

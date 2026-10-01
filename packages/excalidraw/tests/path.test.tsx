@@ -654,3 +654,55 @@ describe("edges", () => {
     expect(h.elements[0].roundness).toBeNull();
   });
 });
+
+describe("per-corner rounding", () => {
+  beforeAll(() => {
+    mockBoundingClientRect({ width: 1000, height: 1000 });
+  });
+  afterAll(() => {
+    restoreOriginalGetBoundingClientRect();
+  });
+
+  it("a rectangle takes a radius on one corner only, then any corner of the path", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({ paletteOpen: true });
+    const r = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 100,
+    });
+    API.setElements([r]);
+    API.setSelectedElements([r]);
+    const tr = screen.getByTestId("corner-1");
+    fireEvent.change(tr, { target: { value: "30" } });
+    fireEvent.blur(tr);
+    const p = getPath();
+    expect(p.type).toBe("path");
+    expect(p.id).toBe(r.id);
+    expect(p.handles.map((hd) => hd.radius)).toEqual([
+      undefined,
+      30,
+      undefined,
+      undefined,
+    ]);
+    // the same path now offers its corners
+    const bl = screen.getByTestId("path-corner-3");
+    fireEvent.change(bl, { target: { value: "12" } });
+    fireEvent.blur(bl);
+    expect(getPath().handles.map((hd) => hd.radius)).toEqual([
+      undefined,
+      30,
+      undefined,
+      12,
+    ]);
+    // anchors and size are unchanged
+    expect([
+      getPath().x,
+      getPath().y,
+      getPath().width,
+      getPath().height,
+    ]).toEqual([100, 100, 200, 100]);
+  });
+});
