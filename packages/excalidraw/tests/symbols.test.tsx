@@ -1,0 +1,216 @@
+import React from "react";
+
+import { reseed } from "@excalidraw/common";
+
+import { Excalidraw } from "../index";
+import { buildElements, boundsOf, themeUpdates } from "../symbols/build";
+import { COMPONENTS, defaultsOf } from "../symbols/components";
+import { ICONS } from "../symbols/icons";
+import { parsePath, circle } from "../symbols/svgPath";
+import { ALL_THEMES, THEMES } from "../symbols/theme";
+
+import { act, fireEvent, render, screen, unmountComponent } from "./test-utils";
+
+unmountComponent();
+
+const { h } = window;
+
+beforeEach(() => {
+  localStorage.clear();
+  reseed(7);
+});
+
+const night = THEMES[2];
+
+describe("path data", () => {
+  it("reads lines, curves and closing", () => {
+    const [sub] = parsePath("M1 2 L5 2 l0 4 H1 Z");
+    expect(sub.closed).toBe(true);
+    expect(sub.anchors.map((a) => [a.x, a.y])).toEqual([
+      [1, 2],
+      [5, 2],
+      [5, 6],
+      [1, 6],
+    ]);
+    const [c] = parsePath(circle(10, 10, 5));
+    expect(c.closed).toBe(true);
+    expect(c.anchors).toHaveLength(4);
+    expect(c.anchors[0].out).not.toBeNull();
+  });
+  it("splits sub-paths and refuses what it cannot draw", () => {
+    expect(parsePath("M0 0L1 1M5 5L6 6")).toHaveLength(2);
+    expect(() => parsePath("M0 0A1 1 0 0 1 2 2")).toThrow();
+  });
+});
+
+describe("the library", () => {
+  it("every icon is drawable", () => {
+    expect(ICONS.length).toBeGreaterThan(100);
+    const names = new Set<string>();
+    for (const i of ICONS) {
+      expect(names.has(i.name)).toBe(false);
+      names.add(i.name);
+      expect(parsePath(i.d).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("every component draws in every theme, at every choice", () => {
+    const ids = new Set<string>();
+    for (const def of COMPONENTS) {
+      expect(ids.has(def.id)).toBe(false);
+      ids.add(def.id);
+      const base = defaultsOf(def);
+      const variants = [base];
+      for (const p of def.params ?? []) {
+        if (p.kind === "choice") {
+          p.options!.forEach((o) => variants.push({ ...base, [p.key]: o }));
+        } else if (p.kind === "bool") {
+          variants.push({ ...base, [p.key]: !p.def });
+        } else if (p.kind === "number") {
+          variants.push(
+            { ...base, [p.key]: p.min },
+            { ...base, [p.key]: p.max },
+          );
+        }
+      }
+      for (const theme of ALL_THEMES) {
+        for (const v of variants) {
+          const shapes = def.shapes(theme, v);
+          const b = boundsOf(shapes);
+          expect(shapes.length).toBeGreaterThan(0);
+          expect(b.w).toBeGreaterThan(0);
+          expect(Number.isFinite(b.h)).toBe(true);
+          for (const s of shapes) {
+            if (s.t === "icon") {
+              expect(ICONS.some((i) => i.name === s.name)).toBe(true);
+            }
+          }
+        }
+      }
+    }
+    expect(COMPONENTS.length).toBeGreaterThan(40);
+  });
+
+  it("has the screen kit: toggles, pills, tabs, collapsible bars, knobs, date and time", () => {
+    const ids = COMPONENTS.map((c) => c.id);
+    for (const id of [
+      "toggle",
+      "pills",
+      "tabs",
+      "collapsible-bars",
+      "knob",
+      "slider",
+      "calendar",
+      "time-picker",
+      "app-bar",
+      "navigation-bar",
+      "scaffold",
+      "fab",
+      "list",
+    ]) {
+      expect(ids).toContain(id);
+    }
+  });
+});
+
+describe("collapsible bars are parametric", () => {
+  const bars = (open: string, children: number) =>
+    COMPONENTS.find((c) => c.id === "collapsible-bars")!.shapes(night, {
+      ...defaultsOf(COMPONENTS.find((c) => c.id === "collapsible-bars")!),
+      open,
+      children,
+    });
+  const heightOf = (s: ReturnType<typeof bars>) => boundsOf(s).h;
+  it("grows with the open bars and their nested bars", () => {
+    const closed = heightOf(bars("", 2));
+    const one = heightOf(bars("1", 2));
+    const two = heightOf(bars("1,3", 2));
+    expect(one).toBe(closed + 2 * 48);
+    expect(two).toBe(closed + 4 * 48);
+    expect(heightOf(bars("1", 0))).toBe(closed + 48);
+  });
+});
+
+describe("on the canvas", () => {
+  it("builds one group of editable shapes, with paths for pills and icons", () => {
+    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const els = buildElements(def.shapes(night, defaultsOf(def)), night, {
+      x: 10,
+      y: 20,
+    });
+    expect(els.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(els.map((e) => e.groupIds[0])).size).toBe(1);
+    // a pill is a path with a full bevel, still editable with the corner gizmo
+    const pill = els.find((e) => e.type === "path") as any;
+    expect(pill.closed).toBe(true);
+    expect(pill.handles[0].radius).toBe(20);
+    expect(pill.width).toBe(140);
+    expect(pill.height).toBe(40);
+    expect(els.some((e) => e.type === "text")).toBe(true);
+    expect(els.every((e) => !!e.customData?.symbol)).toBe(true);
+  });
+
+  it("a soft theme keeps real rectangles", () => {
+    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const els = buildElements(
+      def.shapes(THEMES[0], defaultsOf(def)),
+      THEMES[0],
+    );
+    expect(els.some((e) => e.type === "rectangle")).toBe(true);
+  });
+
+  it("re-themes colours and corners", () => {
+    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const els = buildElements(def.shapes(night, defaultsOf(def)), night);
+    const light = THEMES[0];
+    const ups = themeUpdates(els, light);
+    expect(ups.length).toBe(els.length);
+    const bg = ups.find((u) => u.element.type === "path")!;
+    expect(bg.updates.backgroundColor).toBe(light.colors.accent);
+    expect(bg.updates.handles[0].radius).toBe(8);
+  });
+
+  it("inserts from the panel and re-themes the selection", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
+    expect(screen.getAllByTestId("symbols-tile").length).toBeGreaterThan(20);
+
+    fireEvent.change(screen.getByTestId("symbols-search"), {
+      target: { value: "switch" },
+    });
+    const tiles = screen.getAllByTestId("symbols-tile");
+    expect(tiles).toHaveLength(1);
+    fireEvent.click(tiles[0]);
+    expect(screen.getByTestId("symbols-detail")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("symbols-insert"));
+    const live = h.elements.filter((e) => !e.isDeleted);
+    expect(live.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(live.map((e) => e.groupIds[0])).size).toBe(1);
+    const before = live.map((e) => e.backgroundColor).join();
+
+    fireEvent.change(screen.getByTestId("symbols-theme-preset"), {
+      target: { value: "Forest" },
+    });
+    fireEvent.click(screen.getByTestId("symbols-apply-all"));
+    const after = h.elements
+      .filter((e) => !e.isDeleted)
+      .map((e) => e.backgroundColor)
+      .join();
+    expect(after).not.toBe(before);
+  });
+
+  it("inserts an icon at the chosen size", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
+    fireEvent.click(screen.getByTestId("symbols-mode-icons"));
+    fireEvent.change(screen.getByTestId("symbols-search"), {
+      target: { value: "search" },
+    });
+    fireEvent.click(screen.getAllByTestId("symbols-icon")[0]);
+    const live = h.elements.filter((e) => !e.isDeleted);
+    expect(live.length).toBeGreaterThan(0);
+    expect(live.every((e) => e.type === "path")).toBe(true);
+  });
+});

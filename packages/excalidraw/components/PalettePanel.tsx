@@ -41,6 +41,7 @@ import {
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";
 import { FlowPanel } from "./inspector/FlowPanel";
+import { SymbolsPanel } from "./inspector/SymbolsPanel";
 import { LayersTree } from "./inspector/LayersTree";
 import MultiAngle from "./Stats/MultiAngle";
 import MultiDimension from "./Stats/MultiDimension";
@@ -68,7 +69,7 @@ import {
 import type App from "./App";
 
 type Target = "stroke" | "background";
-type Tab = "design" | "layers" | "flow";
+type Tab = "design" | "layers" | "flow" | "symbols";
 
 export const INSPECTOR_FOCUS_TRANSFORM = "excalidraw:inspector-focus-transform";
 
@@ -902,8 +903,8 @@ export const PalettePanel = ({ app }: { app: App }) => {
         >
           <div className="inspector__tabs" role="tablist">
             {(palette.layersDetached
-              ? (["design", "flow"] as const)
-              : (["design", "layers", "flow"] as const)
+              ? (["design", "symbols", "flow"] as const)
+              : (["design", "layers", "symbols", "flow"] as const)
             ).map((k) => (
               <button
                 key={k}
@@ -956,6 +957,8 @@ export const PalettePanel = ({ app }: { app: App }) => {
         <div className="inspector__body">
           {tab === "flow" ? (
             <FlowPanel app={app} />
+          ) : tab === "symbols" ? (
+            <SymbolsPanel app={app} />
           ) : tab === "design" || palette.layersDetached ? (
             <>
               {transform}
