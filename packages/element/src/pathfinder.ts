@@ -76,7 +76,7 @@ export const getOutline = (element: ExcalidrawElement): Outline | null => {
 
 // -----------------------------------------------------------------------------
 
-// paper.js is large: it is loaded the first time a boolean operation runs
+// the boolean engine is large: it is loaded the first time a boolean operation runs
 type Paper = typeof paper;
 let paperPromise: Promise<{
   paper: Paper;

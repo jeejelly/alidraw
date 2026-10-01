@@ -1,6 +1,6 @@
 /**
  * The user's colour swatches: app-wide, kept in localStorage, with import from
- * GIMP (.gpl) and ASE (.ase) swatch palettes.
+ * .gpl and .ase swatch palettes.
  */
 export type Swatch = Readonly<{ id: string; name: string; color: string }>;
 
@@ -229,7 +229,7 @@ export const addSwatches = (
 
 export type ImportedColor = { name: string; color: string };
 
-/** GIMP palette: "R G B  name" lines after a "GIMP Palette" header */
+/** .gpl palette: "R G B  name" lines after a "GIMP Palette" header line */
 export const parseGpl = (text: string): ImportedColor[] => {
   const lines = text.replace(/^﻿/, "").split(/\r?\n/);
   if (!/^GIMP Palette/i.test(lines[0]?.trim() ?? "")) {

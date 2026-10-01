@@ -114,7 +114,7 @@ describe("palette store", () => {
 });
 
 describe("palette import", () => {
-  it("reads GIMP palettes", () => {
+  it("reads .gpl palettes", () => {
     const colors = parseGpl(
       "GIMP Palette\nName: Test\nColumns: 4\n#\n255   0   0\tRed\n 0 128 255 Sky blue\n300 0 0 Bad\n",
     );

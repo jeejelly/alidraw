@@ -394,7 +394,7 @@ export const actionZoomToFitSelection = register({
       },
     };
   },
-  // NOTE this action should use shift-2 per figma, alas
+  // NOTE this action should use shift-2 by convention, alas
   keyTest: (event) =>
     event.code === CODES.THREE &&
     event.shiftKey &&

@@ -3,7 +3,7 @@
 
 [sw-_file-status]: # '@status(value=done, at=2026-10-01)'
 
-Blender-like gizmo: zones around the selection rotate or skew, with centre cross lines to catch the centre and align the angle to other objects.
+Direct-manipulation gizmo: zones around the selection rotate or skew, with centre cross lines to catch the centre and align the angle to other objects.
 
 ## Requirement: Rotate and skew by zone
 Dragging an outer zone SHALL rotate, an edge zone SHALL skew, with a live angle readout; Alt SHALL work from the centre; Escape SHALL cancel.
