@@ -20,6 +20,8 @@ import {
   getPathSceneGeometry,
   setPathHandle,
   setPathPointMode,
+  bevelLoop,
+  setPathBevel,
 } from "../src/path";
 import { newPathElement } from "../src/newElement";
 
@@ -442,5 +444,84 @@ describe("split and join", () => {
     expect(g.points[0][1]).toBeCloseTo(0, 5);
     expect(g.handles[0].out![0]).toBeCloseTo(0, 5);
     expect(g.handles[0].out![1]).toBeCloseTo(10, 5);
+  });
+});
+
+describe("bevel", () => {
+  const square = (radius?: number) => {
+    const pts = [
+      pointFrom<LocalPoint>(0, 0),
+      pointFrom<LocalPoint>(100, 0),
+      pointFrom<LocalPoint>(100, 100),
+      pointFrom<LocalPoint>(0, 100),
+    ];
+    return {
+      points: pts,
+      handles: pts.map(() => ({
+        ...NO_HANDLES,
+        ...(radius ? { radius } : {}),
+      })),
+      closed: true,
+    };
+  };
+  const area = (poly: readonly LocalPoint[]) =>
+    Math.abs(
+      poly.reduce((a, p, i) => {
+        const q = poly[(i + 1) % poly.length];
+        return a + (p[0] * q[1] - q[0] * p[1]);
+      }, 0) / 2,
+    );
+
+  it("rounds a right-angle corner into a quarter circle", () => {
+    const sharp = area(flattenPath(square()));
+    const rounded = area(flattenPath(square(20)));
+    // four corners lose (1 - pi/4) r^2 each
+    const expected = sharp - 4 * (1 - Math.PI / 4) * 20 * 20;
+    // the arc is a cubic approximation
+    expect(Math.abs(rounded - expected)).toBeLessThan(1);
+  });
+
+  it("keeps the anchors and the size, only the drawn outline changes", () => {
+    const g = square(20);
+    expect(bevelLoop(g).points).toHaveLength(8);
+    expect(g.points).toHaveLength(4);
+    const [x1, y1, x2, y2] = getPathLocalBounds(g);
+    expect([x1, y1, x2, y2]).toEqual([0, 0, 100, 100]);
+    expect(getPathSvgD(g)).toContain("C");
+  });
+
+  it("limits the radius to what the sides allow", () => {
+    const huge = area(flattenPath(square(500)));
+    // a circle of radius 50 at most
+    expect(huge).toBeLessThan(Math.PI * 50 * 50 + 5);
+    expect(huge).toBeGreaterThan(Math.PI * 50 * 50 - 120);
+  });
+
+  it("leaves curved corners and open ends alone", () => {
+    const open = { ...square(20), closed: false };
+    expect(bevelLoop(open).points).toHaveLength(6);
+    const curved = square(20);
+    curved.handles[1] = {
+      mode: "smooth",
+      in: pointFrom<LocalPoint>(-10, 0),
+      out: pointFrom<LocalPoint>(10, 0),
+      radius: 20,
+    };
+    // only the corner between two straight sides is rounded
+    expect(bevelLoop(curved).points).toHaveLength(5);
+  });
+
+  it("setPathBevel sets and clears radii", () => {
+    const g = square();
+    expect(setPathBevel(g, 8).handles.every((h) => h.radius === 8)).toBe(true);
+    expect(setPathBevel(g, 8, [1]).handles.map((h) => h.radius)).toEqual([
+      undefined,
+      8,
+      undefined,
+      undefined,
+    ]);
+    expect(
+      setPathBevel(setPathBevel(g, 8), 0).handles.some((h) => "radius" in h),
+    ).toBe(false);
   });
 });

@@ -25,7 +25,29 @@ import {
   actionReleaseCompoundShape,
 } from "../../actions";
 import { t } from "../../i18n";
+import {
+  AlignLeftIcon,
+  CenterHorizontallyIcon,
+  AlignRightIcon,
+  AlignTopIcon,
+  CenterVerticallyIcon,
+  AlignBottomIcon,
+  DistributeHorizontallyIcon,
+  DistributeVerticallyIcon,
+  EdgeRoundIcon,
+  EdgeSharpIcon,
+  knifeToolIcon,
+  pathToolIcon,
+} from "../icons";
 
+import {
+  actionChangeRoundness,
+  actionConvertShapeToPath,
+  actionEditPath,
+  actionJoinPaths,
+} from "../../actions";
+
+import { PathfinderIcon } from "./PathfinderIcons";
 import { NumberPill, Section } from "./primitives";
 
 import type App from "./../App";
@@ -33,14 +55,30 @@ import type App from "./../App";
 // built on use: the actions module is still loading when this file is first read
 const getAligners = () =>
   [
-    ["⇤", actionAlignLeft, "labels.alignLeft"],
-    ["⇹", actionAlignHorizontallyCentered, "labels.centerHorizontally"],
-    ["⇥", actionAlignRight, "labels.alignRight"],
-    ["⤒", actionAlignTop, "labels.alignTop"],
-    ["⇳", actionAlignVerticallyCentered, "labels.centerVertically"],
-    ["⤓", actionAlignBottom, "labels.alignBottom"],
-    ["↔", distributeHorizontally, "labels.distributeHorizontally"],
-    ["↕", distributeVertically, "labels.distributeVertically"],
+    [actionAlignLeft, AlignLeftIcon, "labels.alignLeft"],
+    [
+      actionAlignHorizontallyCentered,
+      CenterHorizontallyIcon,
+      "labels.centerHorizontally",
+    ],
+    [actionAlignRight, AlignRightIcon, "labels.alignRight"],
+    [actionAlignTop, AlignTopIcon, "labels.alignTop"],
+    [
+      actionAlignVerticallyCentered,
+      CenterVerticallyIcon,
+      "labels.centerVertically",
+    ],
+    [actionAlignBottom, AlignBottomIcon, "labels.alignBottom"],
+    [
+      distributeHorizontally,
+      DistributeHorizontallyIcon,
+      "labels.distributeHorizontally",
+    ],
+    [
+      distributeVertically,
+      DistributeVerticallyIcon,
+      "labels.distributeVertically",
+    ],
   ] as const;
 
 /** Illustrator's Align panel: six alignments and two distributions */
@@ -49,17 +87,18 @@ export const AlignSection = ({ app }: { app: App }) => {
   return (
     <Section title={t("labels.alignPanel.title")} testId="inspector-align">
       <div className="inspector__row" style={{ gap: 2, flexWrap: "wrap" }}>
-        {getAligners().map(([glyph, action, label]) => (
+        {getAligners().map(([action, icon, label]) => (
           <button
             key={label}
             type="button"
             className="inspector__iconbtn"
+            style={{ width: "2rem", height: "2rem" }}
             data-testid={`align-${label.split(".")[1]}`}
             title={t(label)}
-            disabled={count < (glyph === "↔" || glyph === "↕" ? 3 : 2)}
+            disabled={count < (label.includes("distribute") ? 3 : 2)}
             onClick={() => app.actionManager.executeAction(action, "ui")}
           >
-            {glyph}
+            {icon}
           </button>
         ))}
       </div>
@@ -401,14 +440,6 @@ export const AnchorSection = ({ app }: { app: App }) => {
   );
 };
 
-const PATHFINDER_GLYPH: Record<string, string> = {
-  unite: "∪",
-  subtract: "−",
-  intersect: "∩",
-  exclude: "⊻",
-  divide: "÷",
-};
-
 /** boolean operations on the selected closed shapes */
 export const PathfinderSection = ({ app }: { app: App }) => {
   const selected = app.scene.getSelectedElements(app.state);
@@ -427,7 +458,7 @@ export const PathfinderSection = ({ app }: { app: App }) => {
             disabled={!ready}
             onClick={() => app.actionManager.executeAction(action, "ui")}
           >
-            {PATHFINDER_GLYPH[op]}
+            <PathfinderIcon op={op} />
           </button>
         ))}
         <button
@@ -441,7 +472,7 @@ export const PathfinderSection = ({ app }: { app: App }) => {
             app.actionManager.executeAction(actionMakeCompoundShape, "ui")
           }
         >
-          ◍
+          <PathfinderIcon op="compound" />
         </button>
         <button
           type="button"
@@ -456,9 +487,184 @@ export const PathfinderSection = ({ app }: { app: App }) => {
             app.actionManager.executeAction(actionReleaseCompoundShape, "ui")
           }
         >
-          ◌
+          <PathfinderIcon op="release" />
         </button>
       </div>
+    </Section>
+  );
+};
+
+/**
+ * The path tools as icons, where they are one click away (the toolbar keeps
+ * them in its overflow menu): pen, knife, edit points, convert, join.
+ */
+export const PathSection = ({ app }: { app: App }) => {
+  const selected = app.scene.getSelectedElements(app.state);
+  const tool = app.state.activeTool.type;
+  const act = (action: any) => app.actionManager.executeAction(action, "ui");
+  const canConvert = actionConvertShapeToPath.predicate?.(
+    app.scene.getElementsIncludingDeleted(),
+    app.state,
+    app.props,
+    app,
+  );
+  const canEdit =
+    !app.state.editingPath &&
+    selected.length === 1 &&
+    selected[0].type === "path";
+  const buttons: [
+    string,
+    React.ReactNode,
+    string,
+    boolean,
+    boolean,
+    () => void,
+  ][] = [
+    [
+      "path-tool-pen",
+      pathToolIcon,
+      t("toolBar.path"),
+      true,
+      tool === "path",
+      () => app.setActiveTool({ type: "path" }),
+    ],
+    [
+      "path-tool-knife",
+      knifeToolIcon,
+      t("toolBar.knife"),
+      true,
+      tool === "knife",
+      () => app.setActiveTool({ type: "knife" }),
+    ],
+    [
+      "path-edit",
+      "✎",
+      t("labels.path.edit"),
+      canEdit,
+      !!app.state.editingPath,
+      () => act(actionEditPath),
+    ],
+    [
+      "path-convert",
+      "⟲",
+      t("labels.path.convertToPath"),
+      !!canConvert,
+      false,
+      () => act(actionConvertShapeToPath),
+    ],
+    [
+      "path-join",
+      "⊕",
+      t("labels.path.join"),
+      selected.length === 2 && selected.every((el) => el.type === "path"),
+      false,
+      () => act(actionJoinPaths),
+    ],
+  ];
+  return (
+    <Section title={t("labels.path.title")} testId="inspector-path">
+      <div className="inspector__row" style={{ gap: 2 }}>
+        {buttons.map(([id, icon, title, enabled, active, run]) => (
+          <button
+            key={id}
+            type="button"
+            className="inspector__iconbtn"
+            style={{ width: "2rem", height: "2rem" }}
+            data-testid={id}
+            title={title}
+            aria-pressed={active}
+            disabled={!enabled}
+            onClick={run}
+          >
+            {icon}
+          </button>
+        ))}
+      </div>
+    </Section>
+  );
+};
+
+/** edge sharpness of shapes and the bevel of path corners, all and local */
+export const CornersSection = ({ app }: { app: App }) => {
+  const selected = app.scene.getSelectedElements(app.state);
+  const paths = selected.filter((el) => el.type === "path");
+  const editing = app.state.editingPath;
+  const rounded = selected.filter(
+    (el) =>
+      el.type === "rectangle" || el.type === "diamond" || el.type === "line",
+  );
+  const noSelection = selected.length === 0;
+  if (!paths.length && !rounded.length && !editing && !noSelection) {
+    return null;
+  }
+  const roundness = rounded.length
+    ? rounded.every((el) => el.roundness)
+      ? "round"
+      : rounded.some((el) => el.roundness)
+      ? null
+      : "sharp"
+    : app.state.currentItemRoundness;
+  const setEdges = (value: "sharp" | "round") =>
+    app.actionManager.executeAction(actionChangeRoundness, "ui", value);
+  return (
+    <Section title={t("labels.edges")} testId="inspector-corners">
+      {(rounded.length > 0 || noSelection) && (
+        <div className="inspector__row" style={{ gap: 2 }}>
+          {(
+            [
+              ["sharp", EdgeSharpIcon, t("labels.sharp")],
+              ["round", EdgeRoundIcon, t("labels.round")],
+            ] as const
+          ).map(([value, icon, title]) => (
+            <button
+              key={value}
+              type="button"
+              className="inspector__iconbtn"
+              style={{ width: "2rem", height: "2rem" }}
+              data-testid={`edges-${value}`}
+              title={title}
+              aria-pressed={roundness === value}
+              onClick={() => setEdges(value)}
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
+      )}
+      {(paths.length > 0 || editing) && (
+        <>
+          <div className="inspector__row">
+            <span className="inspector__label">
+              {t("labels.path.bevelAll")}
+            </span>
+            <NumberPill
+              label={t("labels.path.bevelAll")}
+              testId="path-bevel-all"
+              value={app.path.getBevel("all")}
+              min={0}
+              max={1000}
+              unit="px"
+              onCommit={(v) => app.path.setBevel(v, "all")}
+            />
+          </div>
+          {editing?.selectedPoint != null && (
+            <div className="inspector__row">
+              <span className="inspector__label">
+                {t("labels.path.bevelPoint")}
+              </span>
+              <NumberPill
+                label={t("labels.path.bevelPoint")}
+                testId="path-bevel-point"
+                value={app.path.getBevel("point")}
+                min={0}
+                max={1000}
+                unit="px"
+                onCommit={(v) => app.path.setBevel(v, "point")}
+              />
+            </div>
+          )}
+        </>
+      )}
     </Section>
   );
 };

@@ -654,6 +654,9 @@ export const restoreElement = (
               h?.mode === "smooth" || h?.mode === "broken" ? h.mode : "corner",
             in: toPoint(h?.in),
             out: toPoint(h?.out),
+            ...(isFiniteNumber(h?.radius) && h.radius > 0
+              ? { radius: h.radius }
+              : {}),
           });
         });
         return { points, handles };

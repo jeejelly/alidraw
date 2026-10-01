@@ -253,6 +253,9 @@
       "clear": "Clear all guides"
     },
     "path": {
+      "title": "Path",
+      "bevelAll": "Bevel (all)",
+      "bevelPoint": "Bevel (point)",
       "edit": "Edit path points",
       "convertToPath": "Convert to path",
       "corner": "Corner point",

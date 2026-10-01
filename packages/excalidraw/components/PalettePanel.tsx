@@ -45,6 +45,8 @@ import { getAtomicUnits } from "./Stats/utils";
 import "./inspector/Inspector.scss";
 import {
   AlignSection,
+  CornersSection,
+  PathSection,
   AnchorSection,
   GridSection,
   PathfinderSection,
@@ -870,9 +872,11 @@ export const PalettePanel = ({ app }: { app: App }) => {
             <>
               {transform}
               {multi}
+              <PathSection app={app} />
               <AlignSection app={app} />
               <PathfinderSection app={app} />
               {appearance}
+              <CornersSection app={app} />
               {swatches}
               {strokeSection}
               {typeSection}

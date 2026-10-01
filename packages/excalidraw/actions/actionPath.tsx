@@ -6,6 +6,8 @@ import {
   joinPathGeometries,
   reversePathGeometry,
   isConvertibleToPath,
+  isLineConvertibleToPath,
+  NO_HANDLES,
   isPathElement,
   newElementWith,
 } from "@excalidraw/element";
@@ -22,7 +24,8 @@ import { register } from "./register";
 
 /** a shape the path can replace: no bound text or arrows hang off it */
 const canConvert = (element: ExcalidrawElement) =>
-  isConvertibleToPath(element) && !(element.boundElements?.length ?? 0);
+  (isConvertibleToPath(element) || isLineConvertibleToPath(element)) &&
+  !(element.boundElements?.length ?? 0);
 
 export const actionConvertShapeToPath = register({
   name: "convertShapeToPath",
@@ -42,7 +45,35 @@ export const actionConvertShapeToPath = register({
     const targets = arrayToMap(selected);
     return {
       elements: elements.map((element) => {
-        if (!targets.has(element.id) || !isConvertibleToPath(element)) {
+        if (!targets.has(element.id)) {
+          return element;
+        }
+        if (isLineConvertibleToPath(element)) {
+          // a line becomes a path as drawn: same anchors, corners kept
+          let points = [...element.points];
+          const closed = !!element.polygon;
+          if (
+            closed &&
+            points.length > 2 &&
+            points[0][0] === points[points.length - 1][0] &&
+            points[0][1] === points[points.length - 1][1]
+          ) {
+            points = points.slice(0, -1);
+          }
+          const handles = points.map(() => NO_HANDLES);
+          const frame = {
+            ...element,
+            type: "path",
+            points,
+            handles,
+            closed,
+            roundness: null,
+          } as unknown as ExcalidrawPathElement;
+          return newElementWith(frame, {
+            ...getPathUpdate(frame, { points, handles }),
+          });
+        }
+        if (!isConvertibleToPath(element)) {
           return element;
         }
         const { points, handles } = getPathGeometryFromShape(element);

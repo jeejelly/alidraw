@@ -18,6 +18,7 @@ import {
   isPathElement,
   movePathPoint,
   newPathElement,
+  setPathBevel,
   setPathClosed,
   setPathPointMode,
   splitPathAt,
@@ -562,6 +563,70 @@ export class AppPath {
       element,
       setPathPointMode(getPathLoopView(element, loop), target, mode),
     );
+    this.commit();
+  };
+
+  /** the paths a bevel applies to: the one being edited, else the selected */
+  private bevelTargets = () => {
+    const editing = this.getEditedElement();
+    return editing
+      ? [editing]
+      : this.app.scene
+          .getSelectedElements(this.app.state)
+          .filter(isPathElement);
+  };
+
+  /** the bevel radius of the selected anchor, or the one shared by all */
+  getBevel = (scope: "point" | "all"): number | null => {
+    const radii = new Set<number>();
+    const editing = this.app.state.editingPath;
+    for (const el of this.bevelTargets()) {
+      if (scope === "point") {
+        const sel = editing?.selectedPoint;
+        if (sel == null) {
+          return null;
+        }
+        radii.add(
+          getPathLoopView(el, editing?.loop ?? 0).handles[sel]?.radius ?? 0,
+        );
+      } else {
+        for (const loop of [el, ...(el.contours ?? [])]) {
+          loop.handles.forEach((h) => radii.add(h.radius ?? 0));
+        }
+      }
+    }
+    return radii.size === 1 ? [...radii][0] : null;
+  };
+
+  /**
+   * Rounds straight corners: one anchor (while editing) or every anchor of the
+   * path(s). The anchors stay put; the drawn outline is rounded.
+   */
+  setBevel = (radius: number, scope: "point" | "all") => {
+    const editing = this.app.state.editingPath;
+    for (const el of this.bevelTargets()) {
+      if (scope === "point") {
+        const sel = editing?.selectedPoint;
+        if (sel == null) {
+          continue;
+        }
+        const loop = editing?.loop ?? 0;
+        this.apply(
+          el,
+          setPathBevel(getPathLoopView(el, loop), radius, [sel]),
+          undefined,
+          loop,
+        );
+      } else {
+        this.app.scene.mutateElement(
+          el,
+          getPathUpdate(el, {
+            ...setPathBevel(el, radius),
+            contours: el.contours?.map((c) => setPathBevel(c, radius)),
+          }),
+        );
+      }
+    }
     this.commit();
   };
 

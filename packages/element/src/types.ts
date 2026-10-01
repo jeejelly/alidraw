@@ -456,6 +456,11 @@ export type PathPointHandles = Readonly<{
   mode: PathPointMode;
   in: LocalPoint | null;
   out: LocalPoint | null;
+  /**
+   * Bevel of a straight corner: the radius of the arc that rounds it off.
+   * The anchor stays where it is; only the drawn outline is rounded.
+   */
+  radius?: number;
 }>;
 
 /** one more closed outline of a shape, in the element's local frame */

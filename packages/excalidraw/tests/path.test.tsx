@@ -20,6 +20,7 @@ import {
   act,
   render,
   fireEvent,
+  screen,
   mockBoundingClientRect,
   restoreOriginalGetBoundingClientRect,
   unmountComponent,
@@ -544,5 +545,112 @@ describe("shape with a hole", () => {
     expect(h.state.editingPath?.loop).toBe(1);
     Keyboard.keyPress(KEYS.DELETE);
     expect(getPath().contours![0].points).toHaveLength(4);
+  });
+});
+
+describe("path tools in the inspector", () => {
+  beforeAll(() => {
+    mockBoundingClientRect({ width: 1000, height: 1000 });
+  });
+  afterAll(() => {
+    restoreOriginalGetBoundingClientRect();
+  });
+
+  it("the pen and the knife are one click away", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({ paletteOpen: true });
+    fireEvent.click(screen.getByTestId("path-tool-pen"));
+    expect(h.state.activeTool.type).toBe("path");
+    fireEvent.click(screen.getByTestId("path-tool-knife"));
+    expect(h.state.activeTool.type).toBe("knife");
+  });
+
+  it("converts a straight line into a path as drawn", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({ paletteOpen: true });
+    const line = API.createElement({
+      type: "line",
+      x: 50,
+      y: 60,
+      points: [pointFrom(0, 0), pointFrom(100, 0), pointFrom(100, 80)] as any,
+    });
+    API.setElements([line]);
+    API.setSelectedElements([line]);
+    fireEvent.click(screen.getByTestId("path-convert"));
+    const path = getPath();
+    expect(path.id).toBe(line.id);
+    expect(path.type).toBe("path");
+    expect(path.closed).toBe(false);
+    const abs = path.points.map((p) => [path.x + p[0], path.y + p[1]]);
+    expect(abs).toEqual([
+      [50, 60],
+      [150, 60],
+      [150, 140],
+    ]);
+  });
+
+  it("bevels all the corners of a path, and one corner while editing", async () => {
+    await render(<Excalidraw handleKeyboardGlobally />);
+    API.setAppState({ paletteOpen: true });
+    const pts = [
+      pointFrom<LocalPoint>(0, 0),
+      pointFrom<LocalPoint>(100, 0),
+      pointFrom<LocalPoint>(100, 100),
+      pointFrom<LocalPoint>(0, 100),
+    ];
+    const path = {
+      ...API.createElement({
+        type: "path",
+        x: 100,
+        y: 100,
+        width: 100,
+        height: 100,
+        points: pts,
+      }),
+      handles: pts.map(() => ({
+        mode: "corner" as const,
+        in: null,
+        out: null,
+      })),
+      closed: true,
+    } as ExcalidrawPathElement;
+    API.setElements([path]);
+    API.setSelectedElements([path as any]);
+
+    const all = screen.getByTestId("path-bevel-all");
+    fireEvent.change(all, { target: { value: "12" } });
+    fireEvent.blur(all);
+    expect(getPath().handles.every((hd) => hd.radius === 12)).toBe(true);
+    // the anchors did not move
+    expect(getPath().points).toEqual(pts);
+
+    API.executeAction(actionEditPath);
+    API.setAppState({
+      editingPath: { elementId: path.id, selectedPoint: 2, loop: 0 },
+    });
+    const local = screen.getByTestId("path-bevel-point");
+    fireEvent.change(local, { target: { value: "30" } });
+    fireEvent.blur(local);
+    expect(getPath().handles.map((hd) => hd.radius)).toEqual([12, 12, 30, 12]);
+  });
+});
+
+describe("edges", () => {
+  it("sharp and round are in the inspector", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({ paletteOpen: true });
+    const r = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50,
+    });
+    API.setElements([r]);
+    API.setSelectedElements([r]);
+    fireEvent.click(screen.getByTestId("edges-round"));
+    expect(h.elements[0].roundness).not.toBeNull();
+    fireEvent.click(screen.getByTestId("edges-sharp"));
+    expect(h.elements[0].roundness).toBeNull();
   });
 });

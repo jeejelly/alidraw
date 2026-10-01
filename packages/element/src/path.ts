@@ -10,6 +10,7 @@ import type {
 
 import type {
   ExcalidrawElement,
+  ExcalidrawLineElement,
   ExcalidrawPathElement,
   PathPointHandles,
   PathPointMode,
@@ -87,6 +88,100 @@ const activeHandle = (
   return isLive(offset) ? offset : null;
 };
 
+type Loop = {
+  points: readonly LocalPoint[];
+  handles: readonly PathPointHandles[];
+  closed: boolean;
+};
+
+/**
+ * The outline that is drawn: every straight corner with a `radius` is cut
+ * into an arc (two points and a cubic between them). Anchors keep their place
+ * in the editable geometry; only what is rendered, hit and combined is
+ * rounded. The radius is limited so neighbouring bevels cannot overlap.
+ */
+export const bevelLoop = (loop: Loop): Loop => {
+  const { points, handles, closed } = loop;
+  if (!handles.some((h) => (h?.radius ?? 0) > 0)) {
+    return loop;
+  }
+  const n = points.length;
+  const outPoints: LocalPoint[] = [];
+  const outHandles: PathPointHandles[] = [];
+  const straightAt = (i: number, side: "in" | "out") =>
+    !activeHandle(handles[i], side);
+  for (let i = 0; i < n; i++) {
+    const r = handles[i]?.radius ?? 0;
+    const hasPrev = closed || i > 0;
+    const hasNext = closed || i < n - 1;
+    const prevI = (i - 1 + n) % n;
+    const nextI = (i + 1) % n;
+    const p = points[i];
+    let bevel = null as null | { a: LocalPoint; b: LocalPoint; c: number };
+    if (
+      r > 0 &&
+      hasPrev &&
+      hasNext &&
+      n >= 3 &&
+      straightAt(i, "in") &&
+      straightAt(i, "out") &&
+      straightAt(prevI, "out") &&
+      straightAt(nextI, "in")
+    ) {
+      const toPrev = sub(points[prevI], p);
+      const toNext = sub(points[nextI], p);
+      const lp = len(toPrev);
+      const ln = len(toNext);
+      if (lp > 1e-6 && ln > 1e-6) {
+        const cos = Math.max(
+          -1,
+          Math.min(
+            1,
+            (toPrev[0] * toNext[0] + toPrev[1] * toNext[1]) / (lp * ln),
+          ),
+        );
+        const alpha = Math.acos(cos);
+        const sweep = Math.PI - alpha;
+        // a straight run has nothing to round
+        if (sweep > 1e-3 && alpha > 1e-3) {
+          const d = Math.min(r / Math.tan(alpha / 2), Math.min(lp, ln) / 2);
+          const c = ((4 / 3) * Math.tan(sweep / 4)) / Math.tan(sweep / 2);
+          bevel = {
+            a: add(p, [(toPrev[0] / lp) * d, (toPrev[1] / lp) * d]),
+            b: add(p, [(toNext[0] / ln) * d, (toNext[1] / ln) * d]),
+            c,
+          };
+        }
+      }
+    }
+    if (!bevel) {
+      outPoints.push(p);
+      outHandles.push(handles[i]);
+      continue;
+    }
+    outPoints.push(bevel.a, bevel.b);
+    outHandles.push(
+      {
+        mode: "broken",
+        in: null,
+        out: pointFrom<LocalPoint>(
+          (p[0] - bevel.a[0]) * bevel.c,
+          (p[1] - bevel.a[1]) * bevel.c,
+        ),
+      },
+      {
+        mode: "broken",
+        in: pointFrom<LocalPoint>(
+          (p[0] - bevel.b[0]) * bevel.c,
+          (p[1] - bevel.b[1]) * bevel.c,
+        ),
+        out: null,
+      },
+    );
+  }
+  return { points: outPoints, handles: outHandles, closed };
+};
+
 export const getPathSegments = (
   element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed">,
 ): PathSegment[] => {
@@ -133,7 +228,7 @@ export const getPathSvgD = (
 ): string => {
   const f = (n: number) => +n.toFixed(3);
   const parts: string[] = [];
-  for (const contour of allContours(element as Contoured)) {
+  for (const contour of allContours(element as Contoured).map(bevelLoop)) {
     if (contour.points.length < 2) {
       continue;
     }
@@ -161,7 +256,8 @@ export const flattenPath = (
   steps = FLATTEN_STEPS,
 ): LocalPoint[] => {
   const out: LocalPoint[] = [];
-  const segments = getPathSegments(element);
+  const drawn = bevelLoop(element);
+  const segments = getPathSegments(drawn);
   if (!segments.length) {
     return [...element.points];
   }
@@ -221,7 +317,9 @@ export const deconstructPath = (
     );
   const lines: LineSegment<GlobalPoint>[] = [];
   const curves: Curve<GlobalPoint>[] = [];
-  for (const s of allContours(element).flatMap((c) => getPathSegments(c))) {
+  for (const s of allContours(element).flatMap((c) =>
+    getPathSegments(bevelLoop(c)),
+  )) {
     if (s.straight) {
       lines.push(lineSegment(toGlobal(s.p0), toGlobal(s.p1)));
     } else {
@@ -577,9 +675,12 @@ export const scalePathGeometry = (
   }) => ({
     points: c.points.map((p) => pointFrom<LocalPoint>(p[0] * sx, p[1] * sy)),
     handles: c.handles.map((h) => ({
-      mode: h.mode,
+      ...h,
       in: h.in ? pointFrom<LocalPoint>(h.in[0] * sx, h.in[1] * sy) : null,
       out: h.out ? pointFrom<LocalPoint>(h.out[0] * sx, h.out[1] * sy) : null,
+      ...(h.radius
+        ? { radius: h.radius * Math.min(Math.abs(sx), Math.abs(sy)) }
+        : {}),
     })),
   });
   const main = scale(element);
@@ -787,7 +888,7 @@ export const reversePathGeometry = (g: PathGeometry): PathGeometry => ({
   points: [...g.points].reverse(),
   handles: [...g.handles]
     .reverse()
-    .map((h) => ({ mode: h.mode, in: h.out, out: h.in })),
+    .map((h) => ({ ...h, in: h.out, out: h.in })),
 });
 
 /**
@@ -858,14 +959,15 @@ export const getPathSceneGeometry = (
       return pointFrom<LocalPoint>(r[0], r[1]);
     }),
     handles: c.handles.map((h) => ({
-      mode: h.mode,
+      ...h,
       in: turn(h.in),
       out: turn(h.out),
     })),
   });
+  const [main, ...rest] = allContours(element).map(bevelLoop);
   return {
-    ...toScene(element),
-    ...(element.contours ? { contours: element.contours.map(toScene) } : {}),
+    ...toScene(main),
+    ...(rest.length ? { contours: rest.map(toScene) } : {}),
   };
 };
 
@@ -910,7 +1012,7 @@ export const shearPathGeometry = (
       return pointFrom<LocalPoint>(x + cx, y + cy);
     }),
     handles: c.handles.map((h) => ({
-      mode: h.mode,
+      ...h,
       in: turn(h.in),
       out: turn(h.out),
     })),
@@ -980,3 +1082,34 @@ export const getClosestPathLoopSegment = (
   }
   return best;
 };
+
+/**
+ * Bevels corners: sets the radius of the given anchors of an outline (every
+ * anchor when `indices` is omitted); 0 takes the bevel away.
+ */
+export const setPathBevel = (
+  loop: {
+    points: readonly LocalPoint[];
+    handles: readonly PathPointHandles[];
+  },
+  radius: number,
+  indices?: readonly number[],
+): PathGeometry => {
+  const only = indices ? new Set(indices) : null;
+  return {
+    points: loop.points,
+    handles: loop.handles.map((h, i) => {
+      if (only && !only.has(i)) {
+        return h;
+      }
+      const { radius: _drop, ...rest } = h;
+      return radius > 0 ? { ...rest, radius } : rest;
+    }),
+  };
+};
+
+/** a straight line (polyline or polygon) can become a path as it is */
+export const isLineConvertibleToPath = (
+  element: ExcalidrawElement,
+): element is ExcalidrawLineElement =>
+  element.type === "line" && element.points.length >= 2;
