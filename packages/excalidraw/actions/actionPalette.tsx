@@ -51,7 +51,7 @@ export const actionChangeStrokeWidthValue = register<number>({
   },
 });
 
-/** Illustrator: Ctrl+T transforms; here it opens the inspector on the W field */
+/** Ctrl+T transforms; here it opens the inspector on the W field */
 export const actionOpenTransform = register({
   name: "openTransform",
   label: "labels.palette.transform",

@@ -33,7 +33,7 @@ const getOperands = (
 
 /**
  * Subtract and divide keep what the bottom shape looks like; the others take
- * the look of the top one (Illustrator's rule).
+ * the look of the top one (the usual rule).
  */
 const styleSourceOf = (
   op: PathfinderOp,

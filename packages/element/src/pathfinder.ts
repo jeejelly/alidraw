@@ -266,7 +266,7 @@ const divide = (items: paper.PathItem[]): paper.PathItem[] => {
 
 /**
  * Boolean operation on closed outlines, given bottom to top. Subtract takes
- * the top shapes out of the bottom one (Illustrator's "Minus Front").
+ * the top shapes out of the bottom one ("Minus Front").
  * @returns the loops of the result, each closed, in scene coordinates
  */
 export const runPathfinder = async (

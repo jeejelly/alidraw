@@ -149,7 +149,7 @@ export const actionToggleElementLock = register({
       ((event.key.toLocaleLowerCase() === KEYS.L &&
         event[KEYS.CTRL_OR_CMD] &&
         event.shiftKey) ||
-        // Illustrator: Ctrl+2 locks the selection
+        // Ctrl+2 locks the selection
         (event.code === "Digit2" &&
           event[KEYS.CTRL_OR_CMD] &&
           !event.shiftKey &&

@@ -3,7 +3,7 @@
 
 [sw-_file-status]: # '@status(value=done, at=2026-10-02)'
 
-Illustrator model: a layer is a folder that owns objects, not a z-index. Membership is `customData.layerId` on the element; the ordered layer list (bottom to top) is `appState.layers`, saved with the file.
+Layer model: a layer is a folder that owns objects, not a z-index. Membership is `customData.layerId` on the element; the ordered layer list (bottom to top) is `appState.layers`, saved with the file.
 
 ## Requirement: Layers own objects and order them
 Every layer SHALL be a contiguous block of the stack (all objects of a layer above all objects of the layers below); new objects SHALL go to the active layer; creating the first layer SHALL put what is already drawn in "Layer 1".

@@ -125,7 +125,7 @@ describe("palette import", () => {
     expect(parseGpl("not a palette")).toEqual([]);
   });
 
-  it("reads Adobe swatch exchange files", () => {
+  it("reads ASE swatch files", () => {
     const colors = parseAse(
       ase([
         { name: "Orange", model: "RGB ", values: [1, 0.5, 0] },

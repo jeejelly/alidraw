@@ -112,7 +112,7 @@ export const TOOLS = defineTools({
   },
   freedraw: {
     icon: FreedrawIcon,
-    // Illustrator: P is the pen (path tool), so drawing freehand is X
+    // P is the pen (path tool), so drawing freehand is X
     letterKey: KEYS.X,
     numericKey: KEYS["7"],
   },

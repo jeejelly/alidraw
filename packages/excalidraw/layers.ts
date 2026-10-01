@@ -3,7 +3,7 @@ import { randomId } from "@excalidraw/common";
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 /**
- * A layer is a named container that owns objects (Illustrator's model): it
+ * A layer is a named container that owns objects (the usual design-tool model): it
  * orders them as a block in the z stack, hides/locks them together and styles
  * them together. Membership lives on the element (`customData.layerId`), the
  * ordered list of layers (bottom to top) in the app state.

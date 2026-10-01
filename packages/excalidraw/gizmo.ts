@@ -6,7 +6,7 @@
  *   skew zones:   just outside each edge    — drag along the edge to shear
  *
  * Resizing keeps the usual handles; these zones sit outside them, and the
- * modifiers (Shift: 15° steps, Alt: from the centre) work as in Illustrator.
+ * modifiers (Shift: 15° steps, Alt: from the centre) work as in other design tools.
  */
 export type GizmoCorner = "nw" | "ne" | "se" | "sw";
 export type GizmoEdge = "n" | "e" | "s" | "w";

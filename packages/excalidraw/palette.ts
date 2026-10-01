@@ -1,6 +1,6 @@
 /**
  * The user's colour swatches: app-wide, kept in localStorage, with import from
- * GIMP (.gpl) and Adobe Swatch Exchange (.ase) palettes.
+ * GIMP (.gpl) and ASE (.ase) swatch palettes.
  */
 export type Swatch = Readonly<{ id: string; name: string; color: string }>;
 
@@ -249,7 +249,7 @@ export const parseGpl = (text: string): ImportedColor[] => {
   return colors;
 };
 
-/** Adobe Swatch Exchange: RGB, Gray and CMYK colour entries (Lab is skipped) */
+/** ASE swatch files: RGB, Gray and CMYK colour entries (Lab is skipped) */
 export const parseAse = (buffer: ArrayBuffer): ImportedColor[] => {
   const view = new DataView(buffer);
   if (buffer.byteLength < 12 || view.getUint32(0) !== 0x41534546) {

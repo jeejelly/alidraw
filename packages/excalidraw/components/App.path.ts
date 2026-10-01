@@ -789,14 +789,14 @@ export class AppPath {
       if (
         (event.key === KEYS.DELETE ||
           event.key === KEYS.BACKSPACE ||
-          // Illustrator's delete-anchor-point key
+          // the delete-anchor-point key
           event.key === "-") &&
         this.app.state.editingPath.selectedPoint != null
       ) {
         this.deleteSelectedPoint();
         return true;
       }
-      // Illustrator's Anchor Point tool (Shift+C): corner <-> smooth
+      // the anchor-point switch (Shift+C): corner <-> smooth
       if (
         event.shiftKey &&
         event.key.toLowerCase() === "c" &&

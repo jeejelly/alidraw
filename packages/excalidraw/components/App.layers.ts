@@ -213,7 +213,7 @@ export class AppLayers {
     this.commit();
   };
 
-  /** selects every object of the layer (Illustrator's selection square) */
+  /** selects every object of the layer (the layer's selection square) */
   select = (id: string, additive = false) => {
     const layer = this.layers.find((l) => l.id === id);
     if (!layer || !layer.visible) {

@@ -3,7 +3,7 @@
 
 [sw-_file-status]: # '@status(value=done, at=2026-10-01)'
 
-Illustrator/Figma style panel: grouped sections, slider + value pill for opacity and stroke width, Illustrator keys (Ctrl+T transform). Opens by default so captures show our palette.
+Design-tool style panel: grouped sections, slider + value pill for opacity and stroke width, standard design-tool keys (Ctrl+T transform). Opens by default so captures show our palette.
 
 ## Requirement: One consistent inspector
 Controls SHALL be grouped (Design, Layers) and numeric properties SHALL use a slider plus an editable value pill.

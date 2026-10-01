@@ -148,7 +148,7 @@ export const actionJoinPaths = register({
   category: DEFAULT_CATEGORIES.elements,
   keywords: ["path", "merge", "connect"],
   trackEvent: { category: "element" },
-  // Illustrator: Ctrl+J joins
+  // Ctrl+J joins
   keyTest: (event) =>
     event[KEYS.CTRL_OR_CMD] &&
     !event.shiftKey &&

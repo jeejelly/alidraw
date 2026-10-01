@@ -102,7 +102,7 @@ const getAligners = () =>
     ],
   ] as const;
 
-/** Illustrator's Align panel: six alignments and two distributions */
+/** The Align panel: six alignments and two distributions */
 export const AlignSection = ({ app }: { app: App }) => {
   const count = app.scene.getSelectedElements(app.state).length;
   return (

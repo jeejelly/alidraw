@@ -232,7 +232,7 @@ describe("path editing", () => {
     expect([path.x, path.y]).toEqual([100, 100]);
   });
 
-  it("Illustrator keys: Shift+C flips corner/smooth, - deletes the anchor", async () => {
+  it("Design-tool keys: Shift+C flips corner/smooth, - deletes the anchor", async () => {
     const { canvas } = await setup();
     API.executeAction(actionEditPath);
     click(canvas, 200, 100);
