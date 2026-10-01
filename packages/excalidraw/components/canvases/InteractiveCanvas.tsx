@@ -268,6 +268,7 @@ const getRelevantAppStateProps = (
   isCropping: appState.isCropping,
   croppingElementId: appState.croppingElementId,
   editingPath: appState.editingPath,
+  cornerMode: appState.cornerMode,
   searchMatches: appState.searchMatches,
   activeLockedId: appState.activeLockedId,
   hoveredElementIds: appState.hoveredElementIds,

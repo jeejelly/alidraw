@@ -428,6 +428,7 @@ import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
 import { AppAnchors } from "./App.anchors";
 import { AppLayers } from "./App.layers";
+import { AppCorners } from "./App.corners";
 import { AppKnife } from "./App.knife";
 import { AngleHelper } from "./AngleHelper";
 import { Rulers } from "./Rulers";
@@ -754,6 +755,7 @@ class App extends React.Component<AppProps, AppState> {
   gizmo = new AppGizmo(this);
   anchors = new AppAnchors(this);
   layers = new AppLayers(this);
+  corners = new AppCorners(this);
   knife = new AppKnife(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
@@ -3963,6 +3965,7 @@ class App extends React.Component<AppProps, AppState> {
     this.path.reset();
     this.guides.destroy();
     this.gizmo.destroy();
+    this.corners.destroy();
     this.anchors.destroy();
     this.knife.destroy();
     this.toolDrag.cancel();
@@ -5182,6 +5185,9 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (!isInputLike(event.target)) {
+        if (this.corners.handleKeyDown(event)) {
+          return;
+        }
         if (this.path.handleKeyDown(event)) {
           event.preventDefault();
           return;
@@ -7789,6 +7795,11 @@ class App extends React.Component<AppProps, AppState> {
 
     // the knife draws its cut line
     if (this.knife.handlePointerDown(event)) {
+      return;
+    }
+
+    // the circle gizmos on the corners of the selected shape
+    if (this.corners.handlePointerDown(event)) {
       return;
     }
 

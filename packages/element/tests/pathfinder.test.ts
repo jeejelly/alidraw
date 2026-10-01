@@ -196,3 +196,39 @@ describe("knife cuts", () => {
     );
   });
 });
+
+describe("rounded shapes", () => {
+  it("a rounded rectangle cut by a card leaves two boxes that keep their rounded outer corners", async () => {
+    const rounded = newElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 200,
+      roundness: { type: 3 },
+    } as any);
+    const card = newElement({
+      type: "rectangle",
+      x: 100,
+      y: -50,
+      width: 200,
+      height: 300,
+    } as any);
+    const bottom = getOutline(rounded)!;
+    const top = getOutline(card)!;
+    // the rounding is part of the outline
+    expect(bottom.points.length).toBeGreaterThan(4);
+    const pieces = await runPathfinder("subtract", [bottom, top]);
+    expect(pieces).toHaveLength(2);
+    const b = pieces.map((p) => bounds(p)).sort((x, y) => x[0] - y[0]);
+    expect(b[0].map((v) => Math.round(v) + 0)).toEqual([0, 0, 100, 200]);
+    expect(b[1].map(Math.round)).toEqual([300, 0, 400, 200]);
+    // each piece: two straight cut corners, two rounded outer ones
+    for (const piece of pieces) {
+      const curved = piece.handles.filter((h) => h.in || h.out).length;
+      expect(curved).toBeGreaterThanOrEqual(2);
+    }
+    // and no area beyond a sharp-cornered box
+    expect(area(pieces)).toBeLessThan(2 * 100 * 200);
+  });
+});

@@ -161,3 +161,23 @@ describe("tools in the inspector", () => {
     expect(h.state.toast?.message).toContain("3 nodes, 2 links");
   });
 });
+
+describe("bucket colour", () => {
+  it("shows the colour it pours on the tool, and lets you change it", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({
+      paletteOpen: true,
+      currentItemBackgroundColor: "#ff0000",
+    });
+    expect(
+      (screen.getByTestId("bucket-chip") as HTMLElement).style.background,
+    ).toContain("rgb(255, 0, 0)");
+    expect(screen.queryByTestId("bucket-pour")).toBeNull();
+    fireEvent.click(screen.getByTestId("tool-bucketfill"));
+    expect(screen.getByTestId("bucket-pour").textContent).toContain("#ff0000");
+    fireEvent.change(screen.getByTestId("bucket-color"), {
+      target: { value: "#00ff00" },
+    });
+    expect(h.state.currentItemBackgroundColor).toBe("#00ff00");
+  });
+});

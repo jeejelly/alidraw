@@ -1,6 +1,11 @@
 import { useState, useSyncExternalStore } from "react";
 
-import { getCommonBounds, isPathfinderOperand } from "@excalidraw/element";
+import {
+  getCommonBounds,
+  getCornerRadius,
+  isPathfinderOperand,
+} from "@excalidraw/element";
+import { ROUNDNESS } from "@excalidraw/common";
 
 import {
   getAnchor,
@@ -63,8 +68,8 @@ import {
 } from "../../palette";
 import { isToolButtonDisabled } from "../Tools";
 
-import { PathfinderIcon } from "./PathfinderIcons";
-import { NumberPill, Section } from "./primitives";
+import { PathActionIcon, PathfinderIcon } from "./PathfinderIcons";
+import { NumberPill, Section, SliderRow } from "./primitives";
 
 import type App from "./../App";
 
@@ -537,7 +542,7 @@ export const PathSection = ({ app }: { app: App }) => {
   ][] = [
     [
       "path-edit",
-      "✎",
+      <PathActionIcon kind="edit" />,
       t("labels.path.edit"),
       canEdit,
       !!app.state.editingPath,
@@ -545,7 +550,7 @@ export const PathSection = ({ app }: { app: App }) => {
     ],
     [
       "path-convert",
-      "⟲",
+      <PathActionIcon kind="convert" />,
       t("labels.path.convertToPath"),
       !!canConvert,
       false,
@@ -553,7 +558,7 @@ export const PathSection = ({ app }: { app: App }) => {
     ],
     [
       "path-join",
-      "⊕",
+      <PathActionIcon kind="join" />,
       t("labels.path.join"),
       selected.length === 2 && selected.every((el) => el.type === "path"),
       false,
@@ -617,6 +622,31 @@ export const CornersSection = ({ app }: { app: App }) => {
     app.actionManager.executeAction(actionConvertShapeToPath, "ui");
     app.path.setBevelOf(id, index, radius);
   };
+
+  // rectangles and diamonds: one radius for every corner, parametric
+  const radiusTargets = selected.filter(
+    (el) => el.type === "rectangle" || el.type === "diamond",
+  );
+  const radiusOf = (el: typeof radiusTargets[number]) =>
+    Math.round(getCornerRadius(Math.min(el.width, el.height), el));
+  const radii = new Set(radiusTargets.map(radiusOf));
+  const sharedRadius = radii.size === 1 ? [...radii][0] : null;
+  const maxRadius = Math.max(
+    4,
+    Math.round(
+      Math.min(...radiusTargets.map((el) => Math.min(el.width, el.height))) / 2,
+    ),
+  );
+  const setRadius = (value: number) => {
+    for (const el of radiusTargets) {
+      app.scene.mutateElement(el, {
+        roundness:
+          value > 0 ? { type: ROUNDNESS.ADAPTIVE_RADIUS, value } : null,
+      });
+    }
+    app.store.scheduleCapture();
+    app.setState({});
+  };
   const roundness = rounded.length
     ? rounded.every((el) => el.roundness)
       ? "round"
@@ -651,22 +681,39 @@ export const CornersSection = ({ app }: { app: App }) => {
           ))}
         </div>
       )}
+      {(radiusTargets.length > 0 || single?.type === "path") && (
+        <div className="inspector__row" style={{ gap: 2 }}>
+          <button
+            type="button"
+            className="inspector__iconbtn"
+            style={{ width: "2rem", height: "2rem" }}
+            data-testid="corner-mode"
+            title={t("labels.corners.toggle")}
+            aria-pressed={app.state.cornerMode}
+            onClick={() => app.corners.toggle()}
+          >
+            <PathActionIcon kind="corner" />
+          </button>
+          {app.state.cornerMode && (
+            <span className="inspector__hint" style={{ padding: 0 }}>
+              {t("labels.corners.hint")}
+            </span>
+          )}
+        </div>
+      )}
+      {radiusTargets.length > 0 && (
+        <SliderRow
+          label={t("labels.path.bevelAll")}
+          testId="corner-radius"
+          value={sharedRadius}
+          min={0}
+          max={maxRadius}
+          unit="px"
+          onChange={setRadius}
+        />
+      )}
       {cornerShape && (
         <>
-          <div className="inspector__row">
-            <span className="inspector__label">
-              {t("labels.path.bevelAll")}
-            </span>
-            <NumberPill
-              label={t("labels.path.bevelAll")}
-              testId="corner-all"
-              value={0}
-              min={0}
-              max={1000}
-              unit="px"
-              onCommit={(v) => bevelCorner(null, v)}
-            />
-          </div>
           <div className="inspector__grid">
             {cornerLabels.map((label, i) => (
               <div className="inspector__row" key={label}>
@@ -709,20 +756,15 @@ export const CornersSection = ({ app }: { app: App }) => {
       )}
       {(paths.length > 0 || editing) && (
         <>
-          <div className="inspector__row">
-            <span className="inspector__label">
-              {t("labels.path.bevelAll")}
-            </span>
-            <NumberPill
-              label={t("labels.path.bevelAll")}
-              testId="path-bevel-all"
-              value={app.path.getBevel("all")}
-              min={0}
-              max={1000}
-              unit="px"
-              onCommit={(v) => app.path.setBevel(v, "all")}
-            />
-          </div>
+          <SliderRow
+            label={t("labels.path.bevelAll")}
+            testId="path-bevel-all"
+            value={app.path.getBevel("all")}
+            min={0}
+            max={200}
+            unit="px"
+            onChange={(v) => app.path.setBevel(v, "all")}
+          />
           {editing?.selectedPoint != null && (
             <div className="inspector__row">
               <span className="inspector__label">
@@ -850,6 +892,10 @@ export const ToolsSection = ({ app }: { app: App }) => {
   const [customizing, setCustomizing] = useState(false);
   const active = app.state.activeTool.type;
   const hidden = new Set(palette.hiddenTools);
+  // the colour the bucket pours: the fill colour, shown on the tool itself
+  const pour = app.bucketFill.getBucketFillBackgroundColor(
+    app.state.currentItemBackgroundColor,
+  );
   const entries = getToolEntries().filter(
     (e) => customizing || !hidden.has(e.id),
   );
@@ -886,7 +932,35 @@ export const ToolsSection = ({ app }: { app: App }) => {
                 customizing ? setToolHidden(e.id, !off) : e.run(app)
               }
             >
-              {e.icon}
+              {e.id === "bucketfill" ? (
+                <span
+                  style={{
+                    position: "relative",
+                    display: "inline-flex",
+                    width: "1.25rem",
+                    height: "1.25rem",
+                  }}
+                >
+                  {e.icon}
+                  <span
+                    data-testid="bucket-chip"
+                    title={pour}
+                    style={{
+                      position: "absolute",
+                      right: -3,
+                      bottom: -3,
+                      width: 10,
+                      height: 10,
+                      borderRadius: 2,
+                      border: "1.5px solid var(--color-surface-lowest, #fff)",
+                      boxShadow: "0 0 0 1px rgba(0,0,0,0.45)",
+                      background: pour,
+                    }}
+                  />
+                </span>
+              ) : (
+                e.icon
+              )}
             </button>
           );
         })}
@@ -902,6 +976,23 @@ export const ToolsSection = ({ app }: { app: App }) => {
           ⚙
         </button>
       </div>
+      {active === "bucketfill" && !customizing && (
+        <div className="inspector__row" data-testid="bucket-pour">
+          <span className="inspector__label">{t("labels.tools.pours")}</span>
+          <input
+            type="color"
+            data-testid="bucket-color"
+            value={/^#[0-9a-f]{6}$/i.test(pour) ? pour : "#000000"}
+            onChange={(e) =>
+              app.setState({ currentItemBackgroundColor: e.target.value })
+            }
+            style={{ width: "2rem", height: "1.5rem", padding: 0, border: 0 }}
+          />
+          <span className="inspector__hint" style={{ padding: 0 }}>
+            {pour}
+          </span>
+        </div>
+      )}
     </Section>
   );
 };

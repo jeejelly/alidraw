@@ -1,6 +1,6 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
+import { ROUNDNESS, reseed } from "@excalidraw/common";
 import { CaptureUpdateAction } from "@excalidraw/element";
 
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
@@ -331,5 +331,45 @@ describe("compound shapes", () => {
       null,
     ) as any[];
     expect(bad.contours).toBeUndefined();
+  });
+});
+
+describe("pathfinder with rounded shapes", () => {
+  it("subtracting a card from a rounded box leaves two rounded boxes", async () => {
+    await render(<Excalidraw />);
+    const base = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 200,
+      backgroundColor: "#99ffbb",
+    });
+    const rounded = {
+      ...base,
+      roundness: { type: ROUNDNESS.ADAPTIVE_RADIUS, value: 24 },
+    } as typeof base;
+    const card = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: -50,
+      width: 200,
+      height: 300,
+      backgroundColor: "#00ff44",
+    });
+    API.setElements([rounded, card]);
+    API.setSelectedElements([rounded, card]);
+    await run(actionPathfinderSubtract);
+    const out = live();
+    expect(out).toHaveLength(2);
+    for (const piece of out) {
+      expect(piece.backgroundColor).toBe("#99ffbb");
+      // two rounded outer corners, two straight cut corners
+      expect(
+        piece.handles.filter((hd) => hd.in || hd.out).length,
+      ).toBeGreaterThanOrEqual(2);
+    }
+    const xs = out.map((p) => Math.round(p.x)).sort((a, b) => a - b);
+    expect(xs).toEqual([0, 300]);
   });
 });

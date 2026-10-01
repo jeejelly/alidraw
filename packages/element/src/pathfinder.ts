@@ -1,5 +1,6 @@
 import { pointFrom, type LocalPoint } from "@excalidraw/math";
 
+import { getCornerRadius } from "./utils";
 import { getPathGeometryFromShape, getPathSceneGeometry } from "./path";
 
 import type { PathGeometry } from "./path";
@@ -49,7 +50,19 @@ export const getOutline = (element: ExcalidrawElement): Outline | null => {
     element.type === "diamond" ||
     element.type === "ellipse"
   ) {
-    const geometry = getPathGeometryFromShape(element);
+    const base = getPathGeometryFromShape(element);
+    // a rounded rectangle or diamond takes its rounding along as a bevel, so
+    // the pieces of a cut keep their rounded corners
+    const radius =
+      element.type === "ellipse"
+        ? 0
+        : getCornerRadius(Math.min(element.width, element.height), element);
+    const geometry = radius
+      ? {
+          ...base,
+          handles: base.handles.map((h) => ({ ...h, radius })),
+        }
+      : base;
     const asPath = {
       ...element,
       type: "path",

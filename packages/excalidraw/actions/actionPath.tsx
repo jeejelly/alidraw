@@ -1,5 +1,6 @@
 import {
   CaptureUpdateAction,
+  getCornerRadius,
   getPathGeometryFromShape,
   getPathSceneGeometry,
   getPathUpdate,
@@ -76,7 +77,16 @@ export const actionConvertShapeToPath = register({
         if (!isConvertibleToPath(element)) {
           return element;
         }
-        const { points, handles } = getPathGeometryFromShape(element);
+        const geometry = getPathGeometryFromShape(element);
+        // a rounded rectangle or diamond keeps its rounding as bevels
+        const radius =
+          element.type === "ellipse"
+            ? 0
+            : getCornerRadius(Math.min(element.width, element.height), element);
+        const points = geometry.points;
+        const handles = radius
+          ? geometry.handles.map((h) => ({ ...h, radius }))
+          : geometry.handles;
         // a new object of another type under the same id
         return newElementWith(
           {

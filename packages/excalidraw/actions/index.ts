@@ -128,3 +128,4 @@ export { actionToggleSearchMenu } from "./actionToggleSearchMenu";
 export { actionToggleCropEditor } from "./actionCropEditor";
 
 export { actionCopyAsMermaid } from "./actionMermaid";
+export { actionToggleCornerMode } from "./actionCorners";

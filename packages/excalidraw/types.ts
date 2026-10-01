@@ -260,6 +260,7 @@ export type InteractiveCanvasAppState = Readonly<
     isCropping: AppState["isCropping"];
     croppingElementId: AppState["croppingElementId"];
     editingPath: AppState["editingPath"];
+    cornerMode: AppState["cornerMode"];
     // Search matches
     searchMatches: AppState["searchMatches"];
     activeLockedId: AppState["activeLockedId"];
@@ -538,6 +539,8 @@ export interface AppState {
   gridModeEnabled: boolean;
   /** named layers, bottom to top; see layers.ts */
   layers: readonly Layer[];
+  /** live corners: the circle gizmos on the selected shape's corners */
+  cornerMode: boolean;
   /** where new objects go */
   activeLayerId: string | null;
   /** edge rulers (px) along the top and left of the canvas */

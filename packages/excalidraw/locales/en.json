@@ -202,6 +202,10 @@
       "select": "Select the flow",
       "empty": "A flow tells what happens when you click here or there: screens, buttons and the links between them. Start from Mermaid text, or select shapes and add them."
     },
+    "corners": {
+      "toggle": "Live corners (Shift+B)",
+      "hint": "Drag a circle to round that corner; Shift for all"
+    },
     "mermaid": {
       "copy": "Copy as Mermaid",
       "from": "From Mermaid…",
@@ -209,7 +213,8 @@
     },
     "tools": {
       "title": "Tools",
-      "customize": "Choose which tools show here"
+      "customize": "Choose which tools show here",
+      "pours": "Pours"
     },
     "layerPanel": {
       "new": "New layer",

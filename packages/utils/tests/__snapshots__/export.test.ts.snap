@@ -26,6 +26,7 @@ exports[`exportToSvg > with default arguments 1`] = `
     "stickyNoteStroke": null,
   },
   "contextMenu": null,
+  "cornerMode": false,
   "croppingElementId": null,
   "currentHoveredFontFamily": null,
   "currentItemArrowType": "round",

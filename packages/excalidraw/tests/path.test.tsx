@@ -617,7 +617,7 @@ describe("path tools in the inspector", () => {
     API.setElements([path]);
     API.setSelectedElements([path as any]);
 
-    const all = screen.getByTestId("path-bevel-all");
+    const all = screen.getByTestId("path-bevel-all-value");
     fireEvent.change(all, { target: { value: "12" } });
     fireEvent.blur(all);
     expect(getPath().handles.every((hd) => hd.radius === 12)).toBe(true);
@@ -704,5 +704,33 @@ describe("per-corner rounding", () => {
       getPath().width,
       getPath().height,
     ]).toEqual([100, 100, 200, 100]);
+  });
+});
+
+describe("corner radius slider", () => {
+  it("sets a parametric radius on rectangles, and 0 makes them sharp again", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({ paletteOpen: true });
+    const r = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 100,
+    });
+    API.setElements([r]);
+    API.setSelectedElements([r]);
+    const pill = screen.getByTestId("corner-radius-value");
+    fireEvent.change(pill, { target: { value: "24" } });
+    fireEvent.blur(pill);
+    expect(h.elements[0].roundness).toMatchObject({ value: 24 });
+    fireEvent.change(screen.getByTestId("corner-radius-slider"), {
+      target: { value: "10" },
+    });
+    expect(h.elements[0].roundness).toMatchObject({ value: 10 });
+    fireEvent.change(screen.getByTestId("corner-radius-slider"), {
+      target: { value: "0" },
+    });
+    expect(h.elements[0].roundness).toBeNull();
   });
 });

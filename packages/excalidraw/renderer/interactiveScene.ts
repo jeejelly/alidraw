@@ -102,6 +102,7 @@ import {
   sameZone,
   type GizmoZone,
 } from "../gizmo";
+import { canEditCorners, getCornerHandles } from "../corners";
 
 import { renderSnaps } from "../renderer/renderSnaps";
 import { roundRect } from "../renderer/roundRect";
@@ -1427,6 +1428,68 @@ const renderFocusPointIndicator = ({
 };
 
 /** rotate arcs at the corners, skew grips on the edges, the hovered zone, a readout */
+/** the circle gizmos of live corners: the rounding circle and its grab point */
+const renderCornerGizmos = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  element: ExcalidrawElement,
+  elementsMap: RenderableElementsMap,
+) => {
+  if (
+    !appState.cornerMode ||
+    appState.editingPath ||
+    !canEditCorners(element)
+  ) {
+    return;
+  }
+  const zoom = appState.zoom.value;
+  const accent = getThemedColor("#6965db", appState.theme);
+  const white = getThemedColor("#ffffff", appState.theme);
+  context.save();
+  context.translate(appState.scrollX, appState.scrollY);
+  context.lineWidth = 1.5 / zoom;
+  for (const h of getCornerHandles(element, elementsMap)) {
+    // the grab point sits on the circle's centre; at radius 0 just inside
+    const grab =
+      h.radius > 0
+        ? h.center
+        : {
+            x: h.corner.x + h.dir.x * (14 / zoom),
+            y: h.corner.y + h.dir.y * (14 / zoom),
+          };
+    if (h.radius > 0) {
+      context.strokeStyle = accent;
+      context.globalAlpha = 0.55;
+      context.beginPath();
+      context.arc(h.center.x, h.center.y, h.radius, 0, Math.PI * 2);
+      context.stroke();
+      context.globalAlpha = 1;
+    }
+    context.strokeStyle = accent;
+    context.setLineDash([3 / zoom, 3 / zoom]);
+    context.beginPath();
+    context.moveTo(h.corner.x, h.corner.y);
+    context.lineTo(grab.x, grab.y);
+    context.stroke();
+    context.setLineDash([]);
+    context.fillStyle = white;
+    context.beginPath();
+    context.arc(grab.x, grab.y, 6 / zoom, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    if (h.radius > 0) {
+      context.fillStyle = accent;
+      context.font = `${11 / zoom}px sans-serif`;
+      context.fillText(
+        `${Math.round(h.radius)}`,
+        grab.x + 9 / zoom,
+        grab.y - 6 / zoom,
+      );
+    }
+  }
+  context.restore();
+};
+
 const renderGizmo = (
   context: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -2469,6 +2532,7 @@ const _renderInteractiveScene = ({
       }
 
       renderGizmo(context, appState, selectedElements[0], elementsMap);
+      renderCornerGizmos(context, appState, selectedElements[0], elementsMap);
       renderAnchorLink(context, appState, selectedElements[0], elementsMap);
 
       if (appState.croppingElementId && !appState.isCropping) {
