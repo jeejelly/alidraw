@@ -11,12 +11,11 @@
 #   ./package.sh desktop-package  build and create a .deb in excalidraw-desktop/dist
 #
 # Run it as your own user, not with sudo: it asks for sudo itself where needed.
-# It installs what it needs: Node >= 20 (a private copy under .node/ when the
-# system one is older, nothing is changed system-wide) and the yarn packages.
+# It installs what it needs: the latest Node (a private copy under .node/,
+# nothing is changed system-wide) and the yarn packages.
 #
 # Env: EXCALIDRAW_PORT (3100), EXCALIDRAW_DIR (~/.local/share/excalidraw-local),
-#      EXCALIDRAW_YES=1 (answer yes to the questions, e.g. fetching Node),
-#      FORCE_LOCAL_NODE=1 (use the private Node even if the system one is fine)
+#      EXCALIDRAW_YES=1 (answer yes to the questions, e.g. fetching Node)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,7 +32,6 @@ VSCODE_DIR="${EXCALIDRAW_VSCODE_DIR:-$REPO-vscode}"
 VSCODE_VSIX="$VSCODE_DIR/excalidraw-editor-local.vsix"
 
 NODE_MIN=20
-NODE_SERIES=22
 NODE_HOME="$REPO/.node"
 
 say() { printf '== %s\n' "$*"; }
@@ -50,42 +48,47 @@ confirm() {
 
 node_major() { node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
 
-# Node >= $NODE_MIN is needed by some dependencies (marked, vite plugins). When
-# the system Node is older or missing, fetch the official build into .node/ and
-# put it first on PATH: the system stays untouched.
+# Always the latest Node (nodejs.org/dist/latest): some dependencies need >= 20
+# and newer is better. It goes to .node/ and first on PATH; the system Node is
+# never touched. Offline, or if you decline, the system Node is used when it is
+# >= $NODE_MIN.
 ensure_node() {
-  if [[ -z "${FORCE_LOCAL_NODE:-}" ]] && command -v node >/dev/null && (( $(node_major) >= NODE_MIN )); then
-    return
-  fi
-  confirm "Node >= $NODE_MIN is required (system: $(node -v 2>/dev/null || echo none)). Download a private Node $NODE_SERIES into $NODE_HOME (system untouched)?" ||
-    die "Node >= $NODE_MIN is required: install it (https://nodejs.org), or re-run with EXCALIDRAW_YES=1 to let this script fetch a private copy"
-  local arch
+  local base="https://nodejs.org/dist/latest" arch sums tarball
   case "$(uname -m)" in
     x86_64) arch=x64 ;;
     aarch64 | arm64) arch=arm64 ;;
     armv7l) arch=armv7l ;;
-    *) die "no prebuilt Node for $(uname -m): install Node >= $NODE_MIN" ;;
+    *) arch="" ;;
   esac
-  command -v curl >/dev/null || die "curl not found (needed to fetch Node $NODE_SERIES)"
-  local base="https://nodejs.org/dist/latest-v$NODE_SERIES.x"
-  local tarball
-  tarball="$(curl -fsSL "$base/SHASUMS256.txt" | awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' | head -n1)"
-  [[ -n "$tarball" ]] || die "could not find a Node $NODE_SERIES build for linux-$arch at $base"
-  local dir="$NODE_HOME/${tarball%.tar.xz}"
-  if [[ ! -x "$dir/bin/node" ]]; then
-    say "node $NODE_SERIES ($tarball) -> $NODE_HOME (system node is $(node -v 2>/dev/null || echo missing), need >= $NODE_MIN)"
-    mkdir -p "$NODE_HOME"
-    local tmp
-    tmp="$(mktemp -d)"
-    curl -fsSL "$base/$tarball" -o "$tmp/$tarball"
-    local want
-    want="$(curl -fsSL "$base/SHASUMS256.txt" | awk -v f="$tarball" '$2 == f {print $1}')"
-    [[ "$(sha256sum "$tmp/$tarball" | awk '{print $1}')" == "$want" ]] || die "checksum mismatch for $tarball"
-    tar -xJf "$tmp/$tarball" -C "$NODE_HOME"
-    rm -rf "$tmp"
+  local system_ok=""
+  command -v node >/dev/null && (( $(node_major) >= NODE_MIN )) && system_ok=1
+  if [[ -n "$arch" ]] && command -v curl >/dev/null &&
+    sums="$(curl -fsSL --max-time 20 "$base/SHASUMS256.txt" 2>/dev/null)" &&
+    tarball="$(awk -v a="linux-$arch.tar.xz" '$2 ~ a"$" {print $2}' <<<"$sums" | head -n1)" &&
+    [[ -n "$tarball" ]]; then
+    local dir="$NODE_HOME/${tarball%.tar.xz}"
+    if [[ ! -x "$dir/bin/node" ]]; then
+      if confirm "Latest Node is ${tarball#node-}; system has $(node -v 2>/dev/null || echo none). Download it into $NODE_HOME (system untouched)?"; then
+        say "node ${tarball%.tar.xz} -> $NODE_HOME"
+        mkdir -p "$NODE_HOME"
+        local tmp
+        tmp="$(mktemp -d)"
+        curl -fsSL "$base/$tarball" -o "$tmp/$tarball"
+        [[ "$(sha256sum "$tmp/$tarball" | awk '{print $1}')" == "$(awk -v f="$tarball" '$2 == f {print $1}' <<<"$sums")" ]] ||
+          die "checksum mismatch for $tarball"
+        tar -xJf "$tmp/$tarball" -C "$NODE_HOME"
+        rm -rf "$tmp"
+      fi
+    fi
+    if [[ -x "$dir/bin/node" ]]; then
+      export PATH="$dir/bin:$PATH"
+      say "using node $(node -v)"
+      return
+    fi
   fi
-  export PATH="$dir/bin:$PATH"
-  say "using node $(node -v)"
+  [[ -n "$system_ok" ]] ||
+    die "Node >= $NODE_MIN is required (system: $(node -v 2>/dev/null || echo none)): install it from https://nodejs.org, or re-run with EXCALIDRAW_YES=1 to let this script fetch the latest into .node/"
+  say "using system node $(node -v)"
 }
 
 build() {
