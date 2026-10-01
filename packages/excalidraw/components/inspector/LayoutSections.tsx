@@ -21,6 +21,8 @@ import {
   actionFitToGrid,
   actionToggleGridMode,
   PATHFINDER_ACTIONS,
+  actionMakeCompoundShape,
+  actionReleaseCompoundShape,
 } from "../../actions";
 import { t } from "../../i18n";
 
@@ -376,6 +378,34 @@ export const PathfinderSection = ({ app }: { app: App }) => {
             {PATHFINDER_GLYPH[op]}
           </button>
         ))}
+        <button
+          type="button"
+          className="inspector__iconbtn"
+          style={{ width: "2rem", fontSize: "1rem" }}
+          data-testid="pathfinder-compound"
+          title={`${t("labels.pathfinder.compound")} (Ctrl+8)`}
+          disabled={!ready}
+          onClick={() =>
+            app.actionManager.executeAction(actionMakeCompoundShape, "ui")
+          }
+        >
+          ◍
+        </button>
+        <button
+          type="button"
+          className="inspector__iconbtn"
+          style={{ width: "2rem", fontSize: "1rem" }}
+          data-testid="pathfinder-release"
+          title={`${t("labels.pathfinder.release")} (Ctrl+Alt+8)`}
+          disabled={
+            !selected.some((el) => el.type === "path" && el.contours?.length)
+          }
+          onClick={() =>
+            app.actionManager.executeAction(actionReleaseCompoundShape, "ui")
+          }
+        >
+          ◌
+        </button>
       </div>
     </Section>
   );

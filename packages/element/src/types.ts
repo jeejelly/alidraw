@@ -458,6 +458,12 @@ export type PathPointHandles = Readonly<{
   out: LocalPoint | null;
 }>;
 
+/** one more closed outline of a shape, in the element's local frame */
+export type PathContour = Readonly<{
+  points: readonly LocalPoint[];
+  handles: readonly PathPointHandles[];
+}>;
+
 export type ExcalidrawPathElement = _ExcalidrawElementBase &
   Readonly<{
     type: "path";
@@ -466,6 +472,11 @@ export type ExcalidrawPathElement = _ExcalidrawElementBase &
     /** same length as `points` */
     handles: readonly PathPointHandles[];
     closed: boolean;
+    /**
+     * Further closed outlines: with them the path is a shape, a combination of
+     * paths (a hole is an outline inside another). Absent for a plain path.
+     */
+    contours?: readonly PathContour[];
   }>;
 
 export type FileId = string & { _brand: "FileId" };

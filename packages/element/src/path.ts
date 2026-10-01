@@ -13,6 +13,7 @@ import type {
   ExcalidrawPathElement,
   PathPointHandles,
   PathPointMode,
+  PathContour,
 } from "./types";
 
 type Pt = readonly [number, number];
@@ -31,7 +32,26 @@ export type PathSegment = {
 export type PathGeometry = {
   points: readonly LocalPoint[];
   handles: readonly PathPointHandles[];
+  /** a shape's further outlines (see `ExcalidrawPathElement.contours`) */
+  contours?: readonly PathContour[];
 };
+
+type Contoured = Pick<
+  ExcalidrawPathElement,
+  "points" | "handles" | "closed" | "contours"
+>;
+
+/** the main outline and every further one, each with its own closed flag */
+export const allContours = (
+  element: Contoured,
+): {
+  points: readonly LocalPoint[];
+  handles: readonly PathPointHandles[];
+  closed: boolean;
+}[] => [
+  { points: element.points, handles: element.handles, closed: element.closed },
+  ...(element.contours ?? []).map((c) => ({ ...c, closed: true })),
+];
 
 /** distance of a fresh handle, as a fraction of the segment it leans on */
 const DEFAULT_HANDLE_RATIO = 1 / 3;
@@ -108,26 +128,31 @@ const bezierAt = (s: PathSegment, t: number): LocalPoint => {
 
 /** the path as an SVG `d` string, in element-local coordinates */
 export const getPathSvgD = (
-  element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed">,
+  element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed"> &
+    Partial<Pick<ExcalidrawPathElement, "contours">>,
 ): string => {
-  if (element.points.length < 2) {
-    return "";
-  }
   const f = (n: number) => +n.toFixed(3);
-  const d = [`M ${f(element.points[0][0])} ${f(element.points[0][1])}`];
-  for (const s of getPathSegments(element)) {
-    d.push(
-      s.straight
-        ? `L ${f(s.p1[0])} ${f(s.p1[1])}`
-        : `C ${f(s.c1[0])} ${f(s.c1[1])} ${f(s.c2[0])} ${f(s.c2[1])} ${f(
-            s.p1[0],
-          )} ${f(s.p1[1])}`,
-    );
+  const parts: string[] = [];
+  for (const contour of allContours(element as Contoured)) {
+    if (contour.points.length < 2) {
+      continue;
+    }
+    const d = [`M ${f(contour.points[0][0])} ${f(contour.points[0][1])}`];
+    for (const s of getPathSegments(contour)) {
+      d.push(
+        s.straight
+          ? `L ${f(s.p1[0])} ${f(s.p1[1])}`
+          : `C ${f(s.c1[0])} ${f(s.c1[1])} ${f(s.c2[0])} ${f(s.c2[1])} ${f(
+              s.p1[0],
+            )} ${f(s.p1[1])}`,
+      );
+    }
+    if (contour.closed) {
+      d.push("Z");
+    }
+    parts.push(d.join(" "));
   }
-  if (element.closed) {
-    d.push("Z");
-  }
-  return d.join(" ");
+  return parts.join(" ");
 };
 
 /** polyline approximating the path, in element-local coordinates */
@@ -153,15 +178,24 @@ export const flattenPath = (
   return out;
 };
 
-/** local bounds of the drawn curve (anchors and the curve between them) */
+/** every outline as a polyline, element-local */
+export const flattenPathContours = (
+  element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed"> &
+    Partial<Pick<ExcalidrawPathElement, "contours">>,
+  steps = FLATTEN_STEPS,
+): LocalPoint[][] =>
+  allContours(element as Contoured).map((c) => flattenPath(c, steps));
+
+/** local bounds of the drawn curve (every outline of a shape) */
 export const getPathLocalBounds = (
-  element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed">,
+  element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed"> &
+    Partial<Pick<ExcalidrawPathElement, "contours">>,
 ): [number, number, number, number] => {
-  const pts = flattenPath(element);
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
+  const pts = flattenPathContours(element).flat();
   for (const [x, y] of pts.length ? pts : [[0, 0]]) {
     minX = Math.min(minX, x);
     minY = Math.min(minY, y);
@@ -187,7 +221,7 @@ export const deconstructPath = (
     );
   const lines: LineSegment<GlobalPoint>[] = [];
   const curves: Curve<GlobalPoint>[] = [];
-  for (const s of getPathSegments(element)) {
+  for (const s of allContours(element).flatMap((c) => getPathSegments(c))) {
     if (s.straight) {
       lines.push(lineSegment(toGlobal(s.p0), toGlobal(s.p1)));
     } else {
@@ -215,9 +249,12 @@ export const getPathUpdate = (
   element: ExcalidrawPathElement,
   next: PathGeometry,
 ) => {
+  // geometry that does not mention contours leaves a shape's contours alone
+  const contours = next.contours ?? element.contours;
   const [oMinX, oMinY, oMaxX, oMaxY] = getPathLocalBounds(element);
   const [minX, minY, maxX, maxY] = getPathLocalBounds({
     ...next,
+    contours,
     closed: element.closed,
   });
   const oldCenter = pointFrom<GlobalPoint>(
@@ -233,13 +270,21 @@ export const getPathUpdate = (
     oldCenter,
     element.angle as Radians,
   );
+  const shift = (pt: LocalPoint) =>
+    pointFrom<LocalPoint>(pt[0] - minX, pt[1] - minY);
   // the local frame starts at the top-left of the curve (minX/minY become
   // the new x/y), which is what the generic resize and flip code assume
   return {
-    points: next.points.map((pt) =>
-      pointFrom<LocalPoint>(pt[0] - minX, pt[1] - minY),
-    ),
+    points: next.points.map(shift),
     handles: next.handles,
+    ...(contours
+      ? {
+          contours: contours.map((c) => ({
+            points: c.points.map(shift),
+            handles: c.handles,
+          })),
+        }
+      : {}),
     x: element.x + (shifted[0] - newCenter[0]) + minX,
     y: element.y + (shifted[1] - newCenter[1]) + minY,
     width: maxX - minX,
@@ -521,26 +566,42 @@ export const getClosestPathSegment = (
  * puts the top-left of the curve back on the local origin.
  */
 export const scalePathGeometry = (
-  element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed">,
+  element: Pick<ExcalidrawPathElement, "points" | "handles" | "closed"> &
+    Partial<Pick<ExcalidrawPathElement, "contours">>,
   sx: number,
   sy: number,
 ): PathGeometry => {
-  const points = element.points.map((p) =>
-    pointFrom<LocalPoint>(p[0] * sx, p[1] * sy),
-  );
-  const handles = element.handles.map((h) => ({
-    mode: h.mode,
-    in: h.in ? pointFrom<LocalPoint>(h.in[0] * sx, h.in[1] * sy) : null,
-    out: h.out ? pointFrom<LocalPoint>(h.out[0] * sx, h.out[1] * sy) : null,
-  }));
+  const scale = (c: {
+    points: readonly LocalPoint[];
+    handles: readonly PathPointHandles[];
+  }) => ({
+    points: c.points.map((p) => pointFrom<LocalPoint>(p[0] * sx, p[1] * sy)),
+    handles: c.handles.map((h) => ({
+      mode: h.mode,
+      in: h.in ? pointFrom<LocalPoint>(h.in[0] * sx, h.in[1] * sy) : null,
+      out: h.out ? pointFrom<LocalPoint>(h.out[0] * sx, h.out[1] * sy) : null,
+    })),
+  });
+  const main = scale(element);
+  const contours = element.contours?.map(scale);
   const [minX, minY] = getPathLocalBounds({
-    points,
-    handles,
+    ...main,
+    contours,
     closed: element.closed,
   });
+  const shift = (p: LocalPoint) =>
+    pointFrom<LocalPoint>(p[0] - minX, p[1] - minY);
   return {
-    points: points.map((p) => pointFrom<LocalPoint>(p[0] - minX, p[1] - minY)),
-    handles,
+    points: main.points.map(shift),
+    handles: main.handles,
+    ...(contours
+      ? {
+          contours: contours.map((c) => ({
+            points: c.points.map(shift),
+            handles: c.handles,
+          })),
+        }
+      : {}),
   };
 };
 
@@ -783,8 +844,11 @@ export const getPathSceneGeometry = (
     const r = rot(pointFrom<LocalPoint>(h[0], h[1]));
     return pointFrom<LocalPoint>(r[0] - center[0], r[1] - center[1]);
   };
-  return {
-    points: element.points.map((p) => {
+  const toScene = (c: {
+    points: readonly LocalPoint[];
+    handles: readonly PathPointHandles[];
+  }) => ({
+    points: c.points.map((p) => {
       const r = rot(
         pointFrom<LocalPoint>(
           element.x + p[0] - center[0],
@@ -793,11 +857,15 @@ export const getPathSceneGeometry = (
       );
       return pointFrom<LocalPoint>(r[0], r[1]);
     }),
-    handles: element.handles.map((h) => ({
+    handles: c.handles.map((h) => ({
       mode: h.mode,
       in: turn(h.in),
       out: turn(h.out),
     })),
+  });
+  return {
+    ...toScene(element),
+    ...(element.contours ? { contours: element.contours.map(toScene) } : {}),
   };
 };
 
@@ -815,7 +883,8 @@ export const shearPathGeometry = (
   element: Pick<
     ExcalidrawPathElement,
     "points" | "handles" | "width" | "height"
-  >,
+  > &
+    Partial<Pick<ExcalidrawPathElement, "contours">>,
   axis: "x" | "y",
   k: number,
   /** the line (in centre-relative local coordinates) that does not move */
@@ -825,20 +894,29 @@ export const shearPathGeometry = (
   const cy = element.height / 2;
   const move = (qx: number, qy: number): [number, number] =>
     axis === "x" ? [qx + k * (qy - pivot), qy] : [qx, qy + k * (qx - pivot)];
-  return {
-    points: element.points.map((p) => {
+  const turn = (v: LocalPoint | null) =>
+    v
+      ? pointFrom<LocalPoint>(
+          axis === "x" ? v[0] + k * v[1] : v[0],
+          axis === "y" ? v[1] + k * v[0] : v[1],
+        )
+      : null;
+  const shear = (c: {
+    points: readonly LocalPoint[];
+    handles: readonly PathPointHandles[];
+  }) => ({
+    points: c.points.map((p) => {
       const [x, y] = move(p[0] - cx, p[1] - cy);
       return pointFrom<LocalPoint>(x + cx, y + cy);
     }),
-    handles: element.handles.map((h) => {
-      const turn = (v: LocalPoint | null) =>
-        v
-          ? pointFrom<LocalPoint>(
-              axis === "x" ? v[0] + k * v[1] : v[0],
-              axis === "y" ? v[1] + k * v[0] : v[1],
-            )
-          : null;
-      return { mode: h.mode, in: turn(h.in), out: turn(h.out) };
-    }),
+    handles: c.handles.map((h) => ({
+      mode: h.mode,
+      in: turn(h.in),
+      out: turn(h.out),
+    })),
+  });
+  return {
+    ...shear(element),
+    ...(element.contours ? { contours: element.contours.map(shear) } : {}),
   };
 };

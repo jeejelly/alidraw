@@ -65,6 +65,7 @@ export const actionFitToGrid = register({
             height: fitted[3] - fitted[1],
             points: geometry.points,
             handles: geometry.handles,
+            ...(geometry.contours ? { contours: geometry.contours } : {}),
           });
         } else {
           scene.mutateElement(el, {

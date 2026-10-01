@@ -635,27 +635,41 @@ export const restoreElement = (
         Array.isArray(p) && isFiniteNumber(p[0]) && isFiniteNumber(p[1])
           ? pointFrom<LocalPoint>(p[0], p[1])
           : null;
-      const pathPoints: LocalPoint[] = [];
-      const pathHandles: PathPointHandles[] = [];
-      (Array.isArray(path.points) ? path.points : []).forEach((p, i) => {
-        const point = toPoint(p);
-        if (!point) {
-          return;
-        }
-        const h = path.handles?.[i] as Partial<PathPointHandles> | undefined;
-        pathPoints.push(point);
-        pathHandles.push({
-          mode:
-            h?.mode === "smooth" || h?.mode === "broken" ? h.mode : "corner",
-          in: toPoint(h?.in),
-          out: toPoint(h?.out),
+      const restoreLoop = (loop: {
+        points?: unknown;
+        handles?: readonly unknown[];
+      }) => {
+        const points: LocalPoint[] = [];
+        const handles: PathPointHandles[] = [];
+        (Array.isArray(loop.points) ? loop.points : []).forEach((p, i) => {
+          const point = toPoint(p);
+          if (!point) {
+            return;
+          }
+          const h = loop.handles?.[i] as Partial<PathPointHandles> | undefined;
+          points.push(point);
+          handles.push({
+            mode:
+              h?.mode === "smooth" || h?.mode === "broken" ? h.mode : "corner",
+            in: toPoint(h?.in),
+            out: toPoint(h?.out),
+          });
         });
-      });
-      return restoreElementWithProperties(element, {
-        points: pathPoints,
-        handles: pathHandles,
+        return { points, handles };
+      };
+      const main = restoreLoop(path);
+      const contours = (Array.isArray(path.contours) ? path.contours : [])
+        .map(restoreLoop)
+        .filter((c) => c.points.length >= 3);
+      const restored = restoreElementWithProperties(element, {
+        ...main,
         closed: !!path.closed,
+        contours: contours.length ? contours : undefined,
       });
+      if (!contours.length) {
+        delete (restored as { contours?: unknown }).contours;
+      }
+      return restored;
     }
     case "image":
       return restoreElementWithProperties(element, {

@@ -615,6 +615,7 @@ export const newPathElement = (
   opts: {
     points?: ExcalidrawPathElement["points"];
     handles?: ExcalidrawPathElement["handles"];
+    contours?: ExcalidrawPathElement["contours"];
     closed?: boolean;
   } & ElementConstructorOpts,
 ): NonDeleted<ExcalidrawPathElement> => {
@@ -624,6 +625,7 @@ export const newPathElement = (
     points,
     handles: opts.handles ?? points.map(() => NO_HANDLES),
     closed: opts.closed ?? false,
+    ...(opts.contours?.length ? { contours: opts.contours } : {}),
   };
 };
 

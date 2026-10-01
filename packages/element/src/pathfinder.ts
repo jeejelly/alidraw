@@ -80,10 +80,16 @@ const loadPaper = () =>
 
 type Ctx = { paper: Paper; scope: paper.PaperScope };
 
-const toPaper = ({ scope: s }: Ctx, outline: Outline): paper.Path => {
+const loopToPaper = (
+  { scope: s }: Ctx,
+  loop: {
+    points: readonly LocalPoint[];
+    handles: readonly PathPointHandles[];
+  },
+): paper.Path => {
   const path = new s.Path({ insert: false });
-  outline.points.forEach((p, i) => {
-    const h = outline.handles[i];
+  loop.points.forEach((p, i) => {
+    const h = loop.handles[i];
     path.add(
       new s.Segment(
         new s.Point(p[0], p[1]),
@@ -94,6 +100,18 @@ const toPaper = ({ scope: s }: Ctx, outline: Outline): paper.Path => {
   });
   path.closed = true;
   return path;
+};
+
+/** a shape: one outline, or a compound path when it has more (holes) */
+const toPaper = (ctx: Ctx, outline: Outline): paper.PathItem => {
+  const main = loopToPaper(ctx, outline);
+  if (!outline.contours?.length) {
+    return main;
+  }
+  return new ctx.scope.CompoundPath({
+    insert: false,
+    children: [main, ...outline.contours.map((c) => loopToPaper(ctx, c))],
+  });
 };
 
 const isEmpty = (item: paper.PathItem | null) =>
@@ -146,6 +164,46 @@ const fromPaper = (path: paper.Path): Outline => {
     });
   }
   return { points, handles };
+};
+
+/**
+ * The shapes of a boolean result: each outer outline with the outlines
+ * inside it (holes) as its contours. Outlines nest: inside a hole there can be
+ * an island, which is a shape of its own.
+ */
+const shapesOf = (ctx: Ctx, item: paper.PathItem): Outline[] => {
+  const loops = loopsOf(ctx, item).sort(
+    (a, b) => Math.abs(b.area) - Math.abs(a.area),
+  );
+  const parent = loops.map((loop, i) => {
+    let best = -1;
+    for (let k = 0; k < i; k++) {
+      if (loops[k].contains(loop.interiorPoint)) {
+        best = k; // the later container in this order is the smaller one
+      }
+    }
+    return best;
+  });
+  const depth = (i: number): number =>
+    parent[i] < 0 ? 0 : 1 + depth(parent[i]);
+  const shapes = new Map<number, Outline>();
+  loops.forEach((loop, i) => {
+    if (depth(i) % 2 === 0) {
+      shapes.set(i, fromPaper(loop));
+    }
+  });
+  loops.forEach((loop, i) => {
+    if (depth(i) % 2 === 1) {
+      const outer = shapes.get(parent[i]);
+      if (outer) {
+        shapes.set(parent[i], {
+          ...outer,
+          contours: [...(outer.contours ?? []), fromPaper(loop)],
+        });
+      }
+    }
+  });
+  return [...shapes.values()];
 };
 
 const combine = (
@@ -208,7 +266,7 @@ export const runPathfinder = async (
   const ctx = await loadPaper();
   const items = outlines.map((o) => toPaper(ctx, o));
   const result = op === "divide" ? divide(items) : [combine(op, items)];
-  return result.flatMap((r) => loopsOf(ctx, r)).map(fromPaper);
+  return result.flatMap((r) => shapesOf(ctx, r));
 };
 
 /** 1 for counter-clockwise loops, -1 for clockwise (holes wind opposite) */
@@ -290,7 +348,7 @@ export const cutOutlines = async (
     };
     const left = path.intersect(half(1));
     const right = path.intersect(half(-1));
-    const pieces = [...loopsOf(ctx, left), ...loopsOf(ctx, right)];
-    return pieces.length >= 2 ? pieces.map(fromPaper) : null;
+    const pieces = [...shapesOf(ctx, left), ...shapesOf(ctx, right)];
+    return pieces.length >= 2 ? pieces : null;
   });
 };

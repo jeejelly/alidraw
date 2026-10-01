@@ -6,10 +6,12 @@ import { CaptureUpdateAction } from "@excalidraw/element";
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
 
 import {
+  actionMakeCompoundShape,
   actionPathfinderDivide,
   actionPathfinderIntersect,
   actionPathfinderSubtract,
   actionPathfinderUnite,
+  actionReleaseCompoundShape,
 } from "../actions";
 import { Excalidraw } from "../index";
 
@@ -226,5 +228,108 @@ describe("pathfinder in the editor", () => {
     ).toEqual(["ellipse", "rectangle"]);
     Keyboard.redo();
     expect(live().map((e) => e.type)).toEqual(["path"]);
+  });
+});
+
+describe("compound shapes", () => {
+  const donut = async () => {
+    await render(<Excalidraw />);
+    const outer = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+      backgroundColor: "#ff0000",
+    });
+    const inner = API.createElement({
+      type: "ellipse",
+      x: 60,
+      y: 60,
+      width: 80,
+      height: 80,
+    });
+    API.setElements([outer, inner]);
+    API.setSelectedElements([outer, inner]);
+    return { outer, inner };
+  };
+
+  it("subtracting a shape from inside another leaves a hole, not two loops", async () => {
+    await donut();
+    await run(actionPathfinderSubtract);
+    const out = live();
+    expect(out).toHaveLength(1);
+    expect(out[0].contours).toHaveLength(1);
+    expect(box(out[0]).map(Math.round)).toEqual([0, 0, 200, 200]);
+    // the hole sits inside the frame
+    const hole = out[0].contours![0].points;
+    expect(Math.min(...hole.map((p) => p[0]))).toBeGreaterThan(40);
+    expect(Math.max(...hole.map((p) => p[0]))).toBeLessThan(160);
+  });
+
+  it("a shape with a hole takes part in the next operation whole", async () => {
+    await donut();
+    await run(actionPathfinderSubtract);
+    const ring = live()[0];
+    const plug = API.createElement({
+      type: "rectangle",
+      x: 90,
+      y: 90,
+      width: 20,
+      height: 20,
+    });
+    API.setElements([ring as any, plug]);
+    API.setSelectedElements([ring as any, plug]);
+    await run(actionPathfinderUnite);
+    const out = live();
+    // the plug sits in the hole: ring and island stay apart as one shape
+    expect(out).toHaveLength(2);
+    expect(out.filter((e) => e.contours?.length)).toHaveLength(1);
+  });
+
+  it("make and release compound shape round-trip", async () => {
+    await donut();
+    await act(async () => {
+      h.app.actionManager.executeAction(actionMakeCompoundShape);
+    });
+    let out = live();
+    expect(out).toHaveLength(1);
+    expect(out[0].contours).toHaveLength(1);
+    await act(async () => {
+      h.app.actionManager.executeAction(actionReleaseCompoundShape);
+    });
+    out = live();
+    expect(out).toHaveLength(2);
+    expect(out.every((e) => !e.contours)).toBe(true);
+  });
+
+  it("moves, scales and saves with its holes", async () => {
+    await donut();
+    await run(actionPathfinderSubtract);
+    const ring = live()[0];
+    const json = JSON.parse(
+      (await import("../data/json")).serializeAsJSON(
+        h.elements,
+        h.state,
+        {},
+        "local",
+      ),
+    );
+    const { restoreElements } = await import("../data/restore");
+    const saved = json.elements.find((e: any) => e.type === "path");
+    const [back] = restoreElements([saved], null) as any[];
+    expect(back.contours).toHaveLength(1);
+    expect(back.contours[0].points).toEqual(ring.contours![0].points);
+    // junk contours are dropped
+    const [bad] = restoreElements(
+      [
+        {
+          ...saved,
+          contours: [{ points: [[NaN, 0]], handles: [] }],
+        },
+      ],
+      null,
+    ) as any[];
+    expect(bad.contours).toBeUndefined();
   });
 });

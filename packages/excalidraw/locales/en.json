@@ -225,7 +225,9 @@
       "intersect": "Intersect",
       "subtract": "Subtract (minus front)",
       "exclude": "Exclude overlap",
-      "divide": "Divide"
+      "divide": "Divide",
+      "compound": "Make compound shape",
+      "release": "Release compound shape"
     },
     "alignPanel": {
       "title": "Align"

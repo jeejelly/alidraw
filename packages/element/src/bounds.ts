@@ -29,7 +29,7 @@ import type { Mutable } from "@excalidraw/common/utility-types";
 
 import { generateRoughOptions } from "./shape";
 import { ShapeCache } from "./shape";
-import { flattenPath, getPathLocalBounds } from "./path";
+import { flattenPathContours, getPathLocalBounds } from "./path";
 import { LinearElementEditor } from "./linearElementEditor";
 import { getBoundTextElement, getContainerElement } from "./textElement";
 import {
@@ -158,13 +158,15 @@ export class ElementBounds {
     );
     if (isPathElement(element)) {
       const [minX, minY, maxX, maxY] = getBoundsFromPoints(
-        flattenPath(element).map(([x, y]) =>
-          pointRotateRads(
-            pointFrom(x, y),
-            pointFrom(cx - element.x, cy - element.y),
-            element.angle,
+        flattenPathContours(element)
+          .flat()
+          .map(([x, y]) =>
+            pointRotateRads(
+              pointFrom(x, y),
+              pointFrom(cx - element.x, cy - element.y),
+              element.angle,
+            ),
           ),
-        ),
       );
 
       return [

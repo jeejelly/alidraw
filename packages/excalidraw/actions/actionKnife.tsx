@@ -66,6 +66,7 @@ export const actionKnifeCut = register<KnifeCut>({
             width: 0,
             height: 0,
             closed: true,
+            contours: undefined,
             ...loop,
           } as unknown as ExcalidrawPathElement;
           return newPathElement({

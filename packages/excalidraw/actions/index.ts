@@ -99,6 +99,8 @@ export {
   actionPathfinderExclude,
   actionPathfinderDivide,
   PATHFINDER_ACTIONS,
+  actionMakeCompoundShape,
+  actionReleaseCompoundShape,
 } from "./actionPathfinder";
 export {
   actionTogglePalette,
