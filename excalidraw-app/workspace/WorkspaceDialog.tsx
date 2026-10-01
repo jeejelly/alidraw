@@ -1,5 +1,5 @@
 import { Dialog } from "@excalidraw/excalidraw/components/Dialog";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
@@ -32,6 +32,104 @@ const ago = (iso: string) => {
   return `${Math.round(s / 86400)} d ago`;
 };
 
+const FOLD_KEY = "workspace-folds";
+
+const readFolds = (): Record<string, boolean> => {
+  try {
+    return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+/** a collapsible block; its content stays mounted so state and tests survive */
+const Fold = ({
+  id,
+  title,
+  badge,
+  defaultOpen = true,
+  actions,
+  children,
+}: {
+  id: string;
+  title: string;
+  badge?: string | number | null;
+  defaultOpen?: boolean;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) => {
+  const [open, setOpenState] = useState(() => readFolds()[id] ?? defaultOpen);
+  const toggle = () => {
+    const next = !open;
+    setOpenState(next);
+    try {
+      localStorage.setItem(
+        FOLD_KEY,
+        JSON.stringify({ ...readFolds(), [id]: next }),
+      );
+    } catch {}
+  };
+  return (
+    <section className="workspace__fold" data-testid={`fold-${id}`}>
+      <header>
+        <button
+          type="button"
+          className="workspace__foldhead"
+          aria-expanded={open}
+          onClick={toggle}
+        >
+          <span className="workspace__chev">{open ? "▾" : "▸"}</span>
+          <span>{title}</span>
+          {badge != null && badge !== "" && (
+            <span className="workspace__badge">{badge}</span>
+          )}
+        </button>
+        {actions && <div className="workspace__foldactions">{actions}</div>}
+      </header>
+      <div className="workspace__foldbody" hidden={!open}>
+        {children}
+      </div>
+    </section>
+  );
+};
+
+type SceneNode = {
+  name: string;
+  path: string;
+  scene?: SceneEntry;
+  children: SceneNode[];
+};
+
+/** scenes grouped by folder, like a project browser */
+const sceneTree = (scenes: SceneEntry[]): SceneNode[] => {
+  const root: SceneNode = { name: "", path: "", children: [] };
+  for (const s of scenes) {
+    const parts = s.path.split("/");
+    let node = root;
+    parts.forEach((part, i) => {
+      const path = parts.slice(0, i + 1).join("/");
+      let next = node.children.find((c) => c.path === path);
+      if (!next) {
+        next = { name: part, path, children: [] };
+        node.children.push(next);
+      }
+      if (i === parts.length - 1) {
+        next.scene = s;
+      }
+      node = next;
+    });
+  }
+  const sort = (n: SceneNode) => {
+    n.children.sort(
+      (a, b) =>
+        Number(!!a.scene) - Number(!!b.scene) || a.name.localeCompare(b.name),
+    );
+    n.children.forEach(sort);
+  };
+  sort(root);
+  return root.children;
+};
+
 /** Workspaces: named project folders, kept in git, opened and saved without file dialogs. */
 export const WorkspaceDialog = ({
   api,
@@ -56,6 +154,8 @@ export const WorkspaceDialog = ({
   const [assets, setAssets] = useState<"embedded" | "linked">("embedded");
   const [remoteUrl, setRemoteUrl] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [closedDirs, setClosedDirs] = useState<Record<string, boolean>>({});
+  const tree = useMemo(() => sceneTree(scenes), [scenes]);
 
   const fileHandle = api?.getAppState().fileHandle as unknown as
     | { workspaceId?: string; path?: string }
@@ -256,6 +356,54 @@ export const WorkspaceDialog = ({
   const syncInfo = status && "sync" in status ? status.sync : null;
   const paused = !!(status && "paused" in status && status.paused);
 
+  const renderNodes = (nodes: SceneNode[], depth: number): React.ReactNode =>
+    nodes.map((n) =>
+      n.scene ? (
+        <li key={n.path}>
+          <button
+            type="button"
+            data-testid="workspace-scene"
+            className={`workspace__leaf${
+              n.path === currentPath ? " is-active" : ""
+            }`}
+            style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}
+            title={n.path}
+            onClick={() => openScene(n.scene!)}
+          >
+            <span className="workspace__icon">▧</span>
+            {n.name.replace(/\.excalidraw$/, "")}
+          </button>
+        </li>
+      ) : (
+        <li key={n.path}>
+          <button
+            type="button"
+            className="workspace__leaf"
+            style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}
+            aria-expanded={!closedDirs[n.path]}
+            onClick={() =>
+              setClosedDirs((c) => ({ ...c, [n.path]: !c[n.path] }))
+            }
+          >
+            <span className="workspace__chev">
+              {closedDirs[n.path] ? "▸" : "▾"}
+            </span>
+            {n.name}
+          </button>
+          {!closedDirs[n.path] && <ul>{renderNodes(n.children, depth + 1)}</ul>}
+        </li>
+      ),
+    );
+
+  const sceneList = (
+    <ul className="workspace__scenes">
+      {renderNodes(tree, 1)}
+      {scenes.length === 0 && (
+        <li className="workspace__hint">No scenes yet.</li>
+      )}
+    </ul>
+  );
+
   return (
     <Dialog
       onCloseRequest={() => setOpen(false)}
@@ -283,313 +431,170 @@ export const WorkspaceDialog = ({
           </button>
         </div>
       )}
-      <label className="workspace__setting workspace__pause">
-        <input
-          type="checkbox"
-          data-testid="workspace-pause"
-          checked={paused}
-          onChange={(e) =>
-            guard(() => bridge.setPaused(e.target.checked)).then(refresh)
-          }
-        />
-        Pause all network use (pushing, pulling, fetching)
-      </label>
       {error && (
         <div className="workspace__error" role="alert">
           {error}
         </div>
       )}
 
-      <div className="workspace__cols">
-        <section>
-          <h4>Workspaces</h4>
-          {list.length === 0 && (
-            <p className="workspace__hint">
-              A workspace is a folder for a project. Save a scene and choose a
-              folder, or create one here.
-            </p>
-          )}
-          <ul className="workspace__list">
-            {list.map((w) => (
-              <li key={w.id}>
+      <div className="workspace__browser">
+        <aside className="workspace__tree">
+          <Fold
+            id="workspaces"
+            title="Workspaces"
+            badge={list.length}
+            actions={
+              <>
                 <button
                   type="button"
-                  className={`workspace__item${
-                    active?.id === w.id ? " is-active" : ""
-                  }`}
-                  data-testid="workspace-item"
-                  disabled={w.exists === false}
-                  onClick={() => select(w)}
+                  className="workspace__tool"
+                  data-testid="workspace-open-folder"
+                  title="Use an existing folder as a workspace"
+                  onClick={openFolder}
                 >
-                  <strong>{w.name}</strong>
-                  <span>{w.exists === false ? "folder missing" : w.path}</span>
+                  ⌂
                 </button>
                 <button
                   type="button"
-                  className="workspace__forget"
-                  title="Remove from the list (files stay)"
-                  onClick={() =>
-                    guard(async () => {
-                      await bridge.forget(w.id);
-                      if (active?.id === w.id) {
-                        setWorkspaceActive(null);
-                      }
-                    }).then(refresh)
-                  }
+                  className="workspace__tool"
+                  data-testid="workspace-new-scene"
+                  title="New scene in this workspace"
+                  disabled={!active}
+                  onClick={newScene}
                 >
-                  ×
+                  ＋
                 </button>
-              </li>
-            ))}
-          </ul>
-          <div className="workspace__new">
-            <input
-              data-testid="workspace-name"
-              placeholder="Name of a new workspace"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.stopPropagation()}
-            />
-            <button
-              type="button"
-              data-testid="workspace-create"
-              disabled={!name.trim()}
-              onClick={create}
-            >
-              Choose folder and create
-            </button>
-          </div>
-          <button
-            type="button"
-            data-testid="workspace-open-folder"
-            onClick={openFolder}
+              </>
+            }
           >
-            Use an existing folder…
-          </button>
-        </section>
-
-        <section>
-          {active ? (
-            <>
-              <h4>{active.name}</h4>
-              <div className="workspace__git" data-testid="workspace-git">
-                {!status || !("repo" in status) ? null : !status.repo ? (
-                  <span>Not under git</span>
-                ) : (
-                  <>
-                    <span>⎇ {status.branch}</span>
-                    <span>
-                      {changes.length
-                        ? `${changes.length} change${
-                            changes.length > 1 ? "s" : ""
-                          }${status.pending ? " (committing soon)" : ""}`
-                        : "all committed"}
-                    </span>
-                    {status.upstream && (
-                      <span>
-                        ↑{status.ahead} ↓{status.behind}
-                      </span>
-                    )}
-                  </>
-                )}
-                {status && "repo" in status && status.repo && (
-                  <button
-                    type="button"
-                    data-testid="workspace-commit-now"
-                    disabled={changes.length === 0}
-                    onClick={() =>
-                      guard(() => bridge.commitNow(active.id)).then(refresh)
-                    }
-                  >
-                    Commit now
-                  </button>
-                )}
-              </div>
-              <label className="workspace__setting">
-                <input
-                  type="checkbox"
-                  data-testid="workspace-autocommit"
-                  checked={settings.autoCommit !== false}
-                  onChange={(e) => save({ autoCommit: e.target.checked })}
-                />
-                Commit automatically after
-                <input
-                  type="number"
-                  min={5}
-                  max={3600}
-                  value={settings.delaySec ?? 60}
-                  disabled={settings.autoCommit === false}
-                  onChange={(e) => save({ delaySec: +e.target.value })}
-                  onKeyDown={(e) => e.stopPropagation()}
-                />
-                s without edits
-              </label>
-
-              <label className="workspace__setting">
-                New images are saved
-                <select
-                  data-testid="workspace-assets"
-                  value={assets}
-                  onChange={(e) =>
-                    guard(async () => {
-                      const v = e.target.value as "embedded" | "linked";
-                      setAssets(v);
-                      await bridge.setMeta(active.id, { assets: v });
-                    })
-                  }
-                >
-                  <option value="embedded">inside the scene file</option>
-                  <option value="linked">as linked files in assets/</option>
-                </select>
-              </label>
-
-              <h5>Sharing</h5>
-              <div className="workspace__remote">
-                <input
-                  data-testid="workspace-remote"
-                  placeholder="Remote address: https://…, ssh://…, user@host:path"
-                  value={remoteUrl}
-                  onChange={(e) => setRemoteUrl(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
-                />
-                <button
-                  type="button"
-                  data-testid="workspace-remote-save"
-                  disabled={!remoteUrl.trim()}
-                  onClick={() =>
-                    guard(async () => {
-                      await bridge.remoteSet(active.id, remoteUrl.trim());
-                      setNotice("Remote saved.");
-                    }).then(refresh)
-                  }
-                >
-                  Save
-                </button>
-              </div>
-              <label className="workspace__setting">
-                Share
-                <select
-                  data-testid="workspace-push"
-                  value={settings.push ?? "manual"}
-                  onChange={(e) => save({ push: e.target.value as any })}
-                >
-                  <option value="manual">only when I press Sync</option>
-                  <option value="afterCommit">
-                    after each automatic commit
-                  </option>
-                  <option value="interval">every few minutes</option>
-                </select>
-                {settings.push === "interval" && (
-                  <>
-                    <input
-                      type="number"
-                      min={30}
-                      value={settings.syncEverySec ?? 300}
-                      onChange={(e) => save({ syncEverySec: +e.target.value })}
-                      onKeyDown={(e) => e.stopPropagation()}
-                    />
-                    s
-                  </>
-                )}
-              </label>
-              <label className="workspace__setting">
-                <input
-                  type="checkbox"
-                  data-testid="workspace-pull-on-open"
-                  checked={settings.pullOnOpen !== false}
-                  onChange={(e) => save({ pullOnOpen: e.target.checked })}
-                />
-                Pull when I open this workspace
-              </label>
-              <div className="workspace__git">
-                <button
-                  type="button"
-                  data-testid="workspace-sync"
-                  disabled={!hasRemote}
-                  onClick={() => runSync()}
-                >
-                  Sync now
-                </button>
-                <button
-                  type="button"
-                  data-testid="workspace-pull"
-                  disabled={!hasRemote}
-                  onClick={() => runSync({ push: false })}
-                >
-                  Pull
-                </button>
-                <button
-                  type="button"
-                  data-testid="workspace-push-now"
-                  disabled={!hasRemote}
-                  onClick={() => runSync({ pull: false })}
-                >
-                  Push
-                </button>
-              </div>
-              {(notice || syncInfo?.message) && (
-                <div
-                  className="workspace__hint"
-                  data-testid="workspace-sync-message"
-                >
-                  {notice ?? syncInfo?.message}
-                </div>
-              )}
-              {syncInfo?.state === "diverged" && (
-                <div
-                  className="workspace__banner"
-                  data-testid="workspace-diverged"
-                >
-                  Both this workspace and its remote have new commits. Nothing
-                  has been pushed or overwritten.
-                  <div className="workspace__choices">
+            {list.length === 0 && (
+              <p className="workspace__hint">
+                A workspace is a folder for a project. Save a scene and choose a
+                folder, or create one below.
+              </p>
+            )}
+            <ul className="workspace__list">
+              {list.map((w) => (
+                <li key={w.id}>
+                  <div className="workspace__row">
                     <button
                       type="button"
-                      data-testid="workspace-merge"
-                      onClick={() => resolve("merge")}
+                      className={`workspace__item${
+                        active?.id === w.id ? " is-active" : ""
+                      }`}
+                      data-testid="workspace-item"
+                      disabled={w.exists === false}
+                      onClick={() => select(w)}
                     >
-                      Try to merge
+                      <span className="workspace__chev">
+                        {active?.id === w.id ? "▾" : "▸"}
+                      </span>
+                      <span className="workspace__icon">▣</span>
+                      <span className="workspace__label">
+                        <strong>{w.name}</strong>
+                        <span>
+                          {w.exists === false ? "folder missing" : w.path}
+                        </span>
+                      </span>
                     </button>
                     <button
                       type="button"
-                      data-testid="workspace-branch"
-                      onClick={() => resolve("branch")}
+                      className="workspace__forget"
+                      title="Remove from the list (files stay)"
+                      onClick={() =>
+                        guard(async () => {
+                          await bridge.forget(w.id);
+                          if (active?.id === w.id) {
+                            setWorkspaceActive(null);
+                          }
+                        }).then(refresh)
+                      }
                     >
-                      Continue on a new branch
+                      ×
                     </button>
                   </div>
-                </div>
-              )}
-
-              <h5>Scenes</h5>
+                  {active?.id === w.id && sceneList}
+                </li>
+              ))}
+            </ul>
+            {active && !list.some((w) => w.id === active.id) && sceneList}
+          </Fold>
+          <Fold id="new" title="New workspace" defaultOpen={list.length === 0}>
+            <div className="workspace__new">
+              <input
+                data-testid="workspace-name"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
               <button
                 type="button"
-                data-testid="workspace-new-scene"
-                onClick={newScene}
+                data-testid="workspace-create"
+                disabled={!name.trim()}
+                onClick={create}
               >
-                ＋ New scene
+                Choose folder…
               </button>
-              <ul className="workspace__scenes">
-                {scenes.map((s) => (
-                  <li key={s.path}>
+            </div>
+          </Fold>
+          <label className="workspace__setting workspace__pause">
+            <input
+              type="checkbox"
+              data-testid="workspace-pause"
+              checked={paused}
+              onChange={(e) =>
+                guard(() => bridge.setPaused(e.target.checked)).then(refresh)
+              }
+            />
+            Pause all network use
+          </label>
+        </aside>
+
+        <main className="workspace__detail">
+          {active ? (
+            <>
+              <header className="workspace__header">
+                <h4>{active.name}</h4>
+                <div className="workspace__git" data-testid="workspace-git">
+                  {!status || !("repo" in status) ? null : !status.repo ? (
+                    <span>Not under git</span>
+                  ) : (
+                    <>
+                      <span className="workspace__badge">
+                        ⎇ {status.branch}
+                      </span>
+                      <span>
+                        {changes.length
+                          ? `${changes.length} change${
+                              changes.length > 1 ? "s" : ""
+                            }${status.pending ? " (committing soon)" : ""}`
+                          : "all committed"}
+                      </span>
+                      {status.upstream && (
+                        <span>
+                          ↑{status.ahead} ↓{status.behind}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {status && "repo" in status && status.repo && (
                     <button
                       type="button"
-                      data-testid="workspace-scene"
-                      className={s.path === currentPath ? "is-active" : ""}
-                      onClick={() => openScene(s)}
+                      data-testid="workspace-commit-now"
+                      disabled={changes.length === 0}
+                      onClick={() =>
+                        guard(() => bridge.commitNow(active.id)).then(refresh)
+                      }
                     >
-                      {s.path}
+                      Commit now
                     </button>
-                  </li>
-                ))}
-                {scenes.length === 0 && (
-                  <li className="workspace__hint">No scenes yet.</li>
-                )}
-              </ul>
+                  )}
+                </div>
+              </header>
 
-              {currentPath && history.length > 0 && (
-                <>
-                  <h5>History of {currentPath}</h5>
+              <Fold id="history" title="History" badge={currentPath ?? ""}>
+                {currentPath && history.length > 0 ? (
                   <ul className="workspace__history">
                     {history.map((c) => (
                       <li key={c.hash}>
@@ -605,15 +610,183 @@ export const WorkspaceDialog = ({
                       </li>
                     ))}
                   </ul>
-                </>
-              )}
+                ) : (
+                  <p className="workspace__hint">
+                    Open a scene to see its versions.
+                  </p>
+                )}
+              </Fold>
+
+              <Fold
+                id="sharing"
+                title="Sharing"
+                badge={hasRemote ? "remote" : ""}
+              >
+                <div className="workspace__remote">
+                  <input
+                    data-testid="workspace-remote"
+                    placeholder="Remote address: https://…, ssh://…, user@host:path"
+                    value={remoteUrl}
+                    onChange={(e) => setRemoteUrl(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                  <button
+                    type="button"
+                    data-testid="workspace-remote-save"
+                    disabled={!remoteUrl.trim()}
+                    onClick={() =>
+                      guard(async () => {
+                        await bridge.remoteSet(active.id, remoteUrl.trim());
+                        setNotice("Remote saved.");
+                      }).then(refresh)
+                    }
+                  >
+                    Save
+                  </button>
+                </div>
+                <label className="workspace__setting">
+                  Share
+                  <select
+                    data-testid="workspace-push"
+                    value={settings.push ?? "manual"}
+                    onChange={(e) => save({ push: e.target.value as any })}
+                  >
+                    <option value="manual">only when I press Sync</option>
+                    <option value="afterCommit">
+                      after each automatic commit
+                    </option>
+                    <option value="interval">every few minutes</option>
+                  </select>
+                  {settings.push === "interval" && (
+                    <>
+                      <input
+                        type="number"
+                        min={30}
+                        value={settings.syncEverySec ?? 300}
+                        onChange={(e) =>
+                          save({ syncEverySec: +e.target.value })
+                        }
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      s
+                    </>
+                  )}
+                </label>
+                <label className="workspace__setting">
+                  <input
+                    type="checkbox"
+                    data-testid="workspace-pull-on-open"
+                    checked={settings.pullOnOpen !== false}
+                    onChange={(e) => save({ pullOnOpen: e.target.checked })}
+                  />
+                  Pull when I open this workspace
+                </label>
+                <div className="workspace__git">
+                  <button
+                    type="button"
+                    data-testid="workspace-sync"
+                    disabled={!hasRemote}
+                    onClick={() => runSync()}
+                  >
+                    Sync now
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="workspace-pull"
+                    disabled={!hasRemote}
+                    onClick={() => runSync({ push: false })}
+                  >
+                    Pull
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="workspace-push-now"
+                    disabled={!hasRemote}
+                    onClick={() => runSync({ pull: false })}
+                  >
+                    Push
+                  </button>
+                </div>
+                {(notice || syncInfo?.message) && (
+                  <div
+                    className="workspace__hint"
+                    data-testid="workspace-sync-message"
+                  >
+                    {notice ?? syncInfo?.message}
+                  </div>
+                )}
+                {syncInfo?.state === "diverged" && (
+                  <div
+                    className="workspace__banner"
+                    data-testid="workspace-diverged"
+                  >
+                    Both this workspace and its remote have new commits. Nothing
+                    has been pushed or overwritten.
+                    <div className="workspace__choices">
+                      <button
+                        type="button"
+                        data-testid="workspace-merge"
+                        onClick={() => resolve("merge")}
+                      >
+                        Try to merge
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="workspace-branch"
+                        onClick={() => resolve("branch")}
+                      >
+                        Continue on a new branch
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </Fold>
+
+              <Fold id="settings" title="Settings" defaultOpen={false}>
+                <label className="workspace__setting">
+                  <input
+                    type="checkbox"
+                    data-testid="workspace-autocommit"
+                    checked={settings.autoCommit !== false}
+                    onChange={(e) => save({ autoCommit: e.target.checked })}
+                  />
+                  Commit automatically after
+                  <input
+                    type="number"
+                    min={5}
+                    max={3600}
+                    value={settings.delaySec ?? 60}
+                    disabled={settings.autoCommit === false}
+                    onChange={(e) => save({ delaySec: +e.target.value })}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                  s without edits
+                </label>
+                <label className="workspace__setting">
+                  New images are saved
+                  <select
+                    data-testid="workspace-assets"
+                    value={assets}
+                    onChange={(e) =>
+                      guard(async () => {
+                        const v = e.target.value as "embedded" | "linked";
+                        setAssets(v);
+                        await bridge.setMeta(active.id, { assets: v });
+                      })
+                    }
+                  >
+                    <option value="embedded">inside the scene file</option>
+                    <option value="linked">as linked files in assets/</option>
+                  </select>
+                </label>
+              </Fold>
             </>
           ) : (
             <p className="workspace__hint">
-              Choose a workspace to see its scenes.
+              Choose a workspace to see its scenes and settings.
             </p>
           )}
-        </section>
+        </main>
       </div>
     </Dialog>
   );

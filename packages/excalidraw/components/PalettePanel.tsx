@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { isTextElement } from "@excalidraw/element";
+import { getBoundTextElement, isTextElement } from "@excalidraw/element";
 
 import {
   actionChangeBackgroundColor,
@@ -17,6 +17,8 @@ import {
   actionToggleElementLock,
 } from "../actions";
 import { t } from "../i18n";
+import { getTargetElements } from "../scene";
+import { getShapeActionPredicates } from "./shapeActionPredicates";
 import {
   addSwatch,
   addSwatches,
@@ -182,7 +184,15 @@ export const PalettePanel = ({ app }: { app: App }) => {
     first?.backgroundColor ?? app.state.currentItemBackgroundColor;
   const currentColor = target === "stroke" ? strokeColor : backgroundColor;
   const hex = normalizeHex(currentColor);
-  const textEl = selected.find(isTextElement) ?? null;
+  // a shape's own label counts: its type controls belong to the shape
+  const textEl =
+    selected.find(isTextElement) ??
+    selected
+      .map((el) =>
+        getBoundTextElement(el, app.scene.getNonDeletedElementsMap()),
+      )
+      .find(Boolean) ??
+    null;
   const hasSelection = selected.length > 0;
 
   const applyColor = (color: string, which: Target = target) =>
@@ -635,6 +645,13 @@ export const PalettePanel = ({ app }: { app: App }) => {
     </Section>
   );
 
+  // everything the classic panel offers that the sections above do not
+  const predicates = getShapeActionPredicates(
+    app.state,
+    getTargetElements(app.scene.getNonDeletedElementsMap(), app.state),
+    app.scene.getNonDeletedElementsMap(),
+    app,
+  );
   const typeSection = (textEl || app.state.activeTool.type === "text") && (
     <Section title={t("labels.palette.type")} testId="inspector-type">
       <div className="selected-shape-actions">
@@ -647,6 +664,10 @@ export const PalettePanel = ({ app }: { app: App }) => {
         <div style={{ flex: 1, minWidth: 0 }}>
           {actionManager.renderAction("changeLocalFont")}
         </div>
+      </div>
+      <div className="selected-shape-actions">
+        {actionManager.renderAction("changeFontSize")}
+        {predicates.textAlign && actionManager.renderAction("changeTextAlign")}
       </div>
       <div className="inspector__row">
         <span className="inspector__label">{t("labels.fontSize")}</span>
@@ -670,6 +691,38 @@ export const PalettePanel = ({ app }: { app: App }) => {
           <option value="px">px</option>
           <option value="dp">dp</option>
         </select>
+      </div>
+    </Section>
+  );
+
+  const optionsSection = (predicates.hasSelection ||
+    app.state.activeTool.type !== "selection") && (
+    <Section title={t("labels.palette.options")} testId="inspector-options">
+      <div className="selected-shape-actions">
+        {predicates.fill && actionManager.renderAction("changeFillStyle")}
+        {predicates.freedrawMode &&
+          actionManager.renderAction("changeFreedrawMode")}
+        {predicates.roundness && actionManager.renderAction("changeRoundness")}
+        {predicates.arrowType && actionManager.renderAction("changeArrowType")}
+        {predicates.arrowheads && actionManager.renderAction("changeArrowhead")}
+        {predicates.verticalAlign &&
+          actionManager.renderAction("changeVerticalAlign")}
+        {predicates.showExtraActions && (
+          <fieldset>
+            <legend>{t("labels.actions")}</legend>
+            <div className="buttonList">
+              {actionManager.renderAction("duplicateSelection")}
+              {actionManager.renderAction("deleteSelectedElements")}
+              {actionManager.renderAction("group")}
+              {actionManager.renderAction("ungroup")}
+              {predicates.link && actionManager.renderAction("hyperlink")}
+              {predicates.cropEditor &&
+                actionManager.renderAction("cropEditor")}
+              {predicates.lineEditor &&
+                actionManager.renderAction("toggleLinearEditor")}
+            </div>
+          </fieldset>
+        )}
       </div>
     </Section>
   );
@@ -917,6 +970,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
               {swatches}
               {strokeSection}
               {typeSection}
+              {optionsSection}
               <GridSection app={app} />
               <AnchorSection app={app} />
             </>

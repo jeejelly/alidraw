@@ -353,7 +353,11 @@ describe("inspector controls", () => {
 
   it("hides the old style panel while the inspector is open", async () => {
     await setup();
-    expect(document.querySelector(".selected-shape-actions")).toBeNull();
+    expect(
+      document.querySelector(
+        ".layer-ui__wrapper .selected-shape-actions, .App-menu__left .selected-shape-actions",
+      ),
+    ).toBeNull();
     act(() => {
       API.executeAction(actionTogglePalette);
     });

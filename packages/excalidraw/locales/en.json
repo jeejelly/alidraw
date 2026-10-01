@@ -178,6 +178,7 @@
       "appearance": "Appearance",
       "swatches": "Swatches",
       "type": "Type",
+      "options": "Options",
       "installed": "Installed",
       "hex": "Colour (hex)",
       "pick": "Pick a colour",

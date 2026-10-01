@@ -1444,8 +1444,8 @@ const renderCornerGizmos = (
   const zoom = appState.zoom.value;
   const accent = getThemedColor("#6965db", appState.theme);
   const white = getThemedColor("#ffffff", appState.theme);
+  // the caller has already moved the origin to the scene
   context.save();
-  context.translate(appState.scrollX, appState.scrollY);
   context.lineWidth = 1.5 / zoom;
   for (const h of getCornerHandles(element, elementsMap)) {
     // the grab point sits on the circle's centre; at radius 0 just inside
