@@ -7,6 +7,7 @@ import { appJotaiStore } from "../app-jotai";
 import { autosaveToFileAtom } from "../autosave/autosavePreference";
 
 import { getWorkspaceBridge } from "./desktopBridge";
+import { hydrateAssets } from "./linkedAssets";
 import { WorkspaceFileHandle } from "./WorkspaceFileHandle";
 import { activeWorkspaceAtom } from "./workspaceState";
 
@@ -26,7 +27,11 @@ export const openWorkspaceScene = async (
   if (!bridge) {
     throw new Error("not the desktop app");
   }
-  const text = override ?? (await bridge.read(workspace.id, path));
+  const text = await hydrateAssets(
+    bridge,
+    workspace.id,
+    override ?? (await bridge.read(workspace.id, path)),
+  );
   const handle = new WorkspaceFileHandle(bridge, workspace.id, path);
   const file = new File([text], handle.name, { type: "application/json" });
   const data = await loadFromBlob(

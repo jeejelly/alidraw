@@ -27,6 +27,8 @@ import type { DesktopWorkspaceBridge } from "../workspace/desktopBridge";
 
 const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
   const files = new Map<string, string>();
+  const assets = new Map<string, string>();
+  const meta: { assets?: "embedded" | "linked" } = {};
   const calls: string[] = [];
   const bridge: DesktopWorkspaceBridge = {
     gitInfo: async () => ({ installed: true, version: "git 2", help: "" }),
@@ -80,13 +82,34 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
     resolve: async () => ({ outcome: "branched", branch: "ws/x" }),
     setPaused: async () => ({}),
     activate: async () => {},
+    writeAsset: async (_id, mime, base64) => {
+      const path = `assets/h${
+        [...assets.values()].indexOf(base64) >= 0
+          ? [...assets.values()].indexOf(base64)
+          : assets.size
+      }.${mime.split("/")[1]}`;
+      assets.set(path, base64);
+      return { path, bytes: base64.length };
+    },
+    readAsset: async (_id, path) => {
+      const v = assets.get(path);
+      if (v === undefined) {
+        throw new Error("missing");
+      }
+      return v;
+    },
+    meta: async () => ({ ...meta }),
+    setMeta: async (_id, m) => {
+      Object.assign(meta, m);
+      return meta;
+    },
     commitNow: async () => ({ hash: null }),
     history: async () => [],
     showVersion: async () => "{}",
     onEvent: () => () => {},
     ...over,
   };
-  return { bridge, files, calls };
+  return { bridge, files, calls, assets, meta };
 };
 
 afterEach(() => {
@@ -178,6 +201,27 @@ describe("workspace dialog", () => {
     );
     act(() => appJotaiStore.set(workspaceDialogOpenAtom, true));
   };
+
+  it("sets how new images are saved", async () => {
+    const set: any[] = [];
+    const { bridge } = fakeBridge({
+      list: async () => [
+        { id: "w1", name: "W", path: "/w", exists: true, settings: {} },
+      ],
+      setMeta: async (_id, m) => {
+        set.push(m);
+        return m;
+      },
+    });
+    await open(bridge);
+    await waitFor(() => screen.getAllByTestId("workspace-item"));
+    fireEvent.click(screen.getByTestId("workspace-item"));
+    await waitFor(() => screen.getByTestId("workspace-assets"));
+    fireEvent.change(screen.getByTestId("workspace-assets"), {
+      target: { value: "linked" },
+    });
+    await waitFor(() => expect(set).toEqual([{ assets: "linked" }]));
+  });
 
   it("lists workspaces, creates one by naming it and choosing a folder", async () => {
     const { bridge, calls } = fakeBridge({
@@ -477,5 +521,135 @@ describe("sharing", () => {
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(confirm.mock.calls[0][0]).toContain("a.excalidraw");
     confirm.mockRestore();
+  });
+});
+
+describe("linked images", () => {
+  const PNG = "iVBORw0KGgo=";
+  const scene = (storage?: string) =>
+    JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      elements: [
+        {
+          id: "i1",
+          type: "image",
+          fileId: "f1",
+          isDeleted: false,
+          customData: storage ? { imageStorage: storage } : undefined,
+        },
+      ],
+      appState: {},
+      files: {
+        f1: {
+          id: "f1",
+          mimeType: "image/png",
+          dataURL: `data:image/png;base64,${PNG}`,
+          created: 1,
+        },
+      },
+    });
+
+  const save = async (bridge: DesktopWorkspaceBridge, text: string) => {
+    const h = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
+    const w = await h.createWritable();
+    await w.write(text);
+    await w.close();
+  };
+
+  it("the workspace's default decides for images that have no choice of their own", async () => {
+    const { bridge, files, assets, meta } = fakeBridge();
+    await save(bridge, scene());
+    expect(JSON.parse(files.get("a.excalidraw")!).files.f1.dataURL).toContain(
+      PNG,
+    );
+    expect(assets.size).toBe(0);
+
+    meta.assets = "linked";
+    await save(bridge, scene());
+    const f = JSON.parse(files.get("a.excalidraw")!).files.f1;
+    expect(f.dataURL).toBeUndefined();
+    expect(f.link).toMatch(/^assets\/.+\.png$/);
+    expect(assets.get(f.link)).toBe(PNG);
+    // the rest of the file is untouched
+    expect(JSON.parse(files.get("a.excalidraw")!).elements).toHaveLength(1);
+  });
+
+  it("each image can choose, whatever the default is", async () => {
+    const { bridge, files, assets, meta } = fakeBridge();
+    meta.assets = "linked";
+    await save(bridge, scene("embedded"));
+    expect(JSON.parse(files.get("a.excalidraw")!).files.f1.dataURL).toContain(
+      PNG,
+    );
+    expect(assets.size).toBe(0);
+    meta.assets = "embedded";
+    await save(bridge, scene("linked"));
+    expect(JSON.parse(files.get("a.excalidraw")!).files.f1.link).toBeTruthy();
+    // "default" is no choice
+    await save(bridge, scene("default"));
+    expect(JSON.parse(files.get("a.excalidraw")!).files.f1.dataURL).toContain(
+      PNG,
+    );
+  });
+
+  it("opens linked and embedded scenes the same way", async () => {
+    const { bridge, files, meta } = fakeBridge();
+    meta.assets = "linked";
+    await save(bridge, scene());
+    expect(JSON.parse(files.get("a.excalidraw")!).files.f1.link).toBeTruthy();
+    const h = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
+    const opened = JSON.parse(await blobText(await h.getFile()));
+    expect(opened.files.f1.dataURL).toBe(`data:image/png;base64,${PNG}`);
+    expect(opened.files.f1.link).toBeUndefined();
+  });
+
+  it("never loses an image: a failed asset write keeps it in the scene", async () => {
+    const { bridge, files, meta } = fakeBridge({
+      writeAsset: async () => {
+        throw new Error("disk full");
+      },
+    });
+    meta.assets = "linked";
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    await save(bridge, scene());
+    expect(JSON.parse(files.get("a.excalidraw")!).files.f1.dataURL).toContain(
+      PNG,
+    );
+    err.mockRestore();
+  });
+
+  it("a missing linked file leaves the scene openable", async () => {
+    const { bridge, files } = fakeBridge();
+    files.set(
+      "a.excalidraw",
+      JSON.stringify({
+        type: "excalidraw",
+        version: 2,
+        elements: [],
+        appState: {},
+        files: {
+          f1: { id: "f1", mimeType: "image/png", link: "assets/gone.png" },
+        },
+      }),
+    );
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
+    const opened = JSON.parse(await blobText(await h.getFile()));
+    expect(opened.files).toEqual({});
+    err.mockRestore();
+  });
+
+  it("the first save of a scene links too, and the dialog sets the default", async () => {
+    const { bridge, files, meta } = fakeBridge();
+    meta.assets = "linked";
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    installWorkspaceSave();
+    const handle: any = await fileSave(new Blob([scene()]), {
+      name: "Idea",
+      extension: "excalidraw",
+      description: "x",
+    });
+    expect(JSON.parse(files.get(handle.path)!).files.f1.link).toBeTruthy();
   });
 });

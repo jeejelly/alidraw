@@ -53,6 +53,7 @@ export const WorkspaceDialog = ({
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [settings, setSettings] = useState<WorkspaceEntry["settings"]>({});
+  const [assets, setAssets] = useState<"embedded" | "linked">("embedded");
   const [remoteUrl, setRemoteUrl] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -91,6 +92,11 @@ export const WorkspaceDialog = ({
           setRemoteUrl((cur) => cur || st.remote?.url || "");
         }
         setSettings(await bridge.getSettings(active.id));
+        setAssets(
+          (await bridge.meta(active.id)).assets === "linked"
+            ? "linked"
+            : "embedded",
+        );
         setHistory(
           currentPath ? await bridge.history(active.id, currentPath) : [],
         );
@@ -417,6 +423,24 @@ export const WorkspaceDialog = ({
                   onKeyDown={(e) => e.stopPropagation()}
                 />
                 s without edits
+              </label>
+
+              <label className="workspace__setting">
+                New images are saved
+                <select
+                  data-testid="workspace-assets"
+                  value={assets}
+                  onChange={(e) =>
+                    guard(async () => {
+                      const v = e.target.value as "embedded" | "linked";
+                      setAssets(v);
+                      await bridge.setMeta(active.id, { assets: v });
+                    })
+                  }
+                >
+                  <option value="embedded">inside the scene file</option>
+                  <option value="linked">as linked files in assets/</option>
+                </select>
               </label>
 
               <h5>Sharing</h5>

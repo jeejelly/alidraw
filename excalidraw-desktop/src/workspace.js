@@ -1,6 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+const crypto = require("node:crypto");
+
 const git = require("./git");
 const {
   slug,
@@ -11,6 +13,16 @@ const {
 } = require("./paths");
 
 const META = "workspace.json";
+const ASSET_EXT = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg",
+  "image/bmp": "bmp",
+  "image/avif": "avif",
+  "image/x-icon": "ico",
+};
 const SKIP = new Set(["node_modules", ".git", ".excalidraw-local"]);
 
 const emptyScene = () =>
@@ -232,6 +244,61 @@ class Workspaces {
     const rel = this.newScene(id, name, dir);
     this.writeScene(id, rel, text);
     return rel;
+  }
+
+  /** the workspace's shared settings (`workspace.json`, committed with the project) */
+  meta(id) {
+    try {
+      return JSON.parse(
+        fs.readFileSync(path.join(this.root(id), META), "utf8"),
+      );
+    } catch {
+      return { version: 1 };
+    }
+  }
+
+  setMeta(id, patch) {
+    const next = { ...this.meta(id), ...patch };
+    writeAtomic(
+      path.join(this.root(id), META),
+      `${JSON.stringify(next, null, 2)}\n`,
+    );
+    return next;
+  }
+
+  /**
+   * A binary file kept beside the scenes, named by its content: `assets/<hash>.<ext>`.
+   * The same bytes are stored once, whichever scene uses them.
+   */
+  writeAsset(id, mime, base64) {
+    const root = this.root(id);
+    if (typeof base64 !== "string" || typeof mime !== "string") {
+      throw new Error("invalid asset");
+    }
+    const bytes = Buffer.from(base64, "base64");
+    if (!bytes.length) {
+      throw new Error("empty asset");
+    }
+    const hash = crypto.createHash("sha256").update(bytes).digest("hex");
+    const rel = `assets/${hash}.${ASSET_EXT[mime.toLowerCase()] ?? "bin"}`;
+    const full = resolveInside(root, rel);
+    if (!fs.existsSync(full)) {
+      writeAtomic(full, bytes);
+    }
+    return { path: rel, bytes: bytes.length };
+  }
+
+  /** the bytes of an asset, base64; only files under `assets/` can be read */
+  readAsset(id, rel) {
+    if (
+      typeof rel !== "string" ||
+      !/^assets\/[0-9a-f]{64}\.[a-z0-9]{1,5}$/.test(rel)
+    ) {
+      throw new Error("not an asset");
+    }
+    return fs
+      .readFileSync(resolveInside(this.root(id), rel))
+      .toString("base64");
   }
 
   settings(id) {

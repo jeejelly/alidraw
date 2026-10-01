@@ -333,6 +333,21 @@ const setupWorkspaces = () => {
   handle("ws:newScene", ({ id, name, dir }) =>
     workspaces.newScene(id, name, dir),
   );
+  handle("ws:writeAsset", ({ id, mime, base64 }) => {
+    const result = workspaces.writeAsset(id, mime, base64);
+    // the file is committed with the scenes that refer to it
+    autoCommit.touch(id, workspaces.root(id), result.path);
+    return result;
+  });
+  handle("ws:readAsset", ({ id, path: rel }) => workspaces.readAsset(id, rel));
+  handle("ws:meta", ({ id }) => workspaces.meta(id));
+  handle("ws:setMeta", ({ id, meta }) => {
+    const allowed = {};
+    if (meta?.assets === "embedded" || meta?.assets === "linked") {
+      allowed.assets = meta.assets;
+    }
+    return workspaces.setMeta(id, allowed);
+  });
   handle("ws:getSettings", ({ id }) => workspaces.settings(id));
   handle("ws:setSettings", ({ id, settings }) => {
     const allowed = {};

@@ -68,6 +68,8 @@ import {
 } from "../../palette";
 import { isToolButtonDisabled } from "../Tools";
 
+import { getHostCapabilities } from "../../data/filesystem";
+
 import { PathActionIcon, PathfinderIcon } from "./PathfinderIcons";
 import { NumberPill, Section, SliderRow } from "./primitives";
 
@@ -993,6 +995,65 @@ export const ToolsSection = ({ app }: { app: App }) => {
           </span>
         </div>
       )}
+    </Section>
+  );
+};
+
+/**
+ * Where an image's bytes are kept when the scene is saved by a host that can
+ * keep them as separate files (the desktop app's workspaces): inside the scene
+ * file, or as a linked file beside it. "Default" follows the workspace.
+ */
+export const ImageStorageSection = ({ app }: { app: App }) => {
+  if (!getHostCapabilities().linkedImages) {
+    return null;
+  }
+  const images = app.scene
+    .getSelectedElements(app.state)
+    .filter((el) => el.type === "image");
+  if (!images.length) {
+    return null;
+  }
+  const valueOf = (el: typeof images[number]) =>
+    (el.customData?.imageStorage as string | undefined) ?? "default";
+  const values = new Set(images.map(valueOf));
+  const current = values.size === 1 ? [...values][0] : null;
+  const set = (value: "default" | "embedded" | "linked") => {
+    for (const el of images) {
+      app.scene.mutateElement(el, {
+        customData: { ...el.customData, imageStorage: value },
+      });
+    }
+    app.store.scheduleCapture();
+    app.setState({});
+  };
+  return (
+    <Section
+      title={t("labels.imageStorage.title")}
+      testId="inspector-image-storage"
+    >
+      <div className="inspector__row" style={{ gap: 2 }}>
+        {(
+          [
+            ["default", t("labels.imageStorage.default")],
+            ["embedded", t("labels.imageStorage.embedded")],
+            ["linked", t("labels.imageStorage.linked")],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className="inspector__text"
+            style={{ cursor: "pointer" }}
+            data-testid={`image-storage-${value}`}
+            aria-pressed={current === value}
+            title={t(`labels.imageStorage.${value}Hint` as any)}
+            onClick={() => set(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </Section>
   );
 };

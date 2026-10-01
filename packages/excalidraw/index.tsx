@@ -478,7 +478,7 @@ export { LiveCollaborationTrigger };
 export { Stats } from "./components/Stats";
 
 export { DefaultSidebar } from "./components/DefaultSidebar";
-export { setFileSaveProvider } from "./data/filesystem";
+export { setFileSaveProvider, setHostCapabilities } from "./data/filesystem";
 export { TTDDialog } from "./components/TTDDialog/TTDDialog";
 export { TTDDialogTrigger } from "./components/TTDDialog/TTDDialogTrigger";
 export {

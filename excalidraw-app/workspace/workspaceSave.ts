@@ -1,9 +1,13 @@
-import { setFileSaveProvider } from "@excalidraw/excalidraw";
+import {
+  setFileSaveProvider,
+  setHostCapabilities,
+} from "@excalidraw/excalidraw";
 
 import { appJotaiStore } from "../app-jotai";
 
 import { blobText } from "./blobText";
 import { getWorkspaceBridge } from "./desktopBridge";
+import { externalizeAssets } from "./linkedAssets";
 import { WorkspaceFileHandle } from "./WorkspaceFileHandle";
 import { activeWorkspaceAtom } from "./workspaceState";
 
@@ -23,6 +27,8 @@ export const installWorkspaceSave = () => {
   if (!bridge) {
     return () => {};
   }
+  // images can be kept as linked files of the workspace
+  setHostCapabilities({ linkedImages: true });
   setFileSaveProvider(async (blob, { name }) => {
     let active = appJotaiStore.get(activeWorkspaceAtom);
     if (!active) {
@@ -34,7 +40,14 @@ export const installWorkspaceSave = () => {
       active = { id: entry.id, name: entry.name };
       appJotaiStore.set(activeWorkspaceAtom, active);
     }
-    const text = await blobText(await blob);
+    const text = await externalizeAssets(
+      bridge,
+      active.id,
+      await blobText(await blob),
+      (await bridge.meta(active.id)).assets === "linked"
+        ? "linked"
+        : "embedded",
+    );
     const { path } = await bridge.saveNew(active.id, name || "Untitled", text);
     return new WorkspaceFileHandle(
       bridge,
@@ -42,5 +55,8 @@ export const installWorkspaceSave = () => {
       path,
     ) as unknown as FileSystemFileHandle;
   });
-  return () => setFileSaveProvider(null);
+  return () => {
+    setFileSaveProvider(null);
+    setHostCapabilities({ linkedImages: false });
+  };
 };

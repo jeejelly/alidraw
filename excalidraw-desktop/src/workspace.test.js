@@ -175,6 +175,84 @@ describe("workspaces", () => {
   });
 });
 
+describe("assets", () => {
+  const png = Buffer.from("89504e470d0a1a0a0000000d49484452", "hex").toString(
+    "base64",
+  );
+
+  it("are stored once by content, with an extension from their type", async () => {
+    const w = await ws.create({
+      name: "A",
+      parent: path.join(tmp, "projects"),
+    });
+    const a = ws.writeAsset(w.id, "image/png", png);
+    const b = ws.writeAsset(w.id, "image/png", png);
+    expect(a.path).toMatch(/^assets\/[0-9a-f]{64}\.png$/);
+    expect(b).toEqual(a);
+    expect(fs.readdirSync(path.join(w.path, "assets"))).toHaveLength(1);
+    expect(ws.readAsset(w.id, a.path)).toBe(png);
+    const other = ws.writeAsset(
+      w.id,
+      "image/jpeg",
+      Buffer.from("jpegbytes").toString("base64"),
+    );
+    expect(other.path).toMatch(/\.jpg$/);
+    expect(
+      ws.writeAsset(
+        w.id,
+        "application/x-weird",
+        Buffer.from("zz").toString("base64"),
+      ).path,
+    ).toMatch(/\.bin$/);
+  });
+
+  it("only files under assets/ can be read, and nothing empty is written", async () => {
+    const w = await ws.create({
+      name: "A",
+      parent: path.join(tmp, "projects"),
+    });
+    fs.writeFileSync(path.join(w.path, "secret.txt"), "x");
+    for (const bad of [
+      "../x",
+      "secret.txt",
+      "assets/../secret.txt",
+      "assets/short.png",
+      ".git/config",
+    ]) {
+      expect(() => ws.readAsset(w.id, bad)).toThrow();
+    }
+    expect(() => ws.writeAsset(w.id, "image/png", "")).toThrow(/empty/);
+    expect(() => ws.writeAsset(w.id, 5, png)).toThrow();
+  });
+
+  it("are committed with the scene's workspace like any file", async () => {
+    const w = await ws.create({
+      name: "A",
+      parent: path.join(tmp, "projects"),
+    });
+    const a = ws.writeAsset(w.id, "image/png", png);
+    await git.commit(w.path, "add image", [a.path]);
+    expect((await git.status(w.path)).clean).toBe(true);
+    expect((await git.log(w.path)).map((l) => l.subject)).toContain(
+      "add image",
+    );
+  });
+
+  it("the shared setting for new images lives in workspace.json", async () => {
+    const w = await ws.create({
+      name: "A",
+      parent: path.join(tmp, "projects"),
+    });
+    expect(ws.meta(w.id).assets).toBe("embedded");
+    ws.setMeta(w.id, { assets: "linked" });
+    expect(
+      JSON.parse(fs.readFileSync(path.join(w.path, "workspace.json"), "utf8"))
+        .assets,
+    ).toBe("linked");
+    expect(ws.meta(w.id).name).toBe("A");
+  });
+});
+
 describe("git", () => {
   it("commits only what changed, and reads history and old versions", async () => {
     const w = await ws.create({

@@ -64,6 +64,17 @@ export const setFileSaveProvider = (provider: FileSaveProvider | null) => {
 
 export const hasFileSaveProvider = () => fileSaveProvider !== null;
 
+/** What the host app can do beyond a browser (set once at startup). */
+type HostCapabilities = { linkedImages: boolean };
+
+let hostCapabilities: HostCapabilities = { linkedImages: false };
+
+export const setHostCapabilities = (c: Partial<HostCapabilities>) => {
+  hostCapabilities = { ...hostCapabilities, ...c };
+};
+
+export const getHostCapabilities = () => hostCapabilities;
+
 export const fileSave = (
   blob: Blob | Promise<Blob>,
   opts: {

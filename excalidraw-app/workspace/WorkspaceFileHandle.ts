@@ -1,4 +1,9 @@
 import { blobText } from "./blobText";
+import {
+  externalizeAssets,
+  hydrateAssets,
+  type AssetMode,
+} from "./linkedAssets";
 
 import type { DesktopWorkspaceBridge } from "./desktopBridge";
 
@@ -28,7 +33,11 @@ export class WorkspaceFileHandle {
   }
 
   async getFile() {
-    const text = await this.bridge.read(this.workspaceId, this.path);
+    const text = await hydrateAssets(
+      this.bridge,
+      this.workspaceId,
+      await this.bridge.read(this.workspaceId, this.path),
+    );
     return new File([text], this.name, { type: "application/json" });
   }
 
@@ -56,7 +65,23 @@ export class WorkspaceFileHandle {
         parts.length = 0;
       },
       async close() {
-        await bridge.write(workspaceId, path, await blobText(new Blob(parts)));
+        // images that want to be linked files leave the scene text first
+        let mode: AssetMode = "embedded";
+        try {
+          mode =
+            (await bridge.meta(workspaceId)).assets === "linked"
+              ? "linked"
+              : "embedded";
+        } catch {
+          // an older desktop app: everything stays embedded
+        }
+        const text = await externalizeAssets(
+          bridge,
+          workspaceId,
+          await blobText(new Blob(parts)),
+          mode,
+        );
+        await bridge.write(workspaceId, path, text);
       },
     };
   }

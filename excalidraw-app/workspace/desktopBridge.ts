@@ -112,6 +112,17 @@ export type DesktopWorkspaceBridge = {
     text: string,
   ): Promise<{ path: string; bytes: number }>;
   newScene(id: string, name: string, dir?: string): Promise<string>;
+  writeAsset(
+    id: string,
+    mime: string,
+    base64: string,
+  ): Promise<{ path: string; bytes: number }>;
+  readAsset(id: string, path: string): Promise<string>;
+  meta(id: string): Promise<{ name?: string; assets?: "embedded" | "linked" }>;
+  setMeta(
+    id: string,
+    meta: { assets?: "embedded" | "linked" },
+  ): Promise<unknown>;
   getSettings(id: string): Promise<WorkspaceEntry["settings"]>;
   setSettings(
     id: string,

@@ -26,6 +26,11 @@ contextBridge.exposeInMainWorld("excalidrawDesktop", {
     read: (id, path) => call("ws:read", { id, path }),
     write: (id, path, text) => call("ws:write", { id, path, text }),
     newScene: (id, name, dir) => call("ws:newScene", { id, name, dir }),
+    writeAsset: (id, mime, base64) =>
+      call("ws:writeAsset", { id, mime, base64 }),
+    readAsset: (id, path) => call("ws:readAsset", { id, path }),
+    meta: (id) => call("ws:meta", { id }),
+    setMeta: (id, meta) => call("ws:setMeta", { id, meta }),
     getSettings: (id) => call("ws:getSettings", { id }),
     setSettings: (id, settings) => call("ws:setSettings", { id, settings }),
     status: (id) => call("ws:status", { id }),

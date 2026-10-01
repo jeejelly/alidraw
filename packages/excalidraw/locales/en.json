@@ -207,6 +207,15 @@
       "toggle": "Live corners (Shift+B)",
       "hint": "Drag a circle to round that corner; Shift for all"
     },
+    "imageStorage": {
+      "title": "Image file",
+      "default": "Workspace default",
+      "embedded": "In the scene",
+      "linked": "Linked file",
+      "defaultHint": "Follow the workspace's setting for new images",
+      "embeddedHint": "The image's bytes are saved inside the scene file",
+      "linkedHint": "The image is saved as a file in assets/, the scene only refers to it"
+    },
     "mermaid": {
       "copy": "Copy as Mermaid",
       "from": "From Mermaid…",

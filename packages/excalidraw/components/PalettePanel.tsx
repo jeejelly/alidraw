@@ -49,6 +49,7 @@ import "./inspector/Inspector.scss";
 import {
   AlignSection,
   CornersSection,
+  ImageStorageSection,
   PathSection,
   ToolsSection,
   AnchorSection,
@@ -906,6 +907,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
             <>
               {transform}
               {multi}
+              <ImageStorageSection app={app} />
               <ToolsSection app={app} />
               <PathSection app={app} />
               <AlignSection app={app} />
