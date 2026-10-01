@@ -297,3 +297,65 @@ export const parsePaletteFile = async (
   }
   return [];
 };
+
+// -----------------------------------------------------------------------------
+// panel snapping
+// -----------------------------------------------------------------------------
+
+export type PanelRect = { x: number; y: number; width: number; height: number };
+
+export const PANEL_SNAP_DISTANCE = 12;
+export const PANEL_MARGIN = 12;
+const PANEL_GAP = 8;
+
+const nearest = (
+  value: number,
+  candidates: readonly number[],
+  limit: number,
+) => {
+  let best = value;
+  let bestD = limit + 1e-9;
+  for (const c of candidates) {
+    const d = Math.abs(c - value);
+    if (d < bestD) {
+      best = c;
+      bestD = d;
+    }
+  }
+  return best;
+};
+
+/**
+ * Pulls a dragged panel onto the screen edges (with a margin) and onto its
+ * neighbours: side by side, or edge to edge.
+ */
+export const snapPanel = (
+  rect: PanelRect,
+  others: readonly PanelRect[],
+  viewport: { width: number; height: number },
+  limit = PANEL_SNAP_DISTANCE,
+): { x: number; y: number; edge: { right: boolean } } => {
+  const xs = [PANEL_MARGIN, viewport.width - rect.width - PANEL_MARGIN];
+  const ys = [PANEL_MARGIN, viewport.height - rect.height - PANEL_MARGIN];
+  for (const o of others) {
+    xs.push(
+      o.x - rect.width - PANEL_GAP, // to its left
+      o.x + o.width + PANEL_GAP, // to its right
+      o.x, // left edges aligned
+      o.x + o.width - rect.width, // right edges aligned
+    );
+    ys.push(
+      o.y, // tops aligned
+      o.y + o.height - rect.height, // bottoms aligned
+      o.y + o.height + PANEL_GAP, // below it
+      o.y - rect.height - PANEL_GAP, // above it
+    );
+  }
+  const x = nearest(rect.x, xs, limit);
+  const y = nearest(rect.y, ys, limit);
+  return {
+    x,
+    y,
+    edge: { right: x === viewport.width - rect.width - PANEL_MARGIN },
+  };
+};

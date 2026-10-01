@@ -14,6 +14,7 @@ import {
   resetPaletteCache,
   sanitizePaletteState,
   setPaletteLayout,
+  snapPanel,
 } from "../palette";
 import { Excalidraw } from "../index";
 
@@ -440,5 +441,49 @@ describe("dragging and detaching", () => {
     fireEvent.click(screen.getByTestId("layers-attach"));
     expect(screen.queryByTestId("layers-panel")).toBeNull();
     expect(screen.getByTestId("inspector-tab-layers")).toBeTruthy();
+  });
+});
+
+describe("panel snapping", () => {
+  const vp = { width: 1400, height: 800 };
+  const size = { width: 264, height: 300 };
+
+  it("snaps to the screen edges, keeping a margin", () => {
+    expect(snapPanel({ ...size, x: 5, y: 9 }, [], vp)).toMatchObject({
+      x: 12,
+      y: 12,
+    });
+    const r = snapPanel(
+      { ...size, x: 1400 - 264 - 4, y: 800 - 300 - 20 },
+      [],
+      vp,
+    );
+    expect(r).toMatchObject({ x: 1400 - 264 - 12, y: 800 - 300 - 12 });
+    expect(r.edge.right).toBe(true);
+  });
+
+  it("does not snap beyond the distance", () => {
+    expect(snapPanel({ ...size, x: 100, y: 100 }, [], vp)).toMatchObject({
+      x: 100,
+      y: 100,
+    });
+  });
+
+  it("sits beside, aligns with and stacks under a neighbour", () => {
+    const other = { x: 500, y: 100, width: 264, height: 300 };
+    // just to its right
+    expect(snapPanel({ ...size, x: 780, y: 103 }, [other], vp)).toMatchObject({
+      x: 500 + 264 + 8,
+      y: 100,
+    });
+    // just to its left
+    expect(snapPanel({ ...size, x: 228, y: 300 }, [other], vp)).toMatchObject({
+      x: 500 - 264 - 8,
+    });
+    // underneath, left edges aligned
+    expect(snapPanel({ ...size, x: 505, y: 405 }, [other], vp)).toMatchObject({
+      x: 500,
+      y: 100 + 300 + 8,
+    });
   });
 });

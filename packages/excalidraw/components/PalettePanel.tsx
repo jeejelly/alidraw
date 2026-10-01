@@ -23,6 +23,8 @@ import {
   getPaletteState,
   normalizeHex,
   parsePaletteFile,
+  PANEL_MARGIN,
+  snapPanel,
   removeSwatch,
   renameSwatch,
   setLayersDetached,
@@ -81,6 +83,36 @@ const LAYER_GLYPH: Record<string, string> = {
  * (horizontal strip / vertical column). Swatches are named, saved across
  * sessions and importable from .ase / .gpl.
  */
+const rectOf = (el: Element | null) => {
+  const r = el?.getBoundingClientRect();
+  return r && r.width
+    ? { x: r.left, y: r.top, width: r.width, height: r.height }
+    : null;
+};
+
+/** where a panel dragged to (x, y) ends up: clamped, then snapped (Alt: free) */
+const placePanel = (
+  x: number,
+  y: number,
+  el: Element | null,
+  otherTestId: string,
+  alt: boolean,
+) => {
+  const size = rectOf(el);
+  const cx = Math.max(0, Math.min(window.innerWidth - 60, x));
+  const cy = Math.max(0, Math.min(window.innerHeight - 40, y));
+  if (!size || alt) {
+    return { x: cx, y: cy, edge: { right: false } };
+  }
+  const other = rectOf(
+    document.querySelector(`[data-testid="${otherTestId}"]`),
+  );
+  return snapPanel({ ...size, x: cx, y: cy }, other ? [other] : [], {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+};
+
 export const PalettePanel = ({ app }: { app: App }) => {
   const palette = useSyncExternalStore(subscribePalette, getPaletteState);
   const [tab, setTab] = useState<Tab>("design");
@@ -166,16 +198,30 @@ export const PalettePanel = ({ app }: { app: App }) => {
     if (!drag.current) {
       return;
     }
-    setPalettePosition({
-      x: Math.max(
-        0,
-        Math.min(window.innerWidth - 60, e.clientX - drag.current.dx),
-      ),
-      y: Math.max(
-        0,
-        Math.min(window.innerHeight - 40, e.clientY - drag.current.dy),
-      ),
-    });
+    const { x, y } = placePanel(
+      e.clientX - drag.current.dx,
+      e.clientY - drag.current.dy,
+      rootRef.current,
+      "layers-panel",
+      e.altKey,
+    );
+    setPalettePosition({ x, y });
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) {
+      return;
+    }
+    drag.current = null;
+    // let go against the right edge: the panel docks there again
+    const size = rectOf(rootRef.current);
+    if (
+      !e.altKey &&
+      size &&
+      Math.abs(window.innerWidth - size.width - PANEL_MARGIN - size.x) < 1
+    ) {
+      setPaletteLayout("docked");
+    }
   };
 
   const onImport = async (file: File | undefined) => {
@@ -692,9 +738,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
           data-testid="palette-handle"
           onPointerDown={startDrag}
           onPointerMove={moveDrag}
-          onPointerUp={() => {
-            drag.current = null;
-          }}
+          onPointerUp={endDrag}
         >
           <div className="inspector__tabs" role="tablist">
             {(palette.layersDetached
@@ -780,8 +824,10 @@ const DetachedLayers = ({
   children: React.ReactNode;
 }) => {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   return (
     <div
+      ref={panelRef}
       className="inspector inspector--floating inspector--layers"
       data-testid="layers-panel"
       style={{ left: position.x, top: position.y }}
@@ -802,16 +848,14 @@ const DetachedLayers = ({
         }}
         onPointerMove={(e) => {
           if (drag.current) {
-            onMove({
-              x: Math.max(
-                0,
-                Math.min(window.innerWidth - 60, e.clientX - drag.current.dx),
-              ),
-              y: Math.max(
-                0,
-                Math.min(window.innerHeight - 40, e.clientY - drag.current.dy),
-              ),
-            });
+            const { x, y } = placePanel(
+              e.clientX - drag.current.dx,
+              e.clientY - drag.current.dy,
+              panelRef.current,
+              "palette-panel",
+              e.altKey,
+            );
+            onMove({ x, y });
           }
         }}
         onPointerUp={() => {
