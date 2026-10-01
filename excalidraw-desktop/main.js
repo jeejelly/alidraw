@@ -18,6 +18,8 @@ const {
 
 const git = require("./src/git");
 const { AutoCommit } = require("./src/autocommit");
+const { Backup } = require("./src/backup");
+const { Secrets } = require("./src/secrets");
 const { Registry } = require("./src/registry");
 const { Sync } = require("./src/sync");
 const { Workspaces } = require("./src/workspace");
@@ -160,6 +162,8 @@ let workspaces;
 let autoCommit;
 let registry;
 let sync;
+let secrets;
+let backup;
 const syncTimers = new Map();
 // folders the user picked in a dialog; the page names them by token, never by path
 const pickedFolders = new Map();
@@ -217,6 +221,14 @@ const setupWorkspaces = () => {
         sync.sync(id).catch(() => {});
       }
     },
+  });
+  secrets = new Secrets(app.getPath("userData"));
+  backup = new Backup({
+    workspaces,
+    registry,
+    secrets,
+    isPaused: () => registry.appSettings().paused === true,
+    emit: broadcast,
   });
   sync = new Sync({
     workspaces,
@@ -335,11 +347,53 @@ const setupWorkspaces = () => {
   );
   handle("ws:writeAsset", ({ id, mime, base64 }) => {
     const result = workspaces.writeAsset(id, mime, base64);
-    // the file is committed with the scenes that refer to it
-    autoCommit.touch(id, workspaces.root(id), result.path);
+    // the file is committed with the scenes that refer to it, unless binaries live on the server
+    if (workspaces.meta(id).binaries !== "server") {
+      autoCommit.touch(id, workspaces.root(id), result.path);
+    }
+    backup.queue(id);
     return result;
   });
-  handle("ws:readAsset", ({ id, path: rel }) => workspaces.readAsset(id, rel));
+  handle("ws:readAsset", async ({ id, path: rel }) => {
+    try {
+      return workspaces.readAsset(id, rel);
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+      // not on this machine yet: the work server has it
+      await backup.fetch(id, rel);
+      return workspaces.readAsset(id, rel);
+    }
+  });
+  handle("ws:secretsStatus", () => secrets.status());
+  handle("ws:secretsUnlock", ({ passphrase }) => {
+    if (secrets.status().exists) {
+      secrets.unlock(passphrase);
+    } else {
+      secrets.create(passphrase);
+    }
+    // what was waiting for the passwords can go now
+    for (const w of workspaces.list()) {
+      backup.queue(w.id);
+    }
+    return secrets.status();
+  });
+  handle("ws:secretsLock", () => {
+    secrets.lock();
+    return secrets.status();
+  });
+  handle("ws:serverGet", ({ id }) => backup.publicConfig(id));
+  handle("ws:serverSet", ({ id, server, password }) =>
+    backup.setConfig(id, server, password),
+  );
+  handle("ws:serverTrust", ({ id, fingerprint }) =>
+    backup.trustHostKey(id, fingerprint),
+  );
+  handle("ws:serverTest", ({ id }) => backup.test(id));
+  handle("ws:backupNow", ({ id }) => backup.backupNow(id));
+  handle("ws:fetchAll", ({ id }) => backup.fetchAll(id));
+  handle("ws:keepOut", ({ id, on }) => backup.setKeepOut(id, on === true));
   handle("ws:meta", ({ id }) => workspaces.meta(id));
   handle("ws:setMeta", ({ id, meta }) => {
     const allowed = {};
@@ -405,6 +459,7 @@ const setupWorkspaces = () => {
   // a workspace became the one in use: pull what others pushed, if asked to
   handle("ws:activate", async ({ id }) => {
     workspaces.touch(id);
+    backup.queue(id);
     if (
       workspaces.settings(id).pullOnOpen !== false &&
       (await sync.remote(id))

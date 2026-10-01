@@ -48,5 +48,9 @@
   "devDependencies": {
     "electron": "44.4.1",
     "electron-builder": "26.15.3"
+  },
+  "dependencies": {
+    "basic-ftp": "5.0.5",
+    "ssh2": "1.17.0"
   }
 }

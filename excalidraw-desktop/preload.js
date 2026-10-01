@@ -42,6 +42,18 @@ contextBridge.exposeInMainWorld("excalidrawDesktop", {
     commitNow: (id, message) => call("ws:commitNow", { id, message }),
     history: (id, path) => call("ws:history", { id, path }),
     showVersion: (id, hash, path) => call("ws:showVersion", { id, hash, path }),
+    secretsStatus: () => call("ws:secretsStatus"),
+    secretsUnlock: (passphrase) => call("ws:secretsUnlock", { passphrase }),
+    secretsLock: () => call("ws:secretsLock"),
+    serverGet: (id) => call("ws:serverGet", { id }),
+    serverSet: (id, server, password) =>
+      call("ws:serverSet", { id, server, password }),
+    serverTrust: (id, fingerprint) =>
+      call("ws:serverTrust", { id, fingerprint }),
+    serverTest: (id) => call("ws:serverTest", { id }),
+    backupNow: (id) => call("ws:backupNow", { id }),
+    fetchAll: (id) => call("ws:fetchAll", { id }),
+    keepOut: (id, on) => call("ws:keepOut", { id, on }),
     onEvent: (callback) => {
       const listener = (_event, data) => callback(data);
       ipcRenderer.on("ws:event", listener);

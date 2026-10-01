@@ -13,6 +13,8 @@ import {
   type SyncOutcome,
   type WorkspaceEntry,
 } from "./desktopBridge";
+import { Fold } from "./Fold";
+import { ServerSection } from "./ServerSection";
 import { openWorkspaceScene } from "./openWorkspaceScene";
 import { activeWorkspaceAtom, workspaceDialogOpenAtom } from "./workspaceState";
 
@@ -30,67 +32,6 @@ const ago = (iso: string) => {
     return `${Math.round(s / 3600)} h ago`;
   }
   return `${Math.round(s / 86400)} d ago`;
-};
-
-const FOLD_KEY = "workspace-folds";
-
-const readFolds = (): Record<string, boolean> => {
-  try {
-    return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}");
-  } catch {
-    return {};
-  }
-};
-
-/** a collapsible block; its content stays mounted so state and tests survive */
-const Fold = ({
-  id,
-  title,
-  badge,
-  defaultOpen = true,
-  actions,
-  children,
-}: {
-  id: string;
-  title: string;
-  badge?: string | number | null;
-  defaultOpen?: boolean;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
-}) => {
-  const [open, setOpenState] = useState(() => readFolds()[id] ?? defaultOpen);
-  const toggle = () => {
-    const next = !open;
-    setOpenState(next);
-    try {
-      localStorage.setItem(
-        FOLD_KEY,
-        JSON.stringify({ ...readFolds(), [id]: next }),
-      );
-    } catch {}
-  };
-  return (
-    <section className="workspace__fold" data-testid={`fold-${id}`}>
-      <header>
-        <button
-          type="button"
-          className="workspace__foldhead"
-          aria-expanded={open}
-          onClick={toggle}
-        >
-          <span className="workspace__chev">{open ? "▾" : "▸"}</span>
-          <span>{title}</span>
-          {badge != null && badge !== "" && (
-            <span className="workspace__badge">{badge}</span>
-          )}
-        </button>
-        {actions && <div className="workspace__foldactions">{actions}</div>}
-      </header>
-      <div className="workspace__foldbody" hidden={!open}>
-        {children}
-      </div>
-    </section>
-  );
 };
 
 type SceneNode = {
@@ -741,6 +682,8 @@ export const WorkspaceDialog = ({
                   </div>
                 )}
               </Fold>
+
+              <ServerSection key={active.id} bridge={bridge} id={active.id} />
 
               <Fold id="settings" title="Settings" defaultOpen={false}>
                 <label className="workspace__setting">

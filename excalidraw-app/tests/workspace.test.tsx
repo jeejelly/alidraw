@@ -107,6 +107,41 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
     history: async () => [],
     showVersion: async () => "{}",
     onEvent: () => () => {},
+    secretsStatus: async () => ({ exists: false, unlocked: false }),
+    secretsUnlock: async () => ({ exists: true, unlocked: true }),
+    secretsLock: async () => ({ exists: true, unlocked: false }),
+    serverGet: async () => ({
+      server: null,
+      hasPassword: false,
+      keepOut: false,
+      state: null,
+    }),
+    serverSet: async (_id, server) => ({
+      server: server && { ...server },
+      hasPassword: true,
+      keepOut: false,
+      state: null,
+    }),
+    serverTrust: async () => ({
+      server: null,
+      hasPassword: true,
+      keepOut: false,
+      state: null,
+    }),
+    serverTest: async () => ({ outcome: "ok", files: 2 }),
+    backupNow: async () => ({
+      outcome: "done",
+      uploaded: 1,
+      already: 0,
+      failed: [],
+    }),
+    fetchAll: async () => ({ outcome: "fetched", downloaded: 0, failed: [] }),
+    keepOut: async () => ({
+      server: null,
+      hasPassword: true,
+      keepOut: true,
+      state: null,
+    }),
     ...over,
   };
   return { bridge, files, calls, assets, meta };
@@ -294,6 +329,94 @@ describe("workspace dialog", () => {
     await waitFor(() => screen.getByTestId("workspace-autocommit"));
     fireEvent.click(screen.getByTestId("workspace-autocommit"));
     await waitFor(() => expect(seen).toContainEqual({ autoCommit: false }));
+  });
+
+  it("sets up a backup server: passphrase, details, unknown key to trust", async () => {
+    const calls: string[] = [];
+    const { bridge } = fakeBridge({
+      list: async () => [
+        { id: "w0", name: "Old", path: "/o", exists: true, settings: {} },
+      ],
+      secretsUnlock: async (p) => {
+        calls.push(`unlock:${p}`);
+        return { exists: true, unlocked: true };
+      },
+      serverSet: async (_id, server, password) => {
+        calls.push(`set:${server?.host}:${server?.protocol}:${password}`);
+        return {
+          server: server && { ...server },
+          hasPassword: true,
+          keepOut: false,
+          state: null,
+        };
+      },
+      serverTest: async () => ({
+        outcome: "error",
+        message: "Unknown server key SHA256:abc",
+        code: "HOSTKEY_UNKNOWN",
+        fingerprint: "SHA256:abc",
+      }),
+      serverTrust: async (_id, fp) => {
+        calls.push(`trust:${fp}`);
+        return {
+          server: null,
+          hasPassword: true,
+          keepOut: false,
+          state: null,
+        };
+      },
+    });
+    await open(bridge);
+    await waitFor(() => screen.getAllByTestId("workspace-item"));
+    fireEvent.click(screen.getByTestId("workspace-item"));
+    await waitFor(() => screen.getByTestId("server-host"));
+
+    fireEvent.change(screen.getByTestId("server-passphrase"), {
+      target: { value: "correct horse" },
+    });
+    fireEvent.click(screen.getByTestId("server-unlock"));
+    await waitFor(() => expect(calls).toContain("unlock:correct horse"));
+
+    fireEvent.change(screen.getByTestId("server-host"), {
+      target: { value: "files.example.org" },
+    });
+    fireEvent.change(screen.getByTestId("server-user"), {
+      target: { value: "me" },
+    });
+    fireEvent.change(screen.getByTestId("server-password"), {
+      target: { value: "pw1" },
+    });
+    fireEvent.click(screen.getByTestId("server-save"));
+    await waitFor(() =>
+      expect(calls).toContain("set:files.example.org:sftp:pw1"),
+    );
+
+    fireEvent.click(screen.getByTestId("server-test"));
+    await waitFor(() => screen.getByTestId("server-hostkey"));
+    expect(screen.getByTestId("server-hostkey").textContent).toContain(
+      "SHA256:abc",
+    );
+    fireEvent.click(screen.getByTestId("server-trust"));
+    await waitFor(() => expect(calls).toContain("trust:SHA256:abc"));
+  });
+
+  it("asks before using plain FTP", async () => {
+    const { bridge } = fakeBridge({
+      list: async () => [
+        { id: "w0", name: "Old", path: "/o", exists: true, settings: {} },
+      ],
+    });
+    await open(bridge);
+    await waitFor(() => screen.getAllByTestId("workspace-item"));
+    fireEvent.click(screen.getByTestId("workspace-item"));
+    await waitFor(() => screen.getByTestId("server-protocol"));
+    expect(screen.queryByTestId("server-ftp-warning")).toBeNull();
+    fireEvent.change(screen.getByTestId("server-protocol"), {
+      target: { value: "ftp" },
+    });
+    expect(screen.getByTestId("server-ftp-warning").textContent).toContain(
+      "without protection",
+    );
   });
 });
 
