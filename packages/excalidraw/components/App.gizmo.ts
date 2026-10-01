@@ -6,7 +6,9 @@ import {
 } from "@excalidraw/common";
 import {
   getElementAbsoluteCoords,
+  getCommonBounds,
   getElementWithTransformHandleType,
+  getTransformHandleTypeFromCoords,
   getPathGeometryFromShape,
   getPathUpdate,
   isPathElement,
@@ -209,17 +211,29 @@ export class AppGizmo {
     // the regular handles win where they overlap
     const s = this.app.state;
     const p = viewportCoordsToSceneCoords(event, s);
-    const handle = getElementWithTransformHandleType(
-      hit.target.elements as NonDeletedExcalidrawElement[],
-      s,
-      p.x,
-      p.y,
-      s.zoom,
-      event.pointerType as any,
-      this.app.scene.getNonDeletedElementsMap(),
-      this.app.editorInterface,
-    );
-    if (handle?.transformHandleType) {
+    // a single element's own handles, or the handles of the group's common box
+    const elements = hit.target.elements as NonDeletedExcalidrawElement[];
+    const handle =
+      elements.length === 1
+        ? getElementWithTransformHandleType(
+            elements,
+            s,
+            p.x,
+            p.y,
+            s.zoom,
+            event.pointerType as any,
+            this.app.scene.getNonDeletedElementsMap(),
+            this.app.editorInterface,
+          )?.transformHandleType
+        : getTransformHandleTypeFromCoords(
+            getCommonBounds(elements),
+            p.x,
+            p.y,
+            s.zoom,
+            event.pointerType as any,
+            this.app.editorInterface,
+          );
+    if (handle) {
       return false;
     }
     // another shape under the pointer is simply clicked
