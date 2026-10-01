@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "scenarioId": "excalidraw-local-autosave-toggle",
+  "baseUrl": {
+    "recorded": "http://127.0.0.1:3100/",
+    "label": "URL de base"
+  },
+  "groups": [
+    {
+      "id": "g-3eb41622",
+      "label": "",
+      "origin": {
+        "subscript": null,
+        "pageTitle": "",
+        "tabUrl": ""
+      },
+      "fields": [
+        {
+          "id": "f-b839a912",
+          "varName": "verify__data_testid__autosave_status_",
+          "type": "verify",
+          "label": "verify__data_testid__autosave_status_",
+          "default": "Not saved to a file: Ctrl+S",
+          "step": 8,
+          "selector": "[data-testid=\"autosave-status\"]",
+          "fieldId": null,
+          "fieldName": null,
+          "sensitive": false,
+          "matchMode": "equals"
+        }
+      ]
+    }
+  ],
+  "source": "recording"
+}

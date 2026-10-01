@@ -227,6 +227,7 @@ export type ExcalidrawElement =
   | ExcalidrawLinearElement
   | ExcalidrawArrowElement
   | ExcalidrawFreeDrawElement
+  | ExcalidrawPathElement
   | ExcalidrawImageElement
   | ExcalidrawFrameElement
   | ExcalidrawMagicFrameElement
@@ -255,6 +256,14 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
     type: "text";
     fontSize: number;
     fontFamily: FontFamilyValues;
+    /**
+     * A font installed on the machine that draws the text, when picked from
+     * the local fonts. `fontFamily` stays as the fallback (also what other
+     * editors that don't know this field use).
+     */
+    fontFamilyName?: string | null;
+    /** the unit `fontSize` is expressed in; absent means px */
+    fontUnit?: "px" | "dp";
     /**
      * The font size the user picked, from which the layout derives `fontSize`.
      * Today only sticky note labels have one: the auto-fit shrinks below it
@@ -434,6 +443,45 @@ export type ExcalidrawFreeDrawElement = _ExcalidrawElementBase &
     pressures: readonly number[];
     simulatePressure: boolean;
     strokeOptions: StrokeOptions;
+  }>;
+
+export type PathPointMode = "corner" | "smooth" | "broken";
+
+/**
+ * Tangent handles of one path point. `in` and `out` are offsets from the
+ * point (not absolute), each optional: a missing handle is a straight
+ * side. A smooth point keeps both collinear while either is dragged.
+ */
+export type PathPointHandles = Readonly<{
+  mode: PathPointMode;
+  in: LocalPoint | null;
+  out: LocalPoint | null;
+  /**
+   * Bevel of a straight corner: the radius of the arc that rounds it off.
+   * The anchor stays where it is; only the drawn outline is rounded.
+   */
+  radius?: number;
+}>;
+
+/** one more closed outline of a shape, in the element's local frame */
+export type PathContour = Readonly<{
+  points: readonly LocalPoint[];
+  handles: readonly PathPointHandles[];
+}>;
+
+export type ExcalidrawPathElement = _ExcalidrawElementBase &
+  Readonly<{
+    type: "path";
+    /** anchors, local to the element like the points of a line */
+    points: readonly LocalPoint[];
+    /** same length as `points` */
+    handles: readonly PathPointHandles[];
+    closed: boolean;
+    /**
+     * Further closed outlines: with them the path is a shape, a combination of
+     * paths (a hole is an outline inside another). Absent for a plain path.
+     */
+    contours?: readonly PathContour[];
   }>;
 
 export type FileId = string & { _brand: "FileId" };

@@ -14,6 +14,8 @@ export {
   actionChangeStrokeWidth,
   actionChangeFillStyle,
   actionChangeSloppiness,
+  actionChangeRoundness,
+  actionChangeStrokeStyle,
   actionChangeFreedrawMode,
   actionChangeOpacity,
   actionChangeFontSize,
@@ -89,6 +91,37 @@ export { actionUnbindText, actionBindText } from "./actionBoundText";
 export { actionLink } from "./actionLink";
 export { actionToggleElementLock } from "./actionElementLock";
 export { actionToggleLinearEditor } from "./actionLinearEditor";
+export { actionFitToGrid } from "./actionGrid";
+export { actionKnifeCut } from "./actionKnife";
+export {
+  actionPathfinderUnite,
+  actionPathfinderIntersect,
+  actionPathfinderSubtract,
+  actionPathfinderExclude,
+  actionPathfinderDivide,
+  PATHFINDER_ACTIONS,
+  actionMakeCompoundShape,
+  actionReleaseCompoundShape,
+} from "./actionPathfinder";
+export {
+  actionTogglePalette,
+  actionOpenTransform,
+  actionChangeStrokeWidthValue,
+} from "./actionPalette";
+export {
+  actionToggleRulers,
+  actionToggleGuidesSnap,
+  actionClearGuides,
+} from "./actionGuides";
+export {
+  actionChangeFontSizeInput,
+  actionChangeLocalFont,
+} from "./actionTypography";
+export {
+  actionConvertShapeToPath,
+  actionEditPath,
+  actionJoinPaths,
+} from "./actionPath";
 
 export { actionToggleSearchMenu } from "./actionToggleSearchMenu";
 

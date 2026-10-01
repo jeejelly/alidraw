@@ -65,6 +65,17 @@ export const rescalePoints = <Point extends GlobalPoint | LocalPoint>(
   return nextPoints;
 };
 
+let gridOriginX = 0;
+let gridOriginY = 0;
+
+/** the scene point the grid counts from; the editor keeps this in sync */
+export const setGridOrigin = (x: number, y: number) => {
+  gridOriginX = x;
+  gridOriginY = y;
+};
+
+export const getGridOrigin = () => ({ x: gridOriginX, y: gridOriginY });
+
 // TODO: Rounding this point causes some shake when free drawing
 export const getGridPoint = (
   x: number,
@@ -73,8 +84,8 @@ export const getGridPoint = (
 ): GlobalPoint => {
   if (gridSize) {
     return pointFrom<GlobalPoint>(
-      Math.round(x / gridSize) * gridSize,
-      Math.round(y / gridSize) * gridSize,
+      Math.round((x - gridOriginX) / gridSize) * gridSize + gridOriginX,
+      Math.round((y - gridOriginY) / gridSize) * gridSize + gridOriginY,
     );
   }
   return pointFrom<GlobalPoint>(x, y);

@@ -1,3 +1,5 @@
+import type { FontUnit } from "@excalidraw/common";
+
 import type {
   IMAGE_MIME_TYPES,
   UserIdleState,
@@ -53,6 +55,10 @@ import type {
 } from "@excalidraw/element";
 import type { GlobalPoint } from "@excalidraw/math";
 
+import type { GizmoZone } from "./gizmo";
+import type { AnchorPoint } from "./anchors";
+import type { Guide } from "./guides";
+
 import type { Action } from "./actions/types";
 import type { Spreadsheet } from "./charts";
 import type { ClipboardData } from "./clipboard";
@@ -65,6 +71,7 @@ import type { SetViewportOptions } from "./viewport";
 
 import type { Language } from "./i18n";
 import type { isOverScrollBars } from "./scene/scrollbars";
+import type { Layer } from "./layers";
 import type React from "react";
 import type { JSX } from "react";
 
@@ -164,7 +171,9 @@ export type ToolType =
   | "embeddable"
   | "laser"
   | "autoshape"
-  | "bucketfill";
+  | "bucketfill"
+  | "path"
+  | "knife";
 
 export type ElementOrToolType = ExcalidrawElementType | ToolType | "custom";
 
@@ -211,6 +220,7 @@ export type StaticCanvasAppState = Readonly<
     selectedElementsAreBeingDragged: AppState["selectedElementsAreBeingDragged"];
     gridSize: AppState["gridSize"];
     gridStep: AppState["gridStep"];
+    gridOrigin: AppState["gridOrigin"];
     frameRendering: AppState["frameRendering"];
     currentHoveredFontFamily: AppState["currentHoveredFontFamily"];
     hoveredElementIds: AppState["hoveredElementIds"];
@@ -233,6 +243,9 @@ export type InteractiveCanvasAppState = Readonly<
     isBindingEnabled: AppState["isBindingEnabled"];
     isMidpointSnappingEnabled: AppState["isMidpointSnappingEnabled"];
     gridModeEnabled: AppState["gridModeEnabled"];
+    guides: AppState["guides"];
+    gizmo: AppState["gizmo"];
+    knife: AppState["knife"];
     suggestedBinding: AppState["suggestedBinding"];
     textToolHover: AppState["textToolHover"];
     isRotating: AppState["isRotating"];
@@ -246,6 +259,7 @@ export type InteractiveCanvasAppState = Readonly<
     // Cropping
     isCropping: AppState["isCropping"];
     croppingElementId: AppState["croppingElementId"];
+    editingPath: AppState["editingPath"];
     // Search matches
     searchMatches: AppState["searchMatches"];
     activeLockedId: AppState["activeLockedId"];
@@ -455,6 +469,8 @@ export interface AppState {
   currentItemStrokeVariability: StrokeVariability;
   currentItemOpacity: number;
   currentItemFontFamily: FontFamilyValues;
+  currentItemFontFamilyName: string | null;
+  currentItemFontUnit: FontUnit;
   currentItemFontSize: number;
   currentItemTextAlign: TextAlign;
   currentItemStartArrowhead: Arrowhead | null;
@@ -517,7 +533,42 @@ export interface AppState {
   /** grid cell px size */
   gridSize: number;
   gridStep: number;
+  /** scene point the grid lines count from */
+  gridOrigin: { x: number; y: number };
   gridModeEnabled: boolean;
+  /** named layers, bottom to top; see layers.ts */
+  layers: readonly Layer[];
+  /** where new objects go */
+  activeLayerId: string | null;
+  /** edge rulers (px) along the top and left of the canvas */
+  rulersEnabled: boolean;
+  /** guide lines dragged off the rulers; saved with the document */
+  guides: readonly Guide[];
+  /** the magnet: dragged elements and points snap to guides (opt-out) */
+  guidesSnapEnabled: boolean;
+  /** the colour palette panel stays open over the canvas */
+  paletteOpen: boolean;
+  /** an angle gesture is running: the keys that lock it, and the one held */
+  angleHelper: { active: string | null } | null;
+  /** the knife's cut line while it is drawn */
+  knife: {
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    label: string;
+  } | null;
+  /** choosing the target of an anchor: click another element */
+  anchorPick: {
+    sourceId: ExcalidrawElement["id"];
+    from: AnchorPoint;
+    at: AnchorPoint;
+  } | null;
+  /** the rotate/skew gizmo: the zone under the pointer, and a live readout */
+  gizmo: {
+    hover: GizmoZone | null;
+    readout: { x: number; y: number; text: string } | null;
+    /** axes of other elements the rotation is locked onto, as lines */
+    align: { x: number; y: number; angle: number }[];
+  } | null;
   viewModeEnabled: boolean;
 
   /** top-most selected groups (i.e. does not include nested groups) */
@@ -549,6 +600,14 @@ export interface AppState {
   /** image cropping */
   isCropping: boolean;
   croppingElementId: ExcalidrawElement["id"] | null;
+
+  /** path point/handle editing; `selectedPoint` is an index into `points` */
+  editingPath: {
+    elementId: ExcalidrawElement["id"];
+    selectedPoint: number | null;
+    /** the outline being edited: 0 is the main one, k the (k-1)th contour */
+    loop?: number;
+  } | null;
 
   /** null if no search matches found / search closed */
   searchMatches: Readonly<{

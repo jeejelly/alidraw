@@ -482,6 +482,7 @@ const drawElementOnCanvas = (
       break;
     }
     case "arrow":
+    case "path":
     case "line": {
       context.lineJoin = "round";
       context.lineCap = "round";
@@ -1103,6 +1104,7 @@ const drawElement = (
     case "diamond":
     case "ellipse":
     case "line":
+    case "path":
     case "arrow":
     case "image":
     case "text":

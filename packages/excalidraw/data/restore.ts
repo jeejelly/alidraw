@@ -87,6 +87,11 @@ import { isInvisiblySmallElement } from "@excalidraw/element";
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
+  ExcalidrawPathElement,
+  PathPointHandles,
+} from "@excalidraw/element/types";
+
+import type {
   ElementsMap,
   ElementsMapOrArray,
   ExcalidrawArrowElement,
@@ -106,6 +111,9 @@ import type {
 } from "@excalidraw/element/types";
 
 import type { MarkOptional, Mutable } from "@excalidraw/common/utility-types";
+
+import { sanitizeGuides } from "../guides";
+import { sanitizeLayers } from "../layers";
 
 import { getDefaultAppState } from "../appState";
 
@@ -239,6 +247,8 @@ export const AllowedExcalidrawActiveTools: Record<
   hand: true,
   laser: false,
   autoshape: false,
+  path: true,
+  knife: false,
   magicframe: false,
   bucketfill: true,
 };
@@ -547,6 +557,17 @@ export const restoreElement = (
       }
       const text = (typeof element.text === "string" && element.text) || "";
 
+      // optional typography fields: keep them only when well formed
+      if (
+        typeof element.fontFamilyName !== "string" ||
+        !element.fontFamilyName.trim()
+      ) {
+        delete (element as any).fontFamilyName;
+      }
+      if (element.fontUnit !== "dp" && element.fontUnit !== "px") {
+        delete (element as any).fontUnit;
+      }
+
       // line-height might not be specified either when creating elements
       // programmatically, or when importing old diagrams.
       // For the latter we want to detect the original line height which
@@ -563,6 +584,13 @@ export const restoreElement = (
       element = restoreElementWithProperties(element, {
         fontSize,
         fontFamily,
+        ...(typeof element.fontFamilyName === "string" &&
+        element.fontFamilyName.trim()
+          ? { fontFamilyName: element.fontFamilyName.trim().slice(0, 200) }
+          : {}),
+        ...(element.fontUnit === "dp" || element.fontUnit === "px"
+          ? { fontUnit: element.fontUnit }
+          : {}),
         text,
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,
         verticalAlign: element.verticalAlign || DEFAULT_VERTICAL_ALIGN,
@@ -601,6 +629,51 @@ export const restoreElement = (
         strokeOptions: restoreFreedrawStrokeOptions(element.strokeOptions),
         pressures,
       });
+    }
+    case "path": {
+      const path = element as ExcalidrawPathElement;
+      const toPoint = (p: unknown): LocalPoint | null =>
+        Array.isArray(p) && isFiniteNumber(p[0]) && isFiniteNumber(p[1])
+          ? pointFrom<LocalPoint>(p[0], p[1])
+          : null;
+      const restoreLoop = (loop: {
+        points?: unknown;
+        handles?: readonly unknown[];
+      }) => {
+        const points: LocalPoint[] = [];
+        const handles: PathPointHandles[] = [];
+        (Array.isArray(loop.points) ? loop.points : []).forEach((p, i) => {
+          const point = toPoint(p);
+          if (!point) {
+            return;
+          }
+          const h = loop.handles?.[i] as Partial<PathPointHandles> | undefined;
+          points.push(point);
+          handles.push({
+            mode:
+              h?.mode === "smooth" || h?.mode === "broken" ? h.mode : "corner",
+            in: toPoint(h?.in),
+            out: toPoint(h?.out),
+            ...(isFiniteNumber(h?.radius) && h.radius > 0
+              ? { radius: h.radius }
+              : {}),
+          });
+        });
+        return { points, handles };
+      };
+      const main = restoreLoop(path);
+      const contours = (Array.isArray(path.contours) ? path.contours : [])
+        .map(restoreLoop)
+        .filter((c) => c.points.length >= 3);
+      const restored = restoreElementWithProperties(element, {
+        ...main,
+        closed: !!path.closed,
+        contours: contours.length ? contours : undefined,
+      });
+      if (!contours.length) {
+        delete (restored as { contours?: unknown }).contours;
+      }
+      return restored;
     }
     case "image":
       return restoreElementWithProperties(element, {
@@ -1316,6 +1389,7 @@ export const restoreAppState = (
     ),
   };
   nextAppState.fontTopPicks = restoreFontTopPicks(nextAppState.fontTopPicks);
+  nextAppState.guides = sanitizeGuides(nextAppState.guides);
 
   // legacy
   if ((appState as any).currentItemStrokeWidth !== undefined) {
@@ -1361,6 +1435,18 @@ export const restoreAppState = (
     gridStep: getNormalizedGridStep(
       isFiniteNumber(appState.gridStep) ? appState.gridStep : DEFAULT_GRID_STEP,
     ),
+    ...(() => {
+      const layers = sanitizeLayers(appState.layers);
+      const active = layers.find((l) => l.id === appState.activeLayerId);
+      return {
+        layers,
+        activeLayerId: active?.id ?? layers[layers.length - 1]?.id ?? null,
+      };
+    })(),
+    gridOrigin: {
+      x: isFiniteNumber(appState.gridOrigin?.x) ? appState.gridOrigin.x : 0,
+      y: isFiniteNumber(appState.gridOrigin?.y) ? appState.gridOrigin.y : 0,
+    },
     currentItemStickynoteStrokeColor: normalizeStickyNoteStrokeColor(
       nextAppState.currentItemStickynoteStrokeColor,
     ),

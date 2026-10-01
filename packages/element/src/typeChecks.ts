@@ -13,6 +13,7 @@ import type {
   ExcalidrawLinearElement,
   ExcalidrawBindableElement,
   ExcalidrawFreeDrawElement,
+  ExcalidrawPathElement,
   InitializedExcalidrawImageElement,
   ExcalidrawImageElement,
   ExcalidrawTextElementWithContainer,
@@ -101,6 +102,12 @@ export const isFreeDrawElement = <T extends ExcalidrawElement>(
   element?: T | null,
 ): element is T & ExcalidrawFreeDrawElement => {
   return element != null && isFreeDrawElementType(element.type);
+};
+
+export const isPathElement = <T extends ExcalidrawElement>(
+  element?: T | null,
+): element is T & ExcalidrawPathElement => {
+  return element != null && element.type === "path";
 };
 
 export const isFreeDrawElementType = (
@@ -269,6 +276,7 @@ export const isExcalidrawElement = (
     case "ellipse":
     case "arrow":
     case "freedraw":
+    case "path":
     case "line":
     case "frame":
     case "magicframe":

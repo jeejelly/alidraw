@@ -300,7 +300,10 @@ const LayerUI = ({
 
   const renderFixedSideContainer = () => {
     const shouldRenderSelectedShapeActions =
-      defaultUIEnabled && showSelectedShapeActions(appState, elements);
+      defaultUIEnabled &&
+      // the inspector carries every one of these controls
+      !appState.paletteOpen &&
+      showSelectedShapeActions(appState, elements);
 
     const shouldShowStats =
       defaultUIEnabled &&

@@ -748,6 +748,8 @@ export class AppText {
             ? fontSize
             : null,
         fontFamily,
+        fontFamilyName: this.app.state.currentItemFontFamilyName,
+        fontUnit: this.app.state.currentItemFontUnit,
         textAlign:
           arrowEndpointBinding?.textAlign ??
           (parentCenterPosition

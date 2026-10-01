@@ -513,6 +513,48 @@ const renderElementToSvg = (
       }
       break;
     }
+    case "path": {
+      const group = svgRoot.ownerDocument.createElementNS(SVG_NS, "g");
+      group.setAttribute("stroke-linecap", "round");
+      group.setAttribute("stroke-linejoin", "round");
+      ShapeCache.generateElementShape(element, renderConfig).forEach(
+        (shape) => {
+          const node = roughSVGDrawWithPrecision(
+            rsvg,
+            shape,
+            MAX_DECIMALS_FOR_SVG_EXPORT,
+          );
+          if (opacity !== 1) {
+            node.setAttribute("stroke-opacity", `${opacity}`);
+            node.setAttribute("fill-opacity", `${opacity}`);
+          }
+          node.setAttribute(
+            "transform",
+            `translate(${offsetX || 0} ${
+              offsetY || 0
+            }) rotate(${degree} ${cx} ${cy})`,
+          );
+          if (element.closed && element.backgroundColor !== "transparent") {
+            node.setAttribute("fill-rule", "evenodd");
+          }
+          group.appendChild(node);
+        },
+      );
+      const g = maybeWrapNodesInFrameClipPath(
+        element,
+        root,
+        [group],
+        renderConfig.frameRendering,
+        elementsMap,
+      );
+      if (g) {
+        addToRoot(g, element);
+        root.appendChild(g);
+      } else {
+        addToRoot(group, element);
+      }
+      break;
+    }
     case "freedraw": {
       const wrapper = svgRoot.ownerDocument.createElementNS(SVG_NS, "g");
 

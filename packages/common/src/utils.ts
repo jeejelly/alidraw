@@ -122,28 +122,39 @@ export const isWritableElement = (
 
 export const getFontFamilyString = ({
   fontFamily,
+  fontFamilyName,
 }: {
   fontFamily: FontFamilyValues;
+  /** a font installed on the machine, tried before `fontFamily` */
+  fontFamilyName?: string | null;
 }) => {
+  const local = fontFamilyName
+    ? `"${fontFamilyName.replace(/["\\]/g, "")}", `
+    : "";
   for (const [fontFamilyString, id] of Object.entries(FONT_FAMILY)) {
     if (id === fontFamily) {
-      return `${fontFamilyString}${getFontFamilyFallbacks(id)
+      return `${local}${fontFamilyString}${getFontFamilyFallbacks(id)
         .map((x) => `, ${x}`)
         .join("")}`;
     }
   }
-  return WINDOWS_EMOJI_FALLBACK_FONT;
+  return `${local}${WINDOWS_EMOJI_FALLBACK_FONT}`;
 };
 
 /** returns fontSize+fontFamily string for assignment to DOM elements */
 export const getFontString = ({
   fontSize,
   fontFamily,
+  fontFamilyName,
 }: {
   fontSize: number;
   fontFamily: FontFamilyValues;
+  fontFamilyName?: string | null;
 }) => {
-  return `${fontSize}px ${getFontFamilyString({ fontFamily })}` as FontString;
+  return `${fontSize}px ${getFontFamilyString({
+    fontFamily,
+    fontFamilyName,
+  })}` as FontString;
 };
 
 /** executes callback in the frame that's after the current one */

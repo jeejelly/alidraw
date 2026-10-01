@@ -2,22 +2,43 @@ import type { MaybePromise } from "@excalidraw/common/utility-types";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
+import { t } from "../i18n";
+
 import { getFileHandleType, isImageFileHandleType } from "./blob";
 
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import { exportCanvas, prepareElementsForExport } from ".";
+import { exportCanvas, exportToImageBlob, prepareElementsForExport } from ".";
 
 import type { AppState, BinaryFiles } from "../types";
 
-export const resaveAsImageWithScene = async (
+/** Scene and appState as an image export embedding the scene, the form an image file handle is saved in. */
+const withEmbeddedScene = async (
   data: MaybePromise<{
     elements: readonly ExcalidrawElement[];
     appState: AppState;
     files: BinaryFiles;
   }>,
-  fileHandle: FileSystemFileHandle,
-  filename: string,
 ) => {
+  const { elements, appState, files } = await data;
+  const embedding = { ...appState, exportEmbedScene: true };
+  const { exportedElements, exportingFrame } = prepareElementsForExport(
+    elements,
+    embedding,
+    false,
+  );
+  return {
+    exportedElements,
+    appState: embedding,
+    files,
+    options: {
+      exportBackground: appState.exportBackground,
+      viewBackgroundColor: appState.viewBackgroundColor,
+      exportingFrame,
+    },
+  };
+};
+
+const imageTypeOf = (fileHandle: FileSystemFileHandle | null) => {
   const fileHandleType = getFileHandleType(fileHandle);
 
   if (!isImageFileHandleType(fileHandleType)) {
@@ -25,28 +46,36 @@ export const resaveAsImageWithScene = async (
       "fileHandle should exist and should be of type svg or png when resaving",
     );
   }
+  return fileHandleType;
+};
 
-  let { elements, appState, files } = await data;
+/** The bytes `resaveAsImageWithScene` writes to [fileHandle]. */
+export const imageWithSceneBlob = async (
+  data: Parameters<typeof withEmbeddedScene>[0],
+  fileHandle: FileSystemFileHandle,
+): Promise<Blob> => {
+  const type = imageTypeOf(fileHandle);
+  const { exportedElements, appState, files, options } =
+    await withEmbeddedScene(data);
+  if (exportedElements.length === 0) {
+    throw new Error(t("alerts.cannotExportEmptyCanvas"));
+  }
+  return exportToImageBlob(type, exportedElements, appState, files, options);
+};
 
-  const { exportBackground, viewBackgroundColor } = appState;
+export const resaveAsImageWithScene = async (
+  data: Parameters<typeof withEmbeddedScene>[0],
+  fileHandle: FileSystemFileHandle,
+  filename: string,
+) => {
+  const type = imageTypeOf(fileHandle);
+  const { exportedElements, appState, files, options } =
+    await withEmbeddedScene(data);
 
-  appState = {
-    ...appState,
-    exportEmbedScene: true,
-  };
-
-  const { exportedElements, exportingFrame } = prepareElementsForExport(
-    elements,
-    appState,
-    false,
-  );
-
-  await exportCanvas(fileHandleType, exportedElements, appState, files, {
-    exportBackground,
-    viewBackgroundColor,
+  await exportCanvas(type, exportedElements, appState, files, {
+    ...options,
     name: filename,
     fileHandle,
-    exportingFrame,
   });
 
   return { fileHandle };

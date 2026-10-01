@@ -21,6 +21,7 @@ import {
   newIframeElement,
   newImageElement,
   newLinearElement,
+  newPathElement,
   newMagicFrameElement,
   newStickyNoteElement,
   newTextElement,
@@ -37,6 +38,7 @@ import type {
   ExcalidrawTextElement,
   ExcalidrawLinearElement,
   ExcalidrawFreeDrawElement,
+  ExcalidrawPathElement,
   ExcalidrawImageElement,
   FileId,
   ExcalidrawFrameElement,
@@ -213,7 +215,9 @@ export class API {
     containerId?: T extends "text"
       ? ExcalidrawTextElement["containerId"]
       : never;
-    points?: T extends "arrow" | "line" | "freedraw" ? readonly LocalPoint[] : never;
+    points?: T extends "arrow" | "line" | "freedraw" | "path"
+      ? readonly LocalPoint[]
+      : never;
     polygon?: T extends "line" ? boolean : never;
     strokeOptions?: T extends "freedraw"
       ? ExcalidrawFreeDrawElement["strokeOptions"]
@@ -241,6 +245,8 @@ export class API {
       ? ExcalidrawLinearElement
       : T extends "freedraw"
       ? ExcalidrawFreeDrawElement
+      : T extends "path"
+      ? ExcalidrawPathElement
       : T extends "text"
       ? ExcalidrawTextElement
       : T extends "image"
@@ -387,6 +393,9 @@ export class API {
           ],
           polygon: rest.polygon,
         });
+        break;
+      case "path":
+        element = newPathElement({ ...base, points: rest.points });
         break;
       case "image":
         element = newImageElement({
@@ -571,9 +580,9 @@ export class API {
     await fireEvent(GlobalTestState.interactiveCanvas, fileDropEvent);
   };
 
-  static executeAction = (action: Action) => {
+  static executeAction = (action: Action, value?: unknown) => {
     act(() => {
-      h.app.actionManager.executeAction(action);
+      h.app.actionManager.executeAction(action, "api", value);
     });
   };
 }

@@ -156,6 +156,118 @@
       "hint": "Type or paste your link here",
       "goToElement": "Go to target element"
     },
+    "fontUnit": "Font size unit",
+    "localFont": "Installed fonts…",
+    "localFontSearch": "Search installed fonts",
+    "localFontClear": "Use the picker font",
+    "localFontNone": "No installed fonts available",
+    "palette": {
+      "title": "Palette",
+      "toggle": "Palette panel",
+      "orientation": "Horizontal / vertical layout",
+      "add": "Add colour",
+      "edit": "Edit swatches",
+      "done": "Done",
+      "remove": "Remove swatch",
+      "import": "Import .ase / .gpl",
+      "imported": "Imported {{count}} swatches",
+      "importFailed": "No colours found in that file",
+      "empty": "No swatches yet",
+      "more": "Style and text",
+      "transform": "Transform",
+      "appearance": "Appearance",
+      "swatches": "Swatches",
+      "type": "Type",
+      "installed": "Installed",
+      "hex": "Colour (hex)",
+      "pick": "Pick a colour",
+      "swap": "Swap fill and stroke",
+      "defaults": "Default colours",
+      "none": "None",
+      "dock": "Dock to the right",
+      "noLayers": "Nothing on the canvas yet",
+      "tab_design": "Design",
+      "tab_layers": "Layers",
+      "detachLayers": "Pop out the layers",
+      "attachLayers": "Put the layers back in the inspector"
+    },
+    "layerPanel": {
+      "new": "New layer",
+      "delete": "Delete layer and its objects",
+      "show": "Show layer",
+      "hide": "Hide layer",
+      "lock": "Lock layer",
+      "unlock": "Unlock layer",
+      "selectAll": "Select all objects of the layer",
+      "fill": "Fill of every object in the layer",
+      "stroke": "Stroke of every object in the layer",
+      "noFill": "No fill for the layer"
+    },
+    "grid": {
+      "title": "Grid",
+      "spacing": "Spacing",
+      "subdivisions": "Subdivisions",
+      "fit": "Fit to grid",
+      "origin": "Origin",
+      "originToSelection": "Origin to selection",
+      "originReset": "Reset origin"
+    },
+    "anchor": {
+      "title": "Anchor",
+      "thisPoint": "This point",
+      "targetPoint": "Target point",
+      "pick": "Anchor to an element…",
+      "picking": "Click the element to follow (Esc cancels)",
+      "release": "Release",
+      "followsElement": "Follows another element",
+      "followsGuide": "Pinned to a guide",
+      "gapX": "Gap X",
+      "gapY": "Gap Y",
+      "offset": "Offset",
+      "pin": "Pin to guide",
+      "noGuides": "Drag a guide off a ruler first",
+      "edge_start": "Start edge",
+      "edge_center": "Centre",
+      "edge_end": "End edge"
+    },
+    "knife": {
+      "cut": "Cut shapes along the line",
+      "keys": "Hold a number key to lock the angle"
+    },
+    "pathfinder": {
+      "title": "Pathfinder",
+      "unite": "Unite",
+      "intersect": "Intersect",
+      "subtract": "Subtract (minus front)",
+      "exclude": "Exclude overlap",
+      "divide": "Divide",
+      "compound": "Make compound shape",
+      "release": "Release compound shape"
+    },
+    "alignPanel": {
+      "title": "Align"
+    },
+    "rulers": {
+      "toggle": "Rulers and guides",
+      "snap": "Snap to guides (magnet)",
+      "clear": "Clear all guides"
+    },
+    "path": {
+      "title": "Path",
+      "bevelAll": "Bevel (all)",
+      "bevelPoint": "Bevel (point)",
+      "edit": "Edit path points",
+      "convertToPath": "Convert to path",
+      "corner": "Corner point",
+      "smooth": "Smooth point",
+      "broken": "Broken tangents",
+      "deletePoint": "Delete point",
+      "closePath": "Close path",
+      "openPath": "Open path",
+      "split": "Split here",
+      "join": "Join paths",
+      "done": "Done"
+    },
     "lineEditor": {
       "edit": "Edit line",
       "editArrow": "Edit arrow"
@@ -319,7 +431,8 @@
     },
     "asyncPasteFailedOnRead": "Couldn't paste (couldn't read from system clipboard).",
     "asyncPasteFailedOnParse": "Couldn't paste.",
-    "copyToSystemClipboardFailed": "Couldn't copy to clipboard."
+    "copyToSystemClipboardFailed": "Couldn't copy to clipboard.",
+    "saveToFileFailed": "Could not save to {{filename}}: {{reason}}"
   },
   "toolBar": {
     "selection": "Selection",
@@ -344,6 +457,8 @@
     "laser": "Laser pointer",
     "autoshape": "Draw to shape",
     "bucketfill": "Bucket fill",
+    "knife": "Knife (cut shapes along a line)",
+    "path": "Path (click to add points, drag for curves)",
     "hand": "Hand (panning tool)",
     "extraTools": "More tools",
     "mermaidToExcalidraw": "Mermaid to Excalidraw",
@@ -360,6 +475,7 @@
     "arrow": "Arrow",
     "line": "Line",
     "freedraw": "Freedraw",
+    "path": "Path",
     "text": "Text",
     "image": "Image",
     "group": "Group",
@@ -774,5 +890,14 @@
     "spacebar": "Space",
     "delete": "Delete",
     "mmb": "Scroll wheel"
+  },
+  "autosave": {
+    "toggle": "Autosave to file",
+    "noFile": "Not saved to a file: Ctrl+S",
+    "unsupported": "Autosave to file is not available in this browser",
+    "needsPermission": "Autosave needs permission for {{filename}}: Ctrl+S",
+    "saving": "Saving to {{filename}}…",
+    "saved": "Saved to {{filename}} {{time}}",
+    "failed": "Autosave to {{filename}} failed: {{reason}}"
   }
 }

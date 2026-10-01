@@ -25,6 +25,8 @@ import {
   EraserIcon,
   laserPointerToolIcon,
   bucketFillIcon,
+  pathToolIcon,
+  knifeToolIcon,
   LassoIcon,
   handIcon,
   frameToolIcon,
@@ -110,7 +112,8 @@ export const TOOLS = defineTools({
   },
   freedraw: {
     icon: FreedrawIcon,
-    letterKey: [KEYS.P, KEYS.X],
+    // Illustrator: P is the pen (path tool), so drawing freehand is X
+    letterKey: KEYS.X,
     numericKey: KEYS["7"],
   },
   text: {
@@ -152,6 +155,16 @@ export const TOOLS = defineTools({
   bucketfill: {
     icon: bucketFillIcon,
     letterKey: KEYS.B,
+  },
+  path: {
+    icon: pathToolIcon,
+    letterKey: KEYS.P,
+    fillable: true,
+  },
+  knife: {
+    icon: knifeToolIcon,
+    letterKey: KEYS.C,
+    fillable: false,
   },
   lasso: {
     icon: LassoIcon,

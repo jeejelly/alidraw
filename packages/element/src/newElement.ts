@@ -33,6 +33,7 @@ import { normalizeText, measureText } from "./textMeasurements";
 import { wrapText } from "./textWrapping";
 
 import { isLineElement } from "./typeChecks";
+import { NO_HANDLES } from "./path";
 
 import type {
   ExcalidrawElement,
@@ -45,6 +46,7 @@ import type {
   VerticalAlign,
   Arrowhead,
   ExcalidrawFreeDrawElement,
+  ExcalidrawPathElement,
   FontFamilyValues,
   ExcalidrawTextContainer,
   ExcalidrawFrameElement,
@@ -338,6 +340,8 @@ export const newTextElement = (
     originalText?: string;
     fontSize?: number;
     fontFamily?: FontFamilyValues;
+    fontFamilyName?: string | null;
+    fontUnit?: ExcalidrawTextElement["fontUnit"];
     textAlign?: TextAlign;
     verticalAlign?: VerticalAlign;
     containerId?: ExcalidrawTextContainer["id"] | null;
@@ -353,7 +357,11 @@ export const newTextElement = (
   const text = normalizeText(opts.text);
   const metrics = measureText(
     text,
-    getFontString({ fontFamily, fontSize }),
+    getFontString({
+      fontFamily,
+      fontSize,
+      fontFamilyName: opts.fontFamilyName,
+    }),
     lineHeight,
   );
   const textAlign = opts.textAlign || DEFAULT_TEXT_ALIGN;
@@ -369,6 +377,8 @@ export const newTextElement = (
     fontSize,
     baseFontSize: opts.baseFontSize ?? null,
     fontFamily,
+    ...(opts.fontFamilyName ? { fontFamilyName: opts.fontFamilyName } : {}),
+    ...(opts.fontUnit ? { fontUnit: opts.fontUnit } : {}),
     textAlign,
     verticalAlign,
     x: opts.x - offsets.x,
@@ -598,6 +608,24 @@ export const newFreeDrawElement = (
       variability: "variable",
       streamline: DEFAULT_STROKE_STREAMLINE,
     },
+  };
+};
+
+export const newPathElement = (
+  opts: {
+    points?: ExcalidrawPathElement["points"];
+    handles?: ExcalidrawPathElement["handles"];
+    contours?: ExcalidrawPathElement["contours"];
+    closed?: boolean;
+  } & ElementConstructorOpts,
+): NonDeleted<ExcalidrawPathElement> => {
+  const points = opts.points ?? [];
+  return {
+    ..._newElementBase<ExcalidrawPathElement>("path", opts),
+    points,
+    handles: opts.handles ?? points.map(() => NO_HANDLES),
+    closed: opts.closed ?? false,
+    ...(opts.contours?.length ? { contours: opts.contours } : {}),
   };
 };
 

@@ -58,6 +58,7 @@ import {
   normalizeLink,
   toValidURL,
   getGridPoint,
+  setGridOrigin,
   debounce,
   distance,
   getFontString,
@@ -293,6 +294,10 @@ import {
   actionSendBackward,
   actionSendToBack,
   actionToggleGridMode,
+  actionToggleRulers,
+  actionToggleGuidesSnap,
+  actionClearGuides,
+  actionTogglePalette,
   actionToggleStats,
   actionToggleZenMode,
   actionUnbindText,
@@ -301,6 +306,9 @@ import {
   actionLink,
   actionToggleElementLock,
   actionToggleLinearEditor,
+  actionEditPath,
+  actionJoinPaths,
+  actionConvertShapeToPath,
   actionToggleObjectsSnapMode,
   actionToggleArrowBinding,
   actionToggleMidpointSnapping,
@@ -401,6 +409,8 @@ import {
   resolveColorTarget,
 } from "../actions/colorTargets";
 
+import { getHiddenLayerKey, isInHiddenLayer } from "../layers";
+
 import ConvertElementTypePopup, {
   getConversionTypeFromElements,
   convertElementTypePopupAtom,
@@ -413,6 +423,16 @@ import { AppClipboard } from "./App.clipboard";
 import { AppText } from "./App.text";
 import { AppTextTool } from "./App.textTool";
 import { AppBucketFill } from "./App.bucketFill";
+import { AppPath } from "./App.path";
+import { AppGuides } from "./App.guides";
+import { AppGizmo } from "./App.gizmo";
+import { AppAnchors } from "./App.anchors";
+import { AppLayers } from "./App.layers";
+import { AppKnife } from "./App.knife";
+import { AngleHelper } from "./AngleHelper";
+import { Rulers } from "./Rulers";
+import { PalettePanel } from "./PalettePanel";
+import { PathEditorPanel } from "./PathEditorPanel";
 import { AppToolDrag, TOOL_DRAG_PREVIEW_OPACITY } from "./App.toolDrag";
 import { AppCursor } from "./App.cursor";
 import { AppDrawShape } from "./App.drawshape";
@@ -729,6 +749,12 @@ class App extends React.Component<AppProps, AppState> {
   previousPointerMoveCoords: { x: number; y: number } | null = null;
 
   drawShape = new AppDrawShape(this);
+  path = new AppPath(this);
+  guides = new AppGuides(this);
+  gizmo = new AppGizmo(this);
+  anchors = new AppAnchors(this);
+  layers = new AppLayers(this);
+  knife = new AppKnife(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
   lassoTrail = new LassoTrail(this);
@@ -2333,6 +2359,7 @@ class App extends React.Component<AppProps, AppState> {
       selectedElementsAreBeingDragged:
         this.state.selectedElementsAreBeingDragged,
       frameToHighlight: this.state.frameToHighlight,
+      hiddenLayerKey: getHiddenLayerKey(this.state.layers),
     });
     this.visibleElements = visibleElements;
     this.hasRenderableElements = renderableElementsMap.size > 0;
@@ -2491,6 +2518,18 @@ class App extends React.Component<AppProps, AppState> {
                             ]}
                           />
                           {this.isDefaultUIEnabled() && <CursorHint />}
+                          {this.state.rulersEnabled && <Rulers app={this} />}
+                          {this.state.paletteOpen && (
+                            <PalettePanel app={this} />
+                          )}
+                          {this.state.angleHelper && (
+                            <AngleHelper
+                              active={this.state.angleHelper.active}
+                            />
+                          )}
+                          {this.state.editingPath && (
+                            <PathEditorPanel app={this} />
+                          )}
                           {this.isDefaultUIEnabled() &&
                             this.isInteractionEnabled() &&
                             !this.state.viewModeEnabled && <FileDropOverlay />}
@@ -3537,6 +3576,8 @@ class App extends React.Component<AppProps, AppState> {
         ...getDefaultAppState(),
         isLoading: opts?.resetLoadingState ? false : state.isLoading,
         theme: this.state.theme,
+        // the inspector is the editor's panel: a new scene keeps it
+        paletteOpen: state.paletteOpen,
       }));
       this.resetStore();
       this.resetHistory();
@@ -3775,6 +3816,7 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   public async componentDidMount() {
+    setGridOrigin(this.state.gridOrigin.x, this.state.gridOrigin.y);
     this.unmounted = false;
     this.api = this.createExcalidrawAPI();
 
@@ -3827,6 +3869,8 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     this.scene.onUpdate(this.triggerRender);
+    this.scene.onUpdate(this.anchors.refresh);
+    this.scene.onUpdate(this.layers.refresh);
     this.addEventListeners();
 
     if (this.props.autoFocus && this.excalidrawContainerRef.current) {
@@ -3916,6 +3960,11 @@ class App extends React.Component<AppProps, AppState> {
     this.library.destroy();
     this.laserTrails.stop();
     this.drawShape.stop();
+    this.path.reset();
+    this.guides.destroy();
+    this.gizmo.destroy();
+    this.anchors.destroy();
+    this.knife.destroy();
     this.toolDrag.cancel();
     this.eraserTrail.stop();
     this.onChangeEmitter.clear();
@@ -4260,6 +4309,13 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   componentDidUpdate(prevProps: AppProps, prevState: AppState) {
+    if (prevState.gridOrigin !== this.state.gridOrigin) {
+      setGridOrigin(this.state.gridOrigin.x, this.state.gridOrigin.y);
+    }
+    if (prevState.guides !== this.state.guides) {
+      // elements pinned to a guide follow it
+      this.anchors.refresh();
+    }
     const renderOverridesUpdatePending = this.renderOverridesUpdatePending;
     this.renderOverridesUpdatePending = false;
     // Only a requested visual update can skip the document pipeline. Real
@@ -5126,6 +5182,10 @@ class App extends React.Component<AppProps, AppState> {
       }
 
       if (!isInputLike(event.target)) {
+        if (this.path.handleKeyDown(event)) {
+          event.preventDefault();
+          return;
+        }
         if (
           (event.key === KEYS.ESCAPE || event.key === KEYS.ENTER) &&
           this.state.croppingElementId
@@ -5750,6 +5810,13 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    if (tool.type !== "path") {
+      this.path.reset();
+    }
+    if (tool.type === "path") {
+      this.setState({ editingPath: null });
+    }
+
     if (this.drawShape.hasPendingGesture()) {
       // switching tools mid-sketch (e.g. paste resets to the selection tool)
       // must not strand the gesture — commit it through the finalize funnel
@@ -5821,7 +5888,11 @@ class App extends React.Component<AppProps, AppState> {
                 multiElement: null,
               }),
         };
-      } else if (nextActiveTool.type !== "selection") {
+      } else if (
+        nextActiveTool.type !== "selection" &&
+        // the knife cuts what is selected, so it keeps the selection
+        nextActiveTool.type !== "knife"
+      ) {
         return {
           ...prevState,
           ...commonResets,
@@ -6013,6 +6084,10 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   // NOTE: Hot path for hit testing, so avoid unnecessary computations
+  /** ids of the layers switched off: their objects can't be picked */
+  getHiddenLayerIds = () =>
+    new Set(this.state.layers.filter((l) => !l.visible).map((l) => l.id));
+
   getElementsAtPosition(
     x: number,
     y: number,
@@ -6025,6 +6100,7 @@ class App extends React.Component<AppProps, AppState> {
 
     const elementsMap = this.scene.getNonDeletedElementsMap();
 
+    const hidden = this.getHiddenLayerIds();
     const elements = (
       opts?.includeBoundTextElement && opts?.includeLockedElements
         ? this.scene.getNonDeletedElements()
@@ -6037,6 +6113,7 @@ class App extends React.Component<AppProps, AppState> {
                   !(isTextElement(element) && element.containerId)),
             )
     )
+      .filter((el) => !isInHiddenLayer(el, hidden))
       .filter((el) => this.hitElement(x, y, el))
       .filter((element) => {
         // hitting a frame's element from outside the frame is not considered a hit
@@ -6182,6 +6259,12 @@ class App extends React.Component<AppProps, AppState> {
       | "shiftKey"
     >,
   ) => {
+    if (this.isInteractionEnabled() && this.guides.handleDoubleClick(event)) {
+      return;
+    }
+    if (this.isInteractionEnabled() && this.path.handleDoubleClick()) {
+      return;
+    }
     if (
       !this.isInteractionEnabled() ||
       this.state.editingTextElement ||
@@ -7237,6 +7320,11 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    // rotate / skew zones around the selection own the cursor
+    if (this.gizmo.handleHover(event)) {
+      return;
+    }
+
     const hitElementMightBeLocked = this.getElementAtPosition(
       scenePointerX,
       scenePointerY,
@@ -7694,6 +7782,31 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    // choosing the target of an anchor takes the next click
+    if (this.anchors.handlePointerDown(event)) {
+      return;
+    }
+
+    // the knife draws its cut line
+    if (this.knife.handlePointerDown(event)) {
+      return;
+    }
+
+    // the rotate / skew zones around the selection
+    if (this.gizmo.handlePointerDown(event)) {
+      return;
+    }
+
+    // a guide line under the pointer is dragged before anything else
+    if (this.guides.handlePointerDown(event)) {
+      return;
+    }
+
+    // the pen tool and the point editor of a selected path own their pointer
+    if (this.path.handlePointerDown(event)) {
+      return;
+    }
+
     this.setState({
       lastPointerDownWith: event.pointerType,
       cursorButton: "down",
@@ -7975,7 +8088,9 @@ class App extends React.Component<AppProps, AppState> {
     } else if (
       this.state.activeTool.type !== "eraser" &&
       this.state.activeTool.type !== "hand" &&
-      this.state.activeTool.type !== "image"
+      this.state.activeTool.type !== "image" &&
+      this.state.activeTool.type !== "path" &&
+      this.state.activeTool.type !== "knife"
     ) {
       this.createGenericElementOnPointerDown(
         this.state.activeTool.type,
@@ -9435,6 +9550,20 @@ class App extends React.Component<AppProps, AppState> {
     }
   };
 
+  /** the style a newly drawn path starts with */
+  public getPathElementStyle = () => ({
+    strokeColor: this.state.currentItemStrokeColor,
+    backgroundColor: this.state.currentItemBackgroundColor,
+    fillStyle: this.state.currentItemFillStyle,
+    strokeWidth: this.getCurrentItemStrokeWidth("path"),
+    strokeStyle: this.state.currentItemStrokeStyle,
+    roughness: this.state.currentItemRoughness,
+    opacity: this.state.currentItemOpacity,
+    roundness: null,
+    locked: false,
+    frameId: null,
+  });
+
   private createFrameElementOnPointerDown = (
     pointerDownState: PointerDownState,
     type: Extract<ToolType, "frame" | "magicframe">,
@@ -10240,7 +10369,9 @@ class App extends React.Component<AppProps, AppState> {
           }
           const elementsWithinSelection = this.state.selectionElement
             ? getElementsWithinSelection(
-                elements,
+                elements.filter(
+                  (el) => !isInHiddenLayer(el, this.getHiddenLayerIds()),
+                ),
                 this.state.selectionElement,
                 this.scene.getNonDeletedElementsMap(),
                 false,
@@ -11840,7 +11971,7 @@ class App extends React.Component<AppProps, AppState> {
     this.addNewImagesToImageCache();
   }, IMAGE_RENDER_TIMEOUT);
 
-  private clearSelection(hitElement: ExcalidrawElement | null): void {
+  public clearSelection(hitElement: ExcalidrawElement | null): void {
     this.setState((prevState) => ({
       selectedElementIds: makeNextSelectedElementIds({}, prevState),
       activeEmbeddable: null,
@@ -12702,6 +12833,10 @@ class App extends React.Component<AppProps, AppState> {
         actionUnlockAllElements,
         CONTEXT_MENU_SEPARATOR,
         actionToggleGridMode,
+        actionToggleRulers,
+        actionToggleGuidesSnap,
+        actionClearGuides,
+        actionTogglePalette,
         actionToggleObjectsSnapMode,
         actionToggleArrowBinding,
         actionToggleMidpointSnapping,
@@ -12762,6 +12897,9 @@ class App extends React.Component<AppProps, AppState> {
       actionFlipVertical,
       CONTEXT_MENU_SEPARATOR,
       actionToggleLinearEditor,
+      actionEditPath,
+      actionJoinPaths,
+      actionConvertShapeToPath,
       CONTEXT_MENU_SEPARATOR,
       actionLink,
       actionCopyElementLink,

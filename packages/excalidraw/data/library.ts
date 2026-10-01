@@ -730,9 +730,10 @@ export const useHandleLibrary = (
 
           validateLibraryUrl(libraryUrl, optsRef.current.validateLibraryUrl);
 
-          const request = await fetch(libraryUrl);
-          const blob = await request.blob();
-          resolve(blob);
+          // A library comes from a file on this machine, never from a URL.
+          throw new Error(
+            `Loading a library from a URL is disabled in this build: ${libraryUrl}`,
+          );
         } catch (error: any) {
           reject(error);
         }

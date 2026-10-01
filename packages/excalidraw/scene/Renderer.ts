@@ -18,6 +18,7 @@ import type {
 
 import type { Scene } from "@excalidraw/element";
 
+import { isInHiddenLayer } from "../layers";
 import { renderStaticSceneThrottled } from "../renderer/staticScene";
 
 import type { RenderableElementsMap } from "./types";
@@ -37,6 +38,8 @@ type GetRenderableElementsOpts = {
   selectedElements: readonly NonDeletedExcalidrawElement[];
   selectedElementsAreBeingDragged: AppState["selectedElementsAreBeingDragged"];
   frameToHighlight: AppState["frameToHighlight"];
+  /** ids of the layers switched off, joined (a stable memo key) */
+  hiddenLayerKey?: string;
 };
 
 export class Renderer {
@@ -321,6 +324,7 @@ export class Renderer {
       width,
       editingTextElement,
       newElement,
+      hiddenLayerKey,
     }: Omit<
       GetRenderableElementsOpts,
       | "selectedElements"
@@ -338,7 +342,7 @@ export class Renderer {
           newElement,
         });
 
-      const visibleElements = this.getVisibleCanvasElements({
+      let visibleElements = this.getVisibleCanvasElements({
         elementsMap,
         zoom,
         offsetLeft,
@@ -348,6 +352,12 @@ export class Renderer {
         height,
         width,
       });
+      if (hiddenLayerKey) {
+        const hidden = new Set(hiddenLayerKey.split(","));
+        visibleElements = visibleElements.filter(
+          (el) => !isInHiddenLayer(el, hidden),
+        );
+      }
 
       return {
         elementsMap,
@@ -386,6 +396,7 @@ export class Renderer {
       width: opts.width,
       editingTextElement: opts.editingTextElement,
       newElement: opts.newElement,
+      hiddenLayerKey: opts.hiddenLayerKey ?? "",
     });
 
     // if we're dragging elements over a frame, reorder the selected elements

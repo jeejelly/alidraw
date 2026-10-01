@@ -70,6 +70,12 @@ export const importFromLocalStorage = () => {
       // Do nothing because appState is already null
     }
   }
+  // our inspector is the app's palette: open on first launch, then whatever
+  // the user left it as
+  appState = {
+    ...(appState ?? getDefaultAppState()),
+    paletteOpen: appState?.paletteOpen ?? true,
+  };
   return { elements, appState };
 };
 

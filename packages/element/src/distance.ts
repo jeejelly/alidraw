@@ -16,6 +16,7 @@ import {
 } from "./utils";
 
 import { elementCenterPoint } from "./bounds";
+import { deconstructPath } from "./path";
 
 import type {
   ElementsMap,
@@ -50,6 +51,16 @@ export const distanceToElement = (
     case "line":
     case "arrow":
       return distanceToLinearOrFreeDraElement(element, elementsMap, p);
+    case "path": {
+      const [lines, curves] = deconstructPath(
+        element,
+        elementCenterPoint(element, elementsMap),
+      );
+      return Math.min(
+        ...lines.map((s) => distanceToLineSegment(p, s)),
+        ...curves.map((a) => curvePointDistance(a, p)),
+      );
+    }
     case "freedraw":
       return distanceToFreeDrawElement(element, elementsMap, p);
   }

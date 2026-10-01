@@ -437,6 +437,8 @@ export class AppClipboard {
       text,
       fontSize: this.app.state.currentItemFontSize,
       fontFamily: this.app.state.currentItemFontFamily,
+      fontFamilyName: this.app.state.currentItemFontFamilyName,
+      fontUnit: this.app.state.currentItemFontUnit,
       textAlign: DEFAULT_TEXT_ALIGN,
       verticalAlign: DEFAULT_VERTICAL_ALIGN,
       locked: false,

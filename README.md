@@ -49,6 +49,46 @@
   </figure>
 </div>
 
+## By Jeejelly
+
+Changes in this fork, branch `jeejelly`:
+
+### No external connector
+
+- The app reaches its own origin only. CSP: `connect-src`, `img-src`, `font-src` `'self' data: blob:`; `frame-src 'none'`.
+- Removed, sent data out: share links (json.excalidraw.com), live collaboration (collab server, Firebase), Excalidraw+ export, AI text-to-diagram and diagram-to-code, library publish, Sentry, analytics.
+- Removed, fetched from a server: font CDN and esm.sh fallback, Google Fonts, `#url=` and `#addLibrary=` loads, pasted http(s) image URLs, embeds.
+- Removed links: Excalidraw+ promos and sign-up, socials, library browse.
+- Kept: browser storage, file open/save, image export, Mermaid-to-Excalidraw, PWA service worker.
+
+### Linux desktop app (standalone)
+
+- `excalidraw-desktop/`: Electron app serving the build under `app://excalidraw/`; every other request, navigation and new window is refused.
+- File access granted to the app origin only: open, save, autosave to file.
+- `./package.sh desktop`: build, package a `.deb`, install it with `apt-get`; entry in the applications menu.
+- `./package.sh desktop-package`: build the `.deb` only, in `excalidraw-desktop/dist/`.
+
+### Local install
+
+- `./package.sh`: build `excalidraw-app`, serve it on `127.0.0.1:3100` as systemd user service `excalidraw-local.service`.
+- `./package.sh status`: service state and HTTP check. Env: `EXCALIDRAW_PORT`, `EXCALIDRAW_DIR`.
+- `./package.sh vscode`: build and install the VS Code extension from sibling directory `excalidraw-vscode` (`EXCALIDRAW_VSCODE_DIR`).
+
+### Colour picker
+
+- Saturation square and hue bar for any colour, above the hex field; `#rrggbbaa` keeps its alpha.
+- A drag previews the colour live and records one undo step.
+
+### Save and autosave
+
+- Ctrl+S writes the open file, no dialog. A scene with no file opens Save As. A failed write shows the reason and a Save as button.
+- Ctrl+Shift+S: Save As.
+- Preferences > Autosave to file, off by default: writes the open `.excalidraw`, or PNG/SVG with the scene embedded, 20 s after the last edit; status in the footer.
+
+### Specified, not implemented
+
+- `docs/specs/`: EXC-1 typography, EXC-2 rulers and guides, EXC-3 palette panel, EXC-4 path handles.
+
 ## Features
 
 The Excalidraw editor (npm package) supports:

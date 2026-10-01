@@ -14,6 +14,7 @@ import type {
   NonDeleted,
 } from "@excalidraw/element/types";
 
+import { isInHiddenLayer } from "../layers";
 import { selectAllIcon } from "../components/icons";
 
 import { register } from "./register";
@@ -29,12 +30,16 @@ export const actionSelectAll = register({
       return false;
     }
 
+    const hiddenLayers = new Set(
+      appState.layers.filter((l) => !l.visible).map((l) => l.id),
+    );
     const selectedElementIds = elements
       .filter(
         (element) =>
           !element.isDeleted &&
           !(isTextElement(element) && element.containerId) &&
-          !element.locked,
+          !element.locked &&
+          !isInHiddenLayer(element, hiddenLayers),
       )
       .reduce((map: Record<ExcalidrawElement["id"], true>, element) => {
         map[element.id] = true;

@@ -1,0 +1,49 @@
+{
+  "name": "excalidraw-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Excalidraw (branch jeejelly) as a desktop app: local files only, no network",
+  "homepage": "https://excalidraw.com",
+  "author": {
+    "name": "Excalidraw",
+    "email": "support@excalidraw.com"
+  },
+  "desktopName": "Excalidraw",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux deb"
+  },
+  "build": {
+    "appId": "local.excalidraw.desktop",
+    "productName": "Excalidraw",
+    "executableName": "excalidraw",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../excalidraw-app/build",
+        "to": "app",
+        "filter": [
+          "**/*",
+          "!**/*.map"
+        ]
+      }
+    ],
+    "linux": {
+      "target": "deb",
+      "category": "Graphics",
+      "icon": "../excalidraw-app/build/android-chrome-512x512.png",
+      "syncDesktopName": true
+    }
+  },
+  "devDependencies": {
+    "electron": "44.4.1",
+    "electron-builder": "26.15.3"
+  }
+}

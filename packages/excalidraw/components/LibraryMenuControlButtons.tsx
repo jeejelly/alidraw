@@ -1,7 +1,5 @@
 import clsx from "clsx";
 
-import LibraryMenuBrowseButton from "./LibraryMenuBrowseButton";
-
 import type { ExcalidrawProps, UIAppState } from "../types";
 
 export const LibraryMenuControlButtons = ({
@@ -24,11 +22,6 @@ export const LibraryMenuControlButtons = ({
       className={clsx("library-menu-control-buttons", className)}
       style={style}
     >
-      <LibraryMenuBrowseButton
-        id={id}
-        libraryReturnUrl={libraryReturnUrl}
-        theme={theme}
-      />
       {children}
     </div>
   );

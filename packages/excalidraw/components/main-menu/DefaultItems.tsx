@@ -11,6 +11,9 @@ import {
   actionShortcuts,
   actionToggleArrowBinding,
   actionToggleGridMode,
+  actionToggleRulers,
+  actionToggleGuidesSnap,
+  actionTogglePalette,
   actionToggleMidpointSnapping,
   actionToggleObjectsSnapMode,
   actionToggleSearchMenu,
@@ -42,13 +45,7 @@ import DropdownMenuItemCheckbox from "../dropdownMenu/DropdownMenuItemCheckbox";
 import DropdownMenuItemContentRadio from "../dropdownMenu/DropdownMenuItemContentRadio";
 import DropdownMenuItemLink from "../dropdownMenu/DropdownMenuItemLink";
 import DropdownMenuSub from "../dropdownMenu/DropdownMenuSub";
-import {
-  GithubIcon,
-  DiscordIcon,
-  XBrandIcon,
-  settingsIcon,
-  emptyIcon,
-} from "../icons";
+import { settingsIcon, emptyIcon } from "../icons";
 import {
   boltIcon,
   DeviceDesktopIcon,
@@ -371,35 +368,7 @@ export const Export = () => {
 };
 Export.displayName = "Export";
 
-export const Socials = () => {
-  const { t } = useI18n();
-
-  return (
-    <>
-      <DropdownMenuItemLink
-        icon={GithubIcon}
-        href="https://github.com/excalidraw/excalidraw"
-        aria-label="GitHub"
-      >
-        GitHub
-      </DropdownMenuItemLink>
-      <DropdownMenuItemLink
-        icon={XBrandIcon}
-        href="https://x.com/excalidraw"
-        aria-label="X"
-      >
-        {t("labels.followUs")}
-      </DropdownMenuItemLink>
-      <DropdownMenuItemLink
-        icon={DiscordIcon}
-        href="https://discord.gg/UexuTaE"
-        aria-label="Discord"
-      >
-        {t("labels.discordChat")}
-      </DropdownMenuItemLink>
-    </>
-  );
-};
+export const Socials = () => null;
 Socials.displayName = "Socials";
 
 export const LiveCollaborationTrigger = ({
@@ -526,6 +495,59 @@ const PreferencesToggleSnapModeItem = () => {
       }}
     >
       {t("buttons.objectsSnapMode")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
+const PreferencesToggleRulersItem = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.rulersEnabled}
+      shortcut={getShortcutFromShortcutName("toggleRulers")}
+      onSelect={(event) => {
+        actionManager.executeAction(actionToggleRulers);
+        event.preventDefault();
+      }}
+    >
+      {t("labels.rulers.toggle")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
+const PreferencesTogglePaletteItem = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.paletteOpen}
+      shortcut={getShortcutFromShortcutName("togglePalette")}
+      onSelect={(event) => {
+        actionManager.executeAction(actionTogglePalette);
+        event.preventDefault();
+      }}
+    >
+      {t("labels.palette.toggle")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
+const PreferencesToggleGuidesSnapItem = () => {
+  const { t } = useI18n();
+  const actionManager = useExcalidrawActionManager();
+  const appState = useUIAppState();
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.guidesSnapEnabled}
+      onSelect={(event) => {
+        actionManager.executeAction(actionToggleGuidesSnap);
+        event.preventDefault();
+      }}
+    >
+      {t("labels.rulers.snap")}
     </DropdownMenuItemCheckbox>
   );
 };
@@ -677,6 +699,9 @@ export const Preferences = ({
             <PreferencesInputDeviceItem />
             <PreferencesToggleToolLockItem />
             <PreferencesToggleSnapModeItem />
+            <PreferencesToggleRulersItem />
+            <PreferencesTogglePaletteItem />
+            <PreferencesToggleGuidesSnapItem />
             <PreferencesToggleGridModeItem />
             <PreferencesToggleZenModeItem />
             <PreferencesToggleViewModeItem />
