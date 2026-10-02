@@ -83,7 +83,11 @@ export { actionImportFiles } from "./actionImport";
 export { actionReplaceFromLibrary } from "./actionReplaceFromLibrary";
 export { actionConvertToFlowElement } from "./actionConvertToFlowElement";
 export { actionTextToVectors } from "./actionTextToVectors";
-export { actionToggleBold, actionToggleItalic } from "./actionTypography";
+export {
+  actionChangeLibraryFont,
+  actionToggleBold,
+  actionToggleItalic,
+} from "./actionTypography";
 export { actionVectorizeImage } from "./actionVectorizeImage";
 export { actionToggleGridMode } from "./actionToggleGridMode";
 export { actionToggleZenMode } from "./actionToggleZenMode";

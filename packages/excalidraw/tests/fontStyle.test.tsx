@@ -2,6 +2,8 @@ import React from "react";
 
 import { FONT_FAMILY, getFontString } from "@excalidraw/common";
 
+import { measureText } from "@excalidraw/element";
+
 import { actionToggleBold, actionToggleItalic } from "../actions";
 import { restoreElements } from "../data/restore";
 import { Excalidraw } from "../index";
@@ -28,6 +30,17 @@ describe("bold and italic", () => {
     expect(
       getFontString({ ...base, fontWeight: 400, fontStyle: "normal" }),
     ).toMatch(/^20px /);
+  });
+
+  it("measuring reads the size past the style and the weight", () => {
+    const base = { fontSize: 20, fontFamily: FONT_FAMILY.Nunito };
+    const height = (extra: object) =>
+      measureText("a\nb", getFontString({ ...base, ...extra }), 1.25 as any)
+        .height;
+    expect(height({})).toBe(50);
+    expect(height({ fontWeight: 700 })).toBe(50);
+    expect(height({ fontStyle: "italic" })).toBe(50);
+    expect(height({ fontStyle: "italic", fontWeight: 700 })).toBe(50);
   });
 
   it("toggle for the whole selection, and the shortcuts reach them", async () => {

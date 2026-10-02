@@ -71,6 +71,31 @@ export const subsetWoff2GlyphsByCodepoints = async (
   });
 };
 
+/**
+ * woff2 to a plain sfnt font (to read its glyph outlines). Same worker, same fallback as subsetting:
+ * the wasm decoder needs no `eval`, but it may not be allowed in a page with a strict policy,
+ * where a worker is.
+ */
+export const woff2ToSfnt = async (
+  arrayBuffer: ArrayBuffer,
+): Promise<ArrayBuffer> => {
+  const { Commands, decompressToBinary } = await lazyLoadSharedSubsetChunk();
+
+  if (shouldUseWorkers) {
+    try {
+      const workerPool = await getOrCreateWorkerPool();
+      const copy = arrayBuffer.slice(0);
+      return await workerPool.postMessage(
+        { command: Commands.Decompress, arrayBuffer: copy } as const,
+        { transfer: [copy] },
+      );
+    } catch {
+      shouldUseWorkers = false;
+    }
+  }
+  return decompressToBinary(arrayBuffer);
+};
+
 // lazy-loaded and cached chunks
 let subsetWorker: Promise<typeof import("./subset-worker.chunk")> | null = null;
 let subsetShared: Promise<typeof import("./subset-shared.chunk")> | null = null;
@@ -92,15 +117,16 @@ const lazyLoadSharedSubsetChunk = async () => {
   return subsetShared;
 };
 
-// could be extended with multiple commands in the future
-type SubsetWorkerData = {
-  command: typeof Commands.Subset;
-  arrayBuffer: ArrayBuffer;
-  codePoints: Array<number>;
-};
+type SubsetWorkerData =
+  | {
+      command: typeof Commands.Subset;
+      arrayBuffer: ArrayBuffer;
+      codePoints: Array<number>;
+    }
+  | { command: typeof Commands.Decompress; arrayBuffer: ArrayBuffer };
 
 type SubsetWorkerResult<T extends SubsetWorkerData["command"]> =
-  T extends typeof Commands.Subset ? ArrayBuffer : never;
+  T extends SubsetWorkerData["command"] ? ArrayBuffer : never;
 
 let workerPool: Promise<
   WorkerPool<SubsetWorkerData, SubsetWorkerResult<SubsetWorkerData["command"]>>

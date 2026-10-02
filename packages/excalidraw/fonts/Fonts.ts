@@ -35,6 +35,7 @@ import { CascadiaFontFaces } from "./Cascadia";
 import { ComicShannsFontFaces } from "./ComicShanns";
 import { EmojiFontFaces } from "./Emoji";
 import { ExcalidrawFontFace } from "./ExcalidrawFontFace";
+import { libraryFontFaceCSS, loadLibraryFontsFor } from "./library";
 import { ExcalifontFontFaces } from "./Excalifont";
 import { HelveticaFontFaces } from "./Helvetica";
 import { LiberationFontFaces } from "./Liberation";
@@ -156,11 +157,14 @@ export class Fonts {
       this.scene.getNonDeletedElements(),
     );
 
-    return Fonts.loadFontFaces(
-      sceneFamilies,
-      charsPerFamily,
-      this.ownerDocument,
-    );
+    const [registered, library] = await Promise.all([
+      Fonts.loadFontFaces(sceneFamilies, charsPerFamily, this.ownerDocument),
+      loadLibraryFontsFor(
+        this.scene.getNonDeletedElements(),
+        this.ownerDocument,
+      ),
+    ]);
+    return [...registered, ...library];
   };
 
   /**
@@ -173,7 +177,11 @@ export class Fonts {
     const fontFamilies = Fonts.getUniqueFamilies(elements);
     const charsPerFamily = Fonts.getCharsPerFamily(elements);
 
-    return Fonts.loadFontFaces(fontFamilies, charsPerFamily, ownerDocument);
+    const [registered, library] = await Promise.all([
+      Fonts.loadFontFaces(fontFamilies, charsPerFamily, ownerDocument),
+      loadLibraryFontsFor(elements, ownerDocument),
+    ]);
+    return [...registered, ...library];
   };
 
   /**
@@ -211,6 +219,8 @@ export class Fonts {
     const iterator = Fonts.fontFacesStylesGenerator(families, charsPerFamily);
     const concurrency = 3;
     const fontFaces = await new PromisePool(iterator, concurrency).all();
+    // texts set in a library font bring their own faces
+    fontFaces.push(...(await libraryFontFaceCSS(elements)));
 
     // dedup just in case (i.e. could be the same font faces with 0 glyphs)
     return Array.from(new Set(fontFaces));

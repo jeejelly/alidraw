@@ -137,6 +137,7 @@ export type ActionName =
   | "replaceFromLibrary"
   | "convertToFlowElement"
   | "textToVectors"
+  | "changeLibraryFont"
   | "toggleBold"
   | "toggleItalic"
   | "vectorizeImage"

@@ -30,6 +30,15 @@ import {
   getLocalFontFamilies,
   isLocalFontAccessSupported,
 } from "../fonts/localFonts";
+import {
+  findLibraryFont,
+  getLoadedCatalogue,
+  hasExactStyle,
+  loadFontCatalogue,
+  loadLibraryFace,
+  pickLibraryStyle,
+  type LibraryFont,
+} from "../fonts/library";
 import { t } from "../i18n";
 
 import {
@@ -384,6 +393,40 @@ const selectedTexts = (
 
 const BOLD = 700;
 
+/** the faces texts set in library fonts will need, loaded before the text is measured */
+const warmLibraryFaces = async (
+  app: any,
+  texts: readonly ExcalidrawTextElement[],
+  next: (t: ExcalidrawTextElement) => {
+    weight: number;
+    italic: boolean;
+    family?: string | null;
+  },
+) => {
+  const named = texts.filter((t) => next(t).family ?? t.fontFamilyName);
+  if (!named.length) {
+    return;
+  }
+  await loadFontCatalogue();
+  const faces: FontFace[] = [];
+  for (const text of named) {
+    const { weight, italic, family } = next(text);
+    const font = findLibraryFont(family ?? text.fontFamilyName);
+    if (font) {
+      const face = await loadLibraryFace(
+        font,
+        pickLibraryStyle(font, weight, italic),
+        app.ownerDocument,
+      );
+      if (face) {
+        faces.push(face);
+      }
+    }
+  }
+  // texts measured with a stand-in so far are measured again
+  app.fonts.onLoaded(faces);
+};
+
 /** one switch for the whole selection: off when all of it is already on */
 const makeToggle = (
   name: "toggleBold" | "toggleItalic",
@@ -402,33 +445,52 @@ const makeToggle = (
       const texts = selectedTexts(appState, app);
       const ids = new Set(texts.map((t) => t.id));
       const turnOn = !(texts.length > 0 && texts.every(isOn));
-      const updated: ExcalidrawTextElement[] = [];
-      const next = changeProperty(
-        elements,
-        appState,
-        (element) => {
-          if (!isTextElement(element) || !ids.has(element.id)) {
-            return element;
-          }
-          const changed = newElementWith(element, patch(turnOn) as any);
-          updated.push(changed);
-          redrawTextBoundingBox(
-            changed,
-            app.scene.getContainerElement(changed),
-            app.scene,
-          );
-          return changed;
-        },
-        true,
-      );
-      updated.forEach((el) =>
-        updateBoundElements(el as NonDeletedExcalidrawElement, app.scene),
-      );
-      return {
-        elements: next,
-        appState,
-        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      const change = (all: readonly ExcalidrawElement[], state: AppState) => {
+        const updated: ExcalidrawTextElement[] = [];
+        const next = changeProperty(
+          all,
+          state,
+          (element) => {
+            if (!isTextElement(element) || !ids.has(element.id)) {
+              return element;
+            }
+            const changed = newElementWith(element, patch(turnOn) as any);
+            updated.push(changed);
+            redrawTextBoundingBox(
+              changed,
+              app.scene.getContainerElement(changed),
+              app.scene,
+            );
+            return changed;
+          },
+          true,
+        );
+        updated.forEach((el) =>
+          updateBoundElements(el as NonDeletedExcalidrawElement, app.scene),
+        );
+        return {
+          elements: next,
+          appState: state,
+          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        };
       };
+      if (!texts.some((t) => t.fontFamilyName)) {
+        return change(elements, appState);
+      }
+      // a library font has its own bold and italic faces: they load first
+      return (async () => {
+        await warmLibraryFaces(app, texts, (t) => {
+          const p = patch(turnOn) as {
+            fontWeight?: number;
+            fontStyle?: string;
+          };
+          return {
+            weight: p.fontWeight ?? t.fontWeight ?? 400,
+            italic: (p.fontStyle ?? t.fontStyle) === "italic",
+          };
+        });
+        return change(app.scene.getElementsIncludingDeleted(), app.state);
+      })();
     },
     keyTest: (event) =>
       event[KEYS.CTRL_OR_CMD] &&
@@ -452,3 +514,191 @@ export const actionToggleItalic = makeToggle(
   (t) => t.fontStyle === "italic",
   (on) => ({ fontStyle: on ? ("italic" as const) : ("normal" as const) }),
 );
+
+// -----------------------------------------------------------------------------
+// library fonts
+// -----------------------------------------------------------------------------
+
+/** set the library font of the selected texts (null: back to the family they had) */
+export const actionChangeLibraryFont = register<string | null>({
+  name: "changeLibraryFont",
+  label: "labels.libraryFont",
+  trackEvent: false,
+  perform: (elements, appState, value, app) => {
+    const name = typeof value === "string" && value ? value : null;
+    const texts = selectedTexts(appState, app);
+    const ids = new Set(texts.map((t) => t.id));
+    return (async () => {
+      await warmLibraryFaces(app, texts, (t) => ({
+        weight: t.fontWeight ?? 400,
+        italic: t.fontStyle === "italic",
+        family: name,
+      }));
+      const updated: ExcalidrawTextElement[] = [];
+      const next = changeProperty(
+        app.scene.getElementsIncludingDeleted(),
+        app.state,
+        (element) => {
+          if (!isTextElement(element) || !ids.has(element.id)) {
+            return element;
+          }
+          const changed = newElementWith(element, { fontFamilyName: name });
+          updated.push(changed);
+          redrawTextBoundingBox(
+            changed,
+            app.scene.getContainerElement(changed),
+            app.scene,
+          );
+          return changed;
+        },
+        true,
+      );
+      updated.forEach((el) =>
+        updateBoundElements(el as NonDeletedExcalidrawElement, app.scene),
+      );
+      return {
+        elements: next,
+        appState: { ...app.state, currentItemFontFamilyName: name },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    })();
+  },
+});
+
+const CATEGORY_LABELS: Record<string, string> = {
+  "sans-serif": "Sans",
+  serif: "Serif",
+  display: "Display",
+  monospace: "Mono",
+  handwriting: "Hand",
+};
+
+/** the open-licence fonts shipped with the app, searchable, with each one's licence */
+export const LibraryFontPicker = ({
+  current,
+  onSelect,
+}: {
+  current: string | null;
+  onSelect: (name: string | null) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [fonts, setFonts] = useState<LibraryFont[] | null>(
+    getLoadedCatalogue().length ? getLoadedCatalogue() : null,
+  );
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+  const [hovered, setHovered] = useState<LibraryFont | null>(null);
+
+  useEffect(() => {
+    if (open && fonts === null) {
+      loadFontCatalogue().then(setFonts);
+    }
+  }, [open, fonts]);
+
+  // a font shows itself when pointed at
+  useEffect(() => {
+    if (hovered) {
+      loadLibraryFace(hovered, pickLibraryStyle(hovered));
+    }
+  }, [hovered]);
+
+  const categories = ["all", ...new Set((fonts ?? []).map((f) => f.category))];
+  const q = query.trim().toLowerCase();
+  const list = (fonts ?? []).filter(
+    (f) =>
+      (category === "all" || f.category === category) &&
+      (!q || f.family.toLowerCase().includes(q)),
+  );
+  const selected = findLibraryFont(current) ?? hovered;
+
+  return (
+    <div className="fontlib" data-testid="library-font-picker">
+      <button
+        type="button"
+        className="fontlib__button"
+        data-testid="library-font-button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        title={t("labels.libraryFont")}
+      >
+        {current ?? t("labels.libraryFont")}
+        <span aria-hidden="true">{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className="fontlib__box" data-testid="library-font-list">
+          <input
+            autoFocus
+            type="search"
+            className="fontlib__search"
+            value={query}
+            placeholder={t("labels.libraryFontSearch")}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+          <div className="fontlib__cats">
+            {categories.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={category === c}
+                onClick={() => setCategory(c)}
+              >
+                {c === "all" ? "All" : CATEGORY_LABELS[c] ?? c}
+              </button>
+            ))}
+          </div>
+          {selected && (
+            <div
+              className="fontlib__preview"
+              data-testid="library-font-preview"
+              style={{ fontFamily: `"${selected.family}"` }}
+            >
+              Hamburgefonstiv 0123
+              <small>
+                {selected.license} ·{" "}
+                {selected.source.replace(/^https?:\/\//, "")}
+              </small>
+            </div>
+          )}
+          <div className="fontlib__list">
+            {current && (
+              <button
+                type="button"
+                className="fontlib__item"
+                onClick={() => {
+                  onSelect(null);
+                  setOpen(false);
+                }}
+              >
+                {t("labels.localFontClear")}
+              </button>
+            )}
+            {fonts !== null && list.length === 0 && (
+              <div className="fontlib__none">{t("labels.libraryFontNone")}</div>
+            )}
+            {list.map((font) => (
+              <button
+                key={font.id}
+                type="button"
+                className="fontlib__item"
+                data-testid="library-font-item"
+                aria-pressed={current === font.family}
+                onMouseEnter={() => setHovered(font)}
+                onClick={() => {
+                  onSelect(font.family);
+                  setOpen(false);
+                }}
+              >
+                <span>{font.family}</span>
+                <small>
+                  {hasExactStyle(font, 700, false) ? "B" : ""}
+                  {hasExactStyle(font, 400, true) ? " I" : ""}
+                </small>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

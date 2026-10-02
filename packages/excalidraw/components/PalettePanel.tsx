@@ -6,6 +6,7 @@ import {
   actionChangeBackgroundColor,
   actionChangeFontSizeInput,
   actionTextToVectors,
+  actionChangeLibraryFont,
   actionToggleBold,
   actionToggleItalic,
   actionChangeOpacity,
@@ -19,6 +20,7 @@ import {
   actionBringToFront,
   actionToggleElementLock,
 } from "../actions";
+import { LibraryFontPicker } from "../actions/actionTypography";
 import { t } from "../i18n";
 import { getTargetElements } from "../scene";
 import { getShapeActionPredicates } from "./shapeActionPredicates";
@@ -800,6 +802,13 @@ export const PalettePanel = ({ app }: { app: App }) => {
           {actionManager.renderAction("changeLocalFont")}
         </div>
       </div>
+      <div className="inspector__label" style={{ margin: "0.25rem 0" }}>
+        {t("labels.libraryFont")}
+      </div>
+      <LibraryFontPicker
+        current={textEl?.fontFamilyName ?? null}
+        onSelect={(name) => run(actionChangeLibraryFont, name)}
+      />
       <div className="selected-shape-actions">
         {actionManager.renderAction("changeFontSize")}
         {predicates.textAlign && actionManager.renderAction("changeTextAlign")}
@@ -856,7 +865,8 @@ export const PalettePanel = ({ app }: { app: App }) => {
       {textEl && (
         <button
           type="button"
-          className="inspector__btn"
+          className="inspector__text"
+          style={{ cursor: "pointer", width: "100%" }}
           data-testid="inspector-text-to-vectors"
           title={t("labels.textToVectors")}
           onClick={() => run(actionTextToVectors)}

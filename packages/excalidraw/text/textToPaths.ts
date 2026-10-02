@@ -9,6 +9,12 @@ import type {
 } from "@excalidraw/element/types";
 
 import { Fonts } from "../fonts";
+import {
+  findLibraryFont,
+  libraryFileUrl,
+  loadFontCatalogue,
+  pickLibraryStyle,
+} from "../fonts/library";
 import { importSvg } from "../svgImport";
 
 import type * as OpenType from "opentype.js";
@@ -23,31 +29,24 @@ export type GlyphFont = OpenType.Font;
 export type FontLoader = (
   fontFamily: number,
   codePoint: number,
+  /** the library font and face asked for, when the text is set in one */
+  face?: { name: string | null | undefined; weight: number; italic: boolean },
 ) => Promise<GlyphFont | null>;
 
 const parsed = new Map<string, Promise<GlyphFont | null>>();
 
 /** the font file slice that has the character, as an outline font */
-export const defaultFontLoader: FontLoader = async (fontFamily, codePoint) => {
-  const face = Fonts.registered
-    .get(fontFamily)
-    ?.fontFaces.find((f) => f.covers(codePoint));
-  const url = face?.urls[0];
-  if (!face || !url) {
-    return null;
-  }
-  const key = String(url);
+const parseFile = (key: string, fetchBytes: () => Promise<ArrayBuffer>) => {
   let font = parsed.get(key);
   if (!font) {
     font = (async () => {
       try {
-        const [{ default: loadWoff2 }, opentype] = await Promise.all([
-          import("../subset/woff2/woff2-loader"),
+        const [{ woff2ToSfnt }, opentype] = await Promise.all([
+          import("../subset/subset-main"),
           import("opentype.js"),
         ]);
-        const { decompress } = await loadWoff2();
-        const ttf = decompress(await face.fetchFont(url)).buffer as ArrayBuffer;
-        return opentype.parse(ttf);
+        // decoded in the subsetting worker (a page's policy may not allow the decoder)
+        return opentype.parse(await woff2ToSfnt(await fetchBytes()));
       } catch {
         return null;
       }
@@ -55,6 +54,39 @@ export const defaultFontLoader: FontLoader = async (fontFamily, codePoint) => {
     parsed.set(key, font);
   }
   return font;
+};
+
+export const defaultFontLoader: FontLoader = async (
+  fontFamily,
+  codePoint,
+  wanted,
+) => {
+  // a library font: the face of the right weight and style, when it has the character
+  if (wanted?.name) {
+    await loadFontCatalogue();
+    const lib = findLibraryFont(wanted.name);
+    if (lib) {
+      const style = pickLibraryStyle(lib, wanted.weight, wanted.italic);
+      const url = libraryFileUrl(style.file);
+      const font = await parseFile(url, async () =>
+        (await fetch(url)).arrayBuffer(),
+      );
+      if (
+        font &&
+        (font as any).charToGlyph(String.fromCodePoint(codePoint)).index > 0
+      ) {
+        return font;
+      }
+    }
+  }
+  const face = Fonts.registered
+    .get(fontFamily)
+    ?.fontFaces.find((f) => f.covers(codePoint));
+  const url = face?.urls[0];
+  if (!face || !url) {
+    return null;
+  }
+  return parseFile(String(url), () => face.fetchFont(url));
 };
 
 const num = (n: number) => Math.round(n * 100) / 100;
@@ -109,8 +141,12 @@ export const textToPaths = async (
   const fill = el.strokeColor === "transparent" ? "#000000" : el.strokeColor;
   // a family without a bold or italic face: the weight is faked with an outline of the
   // same colour, the slant with a shear (what browsers do too)
-  const bold = (el.fontWeight ?? 400) >= 600;
-  const italic = el.fontStyle === "italic";
+  const lib = findLibraryFont(el.fontFamilyName);
+  const picked = lib
+    ? pickLibraryStyle(lib, el.fontWeight ?? 400, el.fontStyle === "italic")
+    : null;
+  const bold = (el.fontWeight ?? 400) >= 600 && (picked?.weight ?? 400) < 600;
+  const italic = el.fontStyle === "italic" && picked?.style !== "italic";
   const heavy = bold
     ? ` stroke="${fill}" stroke-width="${num(
         el.fontSize * 0.04,
@@ -121,7 +157,11 @@ export const textToPaths = async (
     // runs of characters that share a font file, so kerning and ligatures survive
     const runs: { font: GlyphFont | null; text: string }[] = [];
     for (const ch of Array.from(lines[i])) {
-      const font = await load(el.fontFamily, ch.codePointAt(0)!);
+      const font = await load(el.fontFamily, ch.codePointAt(0)!, {
+        name: el.fontFamilyName,
+        weight: el.fontWeight ?? 400,
+        italic: el.fontStyle === "italic",
+      });
       const last = runs[runs.length - 1];
       if (last && last.font === font) {
         last.text += ch;

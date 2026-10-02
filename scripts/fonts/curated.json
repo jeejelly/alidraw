@@ -1,0 +1,7 @@
+{
+  "sans": ["inter", "roboto", "open-sans", "lato", "montserrat", "poppins", "nunito-sans", "source-sans-3", "work-sans", "dm-sans", "manrope", "plus-jakarta-sans", "outfit", "raleway", "rubik", "barlow", "karla", "mulish", "figtree", "space-grotesk", "ibm-plex-sans", "noto-sans", "atkinson-hyperlegible", "lexend", "sora", "urbanist", "red-hat-display", "public-sans", "albert-sans", "league-spartan"],
+  "serif": ["playfair-display", "merriweather", "lora", "pt-serif", "source-serif-4", "libre-baskerville", "crimson-pro", "eb-garamond", "cormorant-garamond", "dm-serif-display", "noto-serif", "spectral", "fraunces", "bitter", "zilla-slab"],
+  "display": ["bebas-neue", "anton", "oswald", "abril-fatface", "lobster", "pacifico", "righteous", "fredoka", "baloo-2", "archivo-black", "alfa-slab-one", "bungee", "monoton", "orbitron", "russo-one", "passion-one", "shrikhand", "chewy"],
+  "mono": ["jetbrains-mono", "fira-code", "source-code-pro", "ibm-plex-mono", "space-mono", "roboto-mono", "inconsolata", "dm-mono"],
+  "hand": ["caveat", "patrick-hand", "shadows-into-light", "permanent-marker", "kalam", "dancing-script", "indie-flower", "amatic-sc", "gloria-hallelujah", "architects-daughter", "satisfy", "great-vibes", "handlee", "covered-by-your-grace"]
+}

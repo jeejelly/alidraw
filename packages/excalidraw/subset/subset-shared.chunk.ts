@@ -15,6 +15,7 @@ import loadWoff2 from "./woff2/woff2-loader";
  */
 export const Commands = {
   Subset: "SUBSET",
+  Decompress: "DECOMPRESS",
 } as const;
 
 /**
@@ -55,6 +56,14 @@ export const subsetToBinary = async (
   const compressedBinary = compress(snftSubset.buffer);
 
   return compressedBinary.buffer;
+};
+
+/** woff2 to an sfnt (ttf / otf) font, e.g. to read glyph outlines */
+export const decompressToBinary = async (
+  arrayBuffer: ArrayBuffer,
+): Promise<ArrayBuffer> => {
+  const { decompress } = await loadWoff2();
+  return decompress(arrayBuffer).buffer;
 };
 
 /**
