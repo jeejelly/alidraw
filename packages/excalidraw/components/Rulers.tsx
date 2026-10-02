@@ -146,6 +146,7 @@ export const Rulers = ({ app }: { app: App }) => {
   }, [app, zoom.value, scrollX, scrollY, width, height, theme, guides, cursor]);
 
   const readout = app.guides.getReadout();
+  const editing = app.guides.getEditing();
   const style = {
     position: "absolute",
     background: "transparent",
@@ -176,6 +177,36 @@ export const Rulers = ({ app }: { app: App }) => {
           app.guides.startDrag("x", null);
         }}
       />
+      {editing && (
+        <input
+          key={editing.id}
+          data-testid="guide-input"
+          aria-label={editing.axis === "x" ? "Guide x (px)" : "Guide y (px)"}
+          autoFocus
+          defaultValue={formatRulerValue(editing.position)}
+          onFocus={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") {
+              app.guides.commitEdit(e.currentTarget.value);
+            } else if (e.key === "Escape") {
+              app.guides.cancelEdit();
+            }
+          }}
+          onBlur={(e) => app.guides.commitEdit(e.currentTarget.value)}
+          style={{
+            position: "fixed",
+            left: editing.clientX + 10,
+            top: editing.clientY + 10,
+            width: 80,
+            padding: "2px 6px",
+            borderRadius: 4,
+            border: "1px solid #e0449b",
+            font: "12px sans-serif",
+            zIndex: 100,
+          }}
+        />
+      )}
       {readout && (
         <div
           data-testid="guide-readout"

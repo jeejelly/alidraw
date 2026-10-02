@@ -14,6 +14,8 @@ import { API } from "./helpers/api";
 import {
   render,
   fireEvent,
+  act,
+  screen,
   mockBoundingClientRect,
   restoreOriginalGetBoundingClientRect,
   unmountComponent,
@@ -122,6 +124,41 @@ describe("rulers and guides", () => {
     fireEvent.pointerMove(window, { clientX: 8, clientY: 400 });
     fireEvent.pointerUp(window, { clientX: 8, clientY: 400 });
     expect(h.state.guides).toEqual([]);
+  });
+
+  it("types the exact position of a guide in an in-app input", async () => {
+    await render(<Excalidraw />);
+    API.setAppState({
+      rulersEnabled: true,
+      guides: [{ id: "g", axis: "x", position: 300 }],
+    });
+    const { scrollX, offsetLeft } = h.state;
+    act(() => {
+      h.app.guides.handleDoubleClick({
+        clientX: 300 + scrollX + offsetLeft,
+        clientY: 400,
+      });
+    });
+    const input = (await screen.findByTestId(
+      "guide-input",
+    )) as HTMLInputElement;
+    expect(input.value).toBe("300");
+    fireEvent.change(input, { target: { value: "42" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(h.state.guides).toEqual([{ id: "g", axis: "x", position: 42 }]);
+    expect(screen.queryByTestId("guide-input")).toBeNull();
+
+    // Escape leaves it alone
+    act(() => {
+      h.app.guides.handleDoubleClick({
+        clientX: 42 + scrollX + offsetLeft,
+        clientY: 400,
+      });
+    });
+    const again = await screen.findByTestId("guide-input");
+    fireEvent.change(again, { target: { value: "7" } });
+    fireEvent.keyDown(again, { key: "Escape" });
+    expect(h.state.guides[0].position).toBe(42);
   });
 
   const setupRect = () => {

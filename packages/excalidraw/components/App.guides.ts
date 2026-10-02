@@ -4,7 +4,7 @@ import {
   viewportCoordsToSceneCoords,
 } from "@excalidraw/common";
 
-import { formatRulerValue, type Guide } from "../guides";
+import { type Guide } from "../guides";
 
 import type App from "./App";
 
@@ -19,6 +19,15 @@ export type GuideReadout = {
   position: number;
   /** released here, the guide is deleted */
   willDelete: boolean;
+};
+
+export type GuideEdit = {
+  id: string;
+  axis: Guide["axis"];
+  position: number;
+  /** viewport coordinates where the input appears */
+  clientX: number;
+  clientY: number;
 };
 
 /**
@@ -42,9 +51,36 @@ export class AppGuides {
 
   getReadout = () => this.readout;
 
+  private notify = () => this.listeners.forEach((cb) => cb());
+
   private setReadout = (readout: GuideReadout | null) => {
     this.readout = readout;
-    this.listeners.forEach((cb) => cb());
+    this.notify();
+  };
+
+  /** the guide whose exact position is being typed (no window.prompt in Electron) */
+  private editing: GuideEdit | null = null;
+
+  getEditing = () => this.editing;
+
+  cancelEdit = () => {
+    this.editing = null;
+    this.notify();
+  };
+
+  /** applies a typed position; empty or non-numeric input changes nothing */
+  commitEdit = (answer: string) => {
+    const edit = this.editing;
+    this.editing = null;
+    this.notify();
+    const value = Number(answer);
+    if (edit && answer.trim() !== "" && Number.isFinite(value)) {
+      this.setGuides(
+        this.app.state.guides.map((g) =>
+          g.id === edit.id ? { ...g, position: value } : g,
+        ),
+      );
+    }
   };
 
   private setGuides = (guides: readonly Guide[]) =>
@@ -177,21 +213,14 @@ export class AppGuides {
     if (!guide) {
       return false;
     }
-    const answer = this.app.ownerWindow.prompt(
-      guide.axis === "x" ? "Guide x (px)" : "Guide y (px)",
-      formatRulerValue(guide.position),
-    );
-    if (answer === null) {
-      return true;
-    }
-    const value = Number(answer);
-    if (answer.trim() !== "" && Number.isFinite(value)) {
-      this.setGuides(
-        this.app.state.guides.map((g) =>
-          g.id === guide.id ? { ...g, position: value } : g,
-        ),
-      );
-    }
+    this.editing = {
+      id: guide.id,
+      axis: guide.axis,
+      position: guide.position,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    };
+    this.notify();
     return true;
   };
 
