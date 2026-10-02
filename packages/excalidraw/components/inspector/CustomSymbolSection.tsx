@@ -65,8 +65,8 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
       <Section title="Custom symbol" testId="symbols-custom">
         <button
           type="button"
+          className="inspector__action"
           data-testid="symbols-convert"
-          style={{ width: "100%" }}
           onClick={() => app.actionManager.executeAction(actionConvertToSymbol)}
         >
           Convert to symbol
@@ -111,6 +111,7 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
         </label>
         <button
           type="button"
+          className="inspector__action"
           data-testid="symbols-expose"
           onClick={() => {
             addCustomParam(
@@ -238,8 +239,8 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
       ))}
       <button
         type="button"
+        className="inspector__action"
         data-testid="symbols-custom-library"
-        style={{ width: "100%" }}
         onClick={() => app.actionManager.executeAction(actionAddToLibrary)}
       >
         Add to the library

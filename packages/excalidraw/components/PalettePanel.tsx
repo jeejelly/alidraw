@@ -21,6 +21,7 @@ import {
   actionToggleElementLock,
 } from "../actions";
 import { LibraryFontPicker } from "../actions/actionTypography";
+import { ColorHarmony } from "./inspector/ColorHarmony";
 import { t } from "../i18n";
 import { getTargetElements } from "../scene";
 import { getShapeActionPredicates } from "./shapeActionPredicates";
@@ -189,6 +190,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [harmonyOpen, setHarmonyOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
@@ -712,6 +714,17 @@ export const PalettePanel = ({ app }: { app: App }) => {
         >
           <span style={{ fontSize: "0.6rem", fontWeight: 700 }}>ASE</span>
         </button>
+        <button
+          type="button"
+          className="inspector__iconbtn inspector__iconbtn--lg"
+          data-testid="palette-harmony"
+          aria-pressed={harmonyOpen}
+          title="Colour harmonies and palettes"
+          aria-label="Colour harmonies and palettes"
+          onClick={() => setHarmonyOpen((o) => !o)}
+        >
+          ◐
+        </button>
         <input
           ref={fileRef}
           type="file"
@@ -733,6 +746,32 @@ export const PalettePanel = ({ app }: { app: App }) => {
           </span>
         )}
       </div>
+      {harmonyOpen && (
+        <ColorHarmony
+          app={app}
+          initial={hex ?? "#4f8dff"}
+          actions={[
+            {
+              id: "keep",
+              label: "Keep in swatches",
+              run: (colors) => {
+                const n = addSwatches(
+                  colors.map((c, i) => ({
+                    name: `Harmony ${i + 1} ${c}`,
+                    color: c,
+                  })),
+                );
+                setMessage(`${n} colours added to the swatches.`);
+              },
+            },
+            {
+              id: "fill",
+              label: "Use the base as fill",
+              run: (_colors, base) => applyColor(base),
+            },
+          ]}
+        />
+      )}
     </Section>
   );
 
@@ -802,17 +841,10 @@ export const PalettePanel = ({ app }: { app: App }) => {
           {actionManager.renderAction("changeLocalFont")}
         </div>
       </div>
-      <div className="inspector__label" style={{ margin: "0.25rem 0" }}>
-        {t("labels.libraryFont")}
-      </div>
       <LibraryFontPicker
         current={textEl?.fontFamilyName ?? null}
         onSelect={(name) => run(actionChangeLibraryFont, name)}
       />
-      <div className="selected-shape-actions">
-        {actionManager.renderAction("changeFontSize")}
-        {predicates.textAlign && actionManager.renderAction("changeTextAlign")}
-      </div>
       <div className="inspector__row">
         <span className="inspector__label">{t("labels.fontSize")}</span>
         <NumberPill
@@ -836,42 +868,47 @@ export const PalettePanel = ({ app }: { app: App }) => {
           <option value="dp">dp</option>
         </select>
       </div>
-      {textEl && (
-        <div className="inspector__row" style={{ gap: 4 }}>
-          <button
-            type="button"
-            className="inspector__text"
-            style={{ fontWeight: 700, cursor: "pointer", width: "2rem" }}
-            data-testid="inspector-bold"
-            aria-pressed={(textEl.fontWeight ?? 400) >= 600}
-            title={`${t("labels.bold")} (Ctrl+B)`}
-            onClick={() => run(actionToggleBold)}
-          >
-            B
-          </button>
-          <button
-            type="button"
-            className="inspector__text"
-            style={{ fontStyle: "italic", cursor: "pointer", width: "2rem" }}
-            data-testid="inspector-italic"
-            aria-pressed={textEl.fontStyle === "italic"}
-            title={`${t("labels.italic")} (Ctrl+I)`}
-            onClick={() => run(actionToggleItalic)}
-          >
-            I
-          </button>
-        </div>
-      )}
+      <div className="selected-shape-actions">
+        {actionManager.renderAction("changeFontSize")}
+      </div>
+      <div className="inspector__stylerow">
+        {textEl && (
+          <div className="inspector__segmented" role="group" aria-label="Style">
+            <button
+              type="button"
+              className="inspector__segment"
+              style={{ fontWeight: 700 }}
+              data-testid="inspector-bold"
+              aria-pressed={(textEl.fontWeight ?? 400) >= 600}
+              title={`${t("labels.bold")} (Ctrl+B)`}
+              onClick={() => run(actionToggleBold)}
+            >
+              B
+            </button>
+            <button
+              type="button"
+              className="inspector__segment"
+              style={{ fontStyle: "italic", fontFamily: "serif" }}
+              data-testid="inspector-italic"
+              aria-pressed={textEl.fontStyle === "italic"}
+              title={`${t("labels.italic")} (Ctrl+I)`}
+              onClick={() => run(actionToggleItalic)}
+            >
+              I
+            </button>
+          </div>
+        )}
+        {predicates.textAlign && actionManager.renderAction("changeTextAlign")}
+      </div>
       {textEl && (
         <button
           type="button"
-          className="inspector__text"
-          style={{ cursor: "pointer", width: "100%" }}
+          className="inspector__action"
           data-testid="inspector-text-to-vectors"
           title={t("labels.textToVectors")}
           onClick={() => run(actionTextToVectors)}
         >
-          {t("labels.textToVectors")}
+          Create outlines
         </button>
       )}
     </Section>

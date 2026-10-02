@@ -47,6 +47,8 @@ import {
 import { addSwatches } from "../../palette";
 
 import { ColorField } from "./ColorField";
+import { themeFromHarmony, type HarmonyRule } from "../../color/harmony";
+import { ColorHarmony } from "./ColorHarmony";
 import { CustomSymbolSection } from "./CustomSymbolSection";
 import { Section } from "./primitives";
 
@@ -380,6 +382,67 @@ export const SymbolLayoutSection = ({ app }: { app: App }) => {
   );
 };
 
+/** colours that go together, to make the whole theme from: a base colour and a rule */
+const HarmonyTheme = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
+  const [open, setOpen] = useState(false);
+  const [kept, setKept] = useState<string | null>(null);
+  const make =
+    (mode: "light" | "dark") =>
+    (colors: string[], base: string, rule: HarmonyRule) =>
+      setSymbolTheme({
+        ...theme,
+        name: `Harmony ${base}`,
+        colors: themeFromHarmony(base, rule, mode),
+      });
+  return (
+    <>
+      <button
+        type="button"
+        className="inspector__action"
+        data-testid="symbols-harmony-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? "Hide the colour harmonies" : "Colour harmonies…"}
+      </button>
+      {open && (
+        <ColorHarmony
+          app={app}
+          initial={theme.colors.accent}
+          actions={[
+            {
+              id: "light",
+              label: "Light theme",
+              title: "Make the whole theme from this colour, light",
+              run: make("light"),
+            },
+            {
+              id: "dark",
+              label: "Dark theme",
+              title: "Make the whole theme from this colour, dark",
+              run: make("dark"),
+            },
+            {
+              id: "keep",
+              label: "Keep in swatches",
+              run: (colors) => {
+                const n = addSwatches(
+                  colors.map((c, i) => ({
+                    name: `Harmony ${i + 1} ${c}`,
+                    color: c,
+                  })),
+                );
+                setKept(`${n} colours added to the swatches.`);
+              },
+            },
+          ]}
+        />
+      )}
+      {kept && <p className="symbols__note">{kept}</p>}
+    </>
+  );
+};
+
 /** the colours a theme is made of, as a list to pick from and keep in the swatches */
 const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
   const [target, setTarget] = useState<"fill" | "stroke">("fill");
@@ -708,6 +771,7 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
       <CodeSection app={app} />
       <Section title="Theme" testId="symbols-theme-section">
         <ThemeEditor theme={theme} />
+        <HarmonyTheme app={app} theme={theme} />
         <ReferenceColors app={app} theme={theme} />
         <div className="symbols__row">
           <button

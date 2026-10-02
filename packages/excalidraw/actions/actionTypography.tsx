@@ -613,17 +613,20 @@ export const LibraryFontPicker = ({
 
   return (
     <div className="fontlib" data-testid="library-font-picker">
-      <button
-        type="button"
-        className="fontlib__button"
-        data-testid="library-font-button"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        title={t("labels.libraryFont")}
-      >
-        {current ?? t("labels.libraryFont")}
-        <span aria-hidden="true">{open ? "▴" : "▾"}</span>
-      </button>
+      <div className="inspector__row">
+        <span className="inspector__label">{t("labels.libraryFont")}</span>
+        <button
+          type="button"
+          className="fontlib__button"
+          data-testid="library-font-button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          title={t("labels.libraryFont")}
+        >
+          <span className="fontlib__name">{current ?? "Choose…"}</span>
+          <span aria-hidden="true">{open ? "▴" : "▾"}</span>
+        </button>
+      </div>
       {open && (
         <div className="fontlib__box" data-testid="library-font-list">
           <input

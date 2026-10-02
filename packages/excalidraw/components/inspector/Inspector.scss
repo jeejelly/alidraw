@@ -1160,3 +1160,247 @@
     opacity: 0.6;
   }
 }
+
+// patterns shared by the palette sections
+.excalidraw .inspector {
+  // a full-width secondary action
+  &__action {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 2rem;
+    margin-top: 0.375rem;
+    padding: 0 0.75rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--insp-pill-bg, var(--button-gray-1));
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    &:hover:not(:disabled) {
+      background: var(--color-primary-light, rgba(0, 0, 0, 0.08));
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    &--primary {
+      background: var(--color-primary);
+      color: var(--color-surface-lowest, #fff);
+    }
+  }
+  // icon-sized toggles in a row (bold, italic…)
+  &__stylerow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.375rem;
+    > * {
+      min-width: 0;
+    }
+  }
+  &__segmented {
+    display: inline-flex;
+    gap: 0.25rem;
+  }
+  &__segment {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    &:hover {
+      background: var(--insp-pill-bg, var(--button-gray-1));
+    }
+    &[aria-pressed="true"] {
+      background: var(--color-primary-light, rgba(0, 0, 0, 0.1));
+      outline: 1px solid var(--color-primary);
+    }
+  }
+  // a label and its control: the control takes the rest and may shrink
+  &__row > .fontlib__button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+.excalidraw .fontlib__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// the colour harmony picker
+.excalidraw .harmony {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--default-border-color);
+  border-radius: 0.5rem;
+  min-width: 0;
+  &__tabs {
+    display: flex;
+    gap: 0.25rem;
+    button {
+      flex: 1;
+      height: 1.75rem;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      &[aria-selected="true"] {
+        background: var(--color-primary-light, rgba(0, 0, 0, 0.08));
+        outline: 1px solid var(--color-primary);
+      }
+    }
+  }
+  &__wheelbox {
+    position: relative;
+    align-self: center;
+  }
+  &__wheel {
+    border-radius: 50%;
+    cursor: crosshair;
+    touch-action: none;
+    background: radial-gradient(circle closest-side, #fff, rgba(255, 255, 255, 0)),
+      conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+  }
+  &__lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  &__rules {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.125rem;
+    button {
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border: 0;
+      border-radius: 0.5rem;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      &:hover {
+        background: var(--insp-pill-bg, var(--button-gray-1));
+      }
+      &[aria-pressed="true"] {
+        outline: 1px solid var(--color-primary);
+        background: var(--color-primary-light, rgba(0, 0, 0, 0.08));
+      }
+    }
+  }
+  &__name {
+    text-align: center;
+    font-size: 0.75rem;
+    opacity: 0.75;
+  }
+  &__brightness {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    input {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+  &__result {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(1.75rem, 1fr));
+    gap: 0.25rem;
+  }
+  &__chip {
+    min-width: 0;
+    height: 1.75rem;
+    padding: 0;
+    border: 1px solid var(--default-border-color);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    &.is-base {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 1px;
+    }
+  }
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    .inspector__action {
+      flex: 1 1 6rem;
+      margin-top: 0;
+      font-size: 0.75rem;
+    }
+  }
+  &__presets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    select {
+      height: 2rem;
+      border-radius: 999px;
+      border: 0;
+      padding: 0 0.5rem;
+      background: var(--insp-pill-bg, var(--button-gray-1));
+      color: inherit;
+      font: inherit;
+    }
+  }
+  &__cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+    max-height: 12rem;
+    overflow-y: auto;
+  }
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+    &[aria-pressed="true"] {
+      border-color: var(--color-primary);
+    }
+  }
+  &__strip {
+    display: flex;
+    height: 1rem;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    i {
+      flex: 1;
+    }
+  }
+  &__cardname {
+    font-size: 0.6875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

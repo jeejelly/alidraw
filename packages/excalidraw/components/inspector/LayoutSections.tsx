@@ -1147,8 +1147,7 @@ export const VectorizeSection = ({ app }: { app: App }) => {
       />
       <button
         type="button"
-        className="inspector__text"
-        style={{ cursor: "pointer", width: "100%" }}
+        className="inspector__action"
         data-testid="vectorize-run"
         title={t("labels.vectorize.hint")}
         onClick={() =>
