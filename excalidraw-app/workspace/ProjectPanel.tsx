@@ -32,6 +32,16 @@ const MIME: Record<string, string> = {
 const mimeOf = (path: string) =>
   MIME[path.split(".").pop() ?? ""] ?? "image/png";
 
+/** what a git status code means, in a word */
+const changeKind = (code: string) =>
+  code === "??" || code.includes("A")
+    ? "new"
+    : code.includes("D")
+    ? "deleted"
+    : code.includes("R")
+    ? "renamed"
+    : "changed";
+
 const Icon = ({ d, size = 18 }: { d: string; size?: number }) => (
   <svg
     width={size}
@@ -594,11 +604,25 @@ export const ProjectPanel = ({ api }: { api: ExcalidrawImperativeAPI }) => {
               )}
               {changes.length > 0 && (
                 <ul className="project__changes" data-testid="project-changes">
-                  {changes.slice(0, 20).map((c) => (
-                    <li key={c.path}>
-                      <code>{c.code.trim() || "·"}</code> {c.path}
-                    </li>
-                  ))}
+                  {changes.slice(0, 20).map((c) => {
+                    const kind = changeKind(c.code);
+                    const slash = c.path.lastIndexOf("/");
+                    return (
+                      <li key={c.path} title={c.path}>
+                        <span className={`project__tag project__tag--${kind}`}>
+                          {kind}
+                        </span>
+                        <span className="project__file">
+                          {slash >= 0 && (
+                            <span className="project__dir">
+                              {c.path.slice(0, slash + 1)}
+                            </span>
+                          )}
+                          {c.path.slice(slash + 1)}
+                        </span>
+                      </li>
+                    );
+                  })}
                   {changes.length > 20 && <li>… {changes.length - 20} more</li>}
                 </ul>
               )}

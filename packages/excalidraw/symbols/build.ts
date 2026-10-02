@@ -320,6 +320,19 @@ export const themeUpdates = (
   return result;
 };
 
+/**
+ * The group a symbol part belongs to: its innermost group on the canvas. (The
+ * id stored when it was built goes stale when a symbol is duplicated or comes
+ * back from the library, which gives its copies new groups.)
+ */
+export const symbolGroupOf = (el: {
+  groupIds: readonly string[];
+  customData?: ExcalidrawElement["customData"];
+}): string | null => {
+  const m = getSymbolMeta(el);
+  return m ? el.groupIds[0] ?? m.group : null;
+};
+
 /** which text parameter of a component is its label */
 export const labelKeyOf = (id: string): string | null => {
   const def = COMPONENTS.find((c) => c.id === id);

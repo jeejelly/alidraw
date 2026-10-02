@@ -5,6 +5,7 @@ import { getCommonBounds } from "@excalidraw/element";
 
 import { Excalidraw } from "../index";
 import { buildElements } from "../symbols/build";
+import { collectCodeItems } from "../symbols/codeItems";
 import { COMPONENTS, defaultsOf } from "../symbols/components";
 import {
   frameOf,
@@ -43,6 +44,8 @@ const make = (id: string, at = { x: 100, y: 100 }, values?: any) => {
     def.shapes(night, { ...defaultsOf(def), ...values }),
     night,
     at,
+    id,
+    { ...defaultsOf(def), ...values },
   );
 };
 
@@ -294,5 +297,25 @@ describe("symbols standing in for shapes", () => {
       width: to.x1 - to.x0,
       height: to.y1 - to.y0,
     });
+  });
+});
+
+describe("copies of a symbol", () => {
+  it("a duplicate, or an item back from the library, is its own component", () => {
+    const original = make("button", { x: 0, y: 0 });
+    // what duplicating does: new ids and new groups, the stored meta stays as it was
+    const copy = original.map((e, k) => ({
+      ...e,
+      id: `copy${k}`,
+      groupIds: ["fresh-group"],
+    }));
+    const all = [...original, ...copy] as any[];
+    expect(getSelectedSymbol(copy as any, all)?.members).toHaveLength(
+      copy.length,
+    );
+    expect(getSelectedSymbol(original as any, all)?.members).toHaveLength(
+      original.length,
+    );
+    expect(collectCodeItems(all)).toHaveLength(2);
   });
 });

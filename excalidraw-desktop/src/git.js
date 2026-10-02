@@ -104,9 +104,26 @@ const ensureIdentity = async (root) => {
   }
 };
 
+/**
+ * Where the folder sits in its repository ("" at the top, "designs/" inside one that
+ * holds more than this project). Everything shown or committed stays inside the folder.
+ */
+const prefixOf = async (root) =>
+  (await run(root, ["rev-parse", "--show-prefix"])).trim();
+
 /** @returns {{branch, upstream, ahead, behind, changes: {path, code}[], clean: boolean}} */
 const status = async (root) => {
-  const out = await run(root, ["status", "--porcelain=v2", "--branch", "-z"]);
+  const prefix = await prefixOf(root);
+  const out = await run(root, [
+    "status",
+    "--porcelain=v2",
+    "--branch",
+    "-z",
+    "--",
+    ".",
+  ]);
+  const inside = (p) =>
+    prefix && p.startsWith(prefix) ? p.slice(prefix.length) : p;
   const result = {
     branch: null,
     upstream: null,
@@ -133,13 +150,13 @@ const status = async (root) => {
       }
     } else if (line[0] === "1") {
       const f = line.split(" ");
-      result.changes.push({ path: f.slice(8).join(" "), code: f[1] });
+      result.changes.push({ path: inside(f.slice(8).join(" ")), code: f[1] });
     } else if (line[0] === "2") {
       const f = line.split(" ");
-      result.changes.push({ path: f.slice(9).join(" "), code: f[1] });
+      result.changes.push({ path: inside(f.slice(9).join(" ")), code: f[1] });
       i++; // the original path follows
     } else if (line[0] === "?") {
-      result.changes.push({ path: line.slice(2), code: "??" });
+      result.changes.push({ path: inside(line.slice(2)), code: "??" });
     }
   }
   result.clean = result.changes.length === 0;
@@ -158,14 +175,14 @@ const commit = async (root, message, paths) => {
     ...(paths && paths.length ? paths : ["."]),
   ]);
   try {
-    await run(root, ["diff", "--cached", "--quiet"]);
+    await run(root, ["diff", "--cached", "--quiet", "--", "."]);
     return null; // nothing staged
   } catch (e) {
     if (e.code !== 1) {
       throw e;
     }
   }
-  await run(root, ["commit", "-m", message]);
+  await run(root, ["commit", "-m", message, "--", "."]);
   return (await run(root, ["rev-parse", "--short", "HEAD"])).trim();
 };
 
@@ -200,7 +217,8 @@ const showFile = (root, hash, relPath) => {
   if (!/^[0-9a-f]{7,40}$/i.test(hash)) {
     throw new Error("invalid commit");
   }
-  return run(root, ["show", `${hash}:${relPath}`]);
+  // relative to the folder, which may sit inside a bigger repository
+  return run(root, ["show", `${hash}:./${relPath}`]);
 };
 
 /** a remote URL the app will accept: https, ssh, scp-like, file or an absolute path */
@@ -296,9 +314,12 @@ const branchOff = async (root, branch, name = "origin") => {
 
 /** files that differ between two commits */
 const changedBetween = async (root, a, b) =>
-  (await run(root, ["diff", "--name-only", a, b])).split("\n").filter(Boolean);
+  (await run(root, ["diff", "--relative", "--name-only", a, b]))
+    .split("\n")
+    .filter(Boolean);
 
 module.exports = {
+  prefixOf,
   ensureIdentity,
   checkRemoteUrl,
   remotes,

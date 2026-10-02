@@ -2,7 +2,7 @@ import { getCommonBounds } from "@excalidraw/element";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { getSymbolMeta } from "./build";
+import { getSymbolMeta, symbolGroupOf } from "./build";
 
 import type { CodeItem } from "./codegen";
 
@@ -13,8 +13,9 @@ export const collectCodeItems = (
   const groups = new Map<string, ExcalidrawElement[]>();
   for (const el of elements) {
     const m = getSymbolMeta(el);
-    if (m?.component && !el.isDeleted) {
-      groups.set(m.group, [...(groups.get(m.group) ?? []), el]);
+    const g = symbolGroupOf(el);
+    if (m?.component && g && !el.isDeleted) {
+      groups.set(g, [...(groups.get(g) ?? []), el]);
     }
   }
   return [...groups.values()].map((members) => {

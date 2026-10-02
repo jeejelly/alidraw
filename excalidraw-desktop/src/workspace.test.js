@@ -426,3 +426,42 @@ describe("scene management", () => {
     expect(ws.listAssets(w.id).map((a) => a.path)).toEqual([p]);
   });
 });
+
+describe("a workspace inside a bigger repository", () => {
+  it("shows, commits and restores only its own folder", async () => {
+    const repo = path.join(tmp, "big");
+    fs.mkdirSync(path.join(repo, "designs"), { recursive: true });
+    await git.init(repo);
+    fs.writeFileSync(path.join(repo, "other.txt"), "x");
+    fs.writeFileSync(path.join(repo, "designs", "a.excalidraw"), scene(1));
+    await git.commit(repo, "start");
+    // changes in both places
+    fs.writeFileSync(path.join(repo, "other.txt"), "changed");
+    fs.writeFileSync(path.join(repo, "unrelated.md"), "new");
+    fs.writeFileSync(path.join(repo, "designs", "a.excalidraw"), scene(2));
+    fs.writeFileSync(path.join(repo, "designs", "b.excalidraw"), scene(0));
+    const folder = path.join(repo, "designs");
+
+    const st = await git.status(folder);
+    expect(st.changes.map((c) => c.path).sort()).toEqual([
+      "a.excalidraw",
+      "b.excalidraw",
+    ]);
+
+    const hash = await git.commit(folder, "designs only");
+    expect(hash).toBeTruthy();
+    // the rest of the repository is untouched
+    const rest = await git.status(repo);
+    expect(rest.changes.map((c) => c.path).sort()).toEqual([
+      "other.txt",
+      "unrelated.md",
+    ]);
+
+    const log = await git.log(folder, "a.excalidraw");
+    expect(log[0].subject).toBe("designs only");
+    expect(await git.showFile(folder, log[1].hash, "a.excalidraw")).toBe(
+      scene(1),
+    );
+    expect(await git.prefixOf(folder)).toBe("designs/");
+  });
+});

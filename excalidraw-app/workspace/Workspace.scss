@@ -422,3 +422,104 @@
     }
   }
 }
+
+.project {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  .workspace__leaf {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border: 0;
+    border-radius: 0.3rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    padding: 0.25rem 0.5rem;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    &:hover,
+    &.is-active {
+      background: var(--button-hover-bg, rgba(0, 0, 0, 0.07));
+    }
+  }
+  .workspace__chev {
+    display: inline-block;
+    width: 0.9rem;
+    opacity: 0.6;
+  }
+  .workspace__icon {
+    display: inline-block;
+    width: 1.1rem;
+    opacity: 0.7;
+  }
+  .workspace__badge {
+    font-size: 0.7rem;
+    padding: 0 0.4rem;
+    border-radius: 0.6rem;
+    background: var(--button-hover-bg, rgba(0, 0, 0, 0.07));
+  }
+  .workspace__hint {
+    opacity: 0.65;
+    font-size: 0.75rem;
+    margin: 0.2rem 0;
+  }
+  .workspace__error {
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.4rem;
+    background: var(--color-danger-light, #ffe3e3);
+  }
+  .project__assets .workspace__hint {
+    grid-column: 1 / -1;
+  }
+  .project__row > * {
+    min-width: 0;
+  }
+  .project__button {
+    flex: 0 0 auto;
+  }
+  &__changes {
+    li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      padding: 1px 0;
+    }
+  }
+  &__tag {
+    flex: 0 0 auto;
+    min-width: 3.4rem;
+    text-align: center;
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 0.6rem;
+    padding: 0 0.35rem;
+    background: var(--button-hover-bg, rgba(0, 0, 0, 0.07));
+    &--new {
+      background: rgba(48, 164, 108, 0.2);
+      color: #30a46c;
+    }
+    &--deleted {
+      background: rgba(229, 72, 77, 0.2);
+      color: #e5484d;
+    }
+    &--changed {
+      background: rgba(245, 166, 35, 0.2);
+      color: #d98a00;
+    }
+  }
+  &__file {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__dir {
+    opacity: 0.55;
+  }
+}

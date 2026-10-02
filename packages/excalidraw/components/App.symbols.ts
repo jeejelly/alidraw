@@ -2,7 +2,7 @@ import { getBoundTextElement } from "@excalidraw/element";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { getSymbolMeta } from "../symbols/build";
+import { getSymbolMeta, symbolGroupOf } from "../symbols/build";
 import { isReplaceable, labelOf, symbolInBox } from "../symbols/replace";
 
 import type { Values } from "../symbols/components";
@@ -139,7 +139,7 @@ export class AppSymbols {
         const label = labelOf(anchor, map);
         const keep = new Set([anchor.id, getBoundTextElement(anchor, map)?.id]);
         for (const el of all) {
-          if (getSymbolMeta(el)?.group === m.group && !keep.has(el.id)) {
+          if (symbolGroupOf(el) === anchor.groupIds[0] && !keep.has(el.id)) {
             this.app.scene.mutateElement(
               el as any,
               { isDeleted: true },
@@ -155,7 +155,7 @@ export class AppSymbols {
           label,
         ).map((e) => ({
           ...e,
-          groupIds: [m.group, ...anchor.groupIds.filter((g) => g !== m.group)],
+          groupIds: anchor.groupIds,
         }));
         for (const e of made) {
           e.customData = {

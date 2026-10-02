@@ -383,13 +383,14 @@
   }
   &__chips {
     display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    gap: 3px;
+    grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+    gap: 4px;
     margin-top: 0.3rem;
     button {
-      height: 1.4rem;
+      aspect-ratio: 1;
+      min-height: 22px;
       border: 1px solid var(--default-border-color);
-      border-radius: 0.25rem;
+      border-radius: 0.3rem;
       cursor: pointer;
       padding: 0;
     }

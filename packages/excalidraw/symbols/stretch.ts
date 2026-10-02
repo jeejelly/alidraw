@@ -6,7 +6,7 @@ import type {
   ExcalidrawPathElement,
 } from "@excalidraw/element/types";
 
-import { getSymbolMeta } from "./build";
+import { getSymbolMeta, symbolGroupOf } from "./build";
 
 /**
  * Stretching a component without distorting it: what spans the stretched side
@@ -31,7 +31,7 @@ export const getSelectedSymbol = (
   if (!selected.length) {
     return null;
   }
-  const groups = new Set(selected.map((e) => getSymbolMeta(e)?.group ?? ""));
+  const groups = new Set(selected.map((e) => symbolGroupOf(e) ?? ""));
   if (groups.size !== 1) {
     return null;
   }
@@ -39,9 +39,7 @@ export const getSelectedSymbol = (
   if (!group) {
     return null;
   }
-  const members = all.filter(
-    (e) => !e.isDeleted && getSymbolMeta(e)?.group === group,
-  );
+  const members = all.filter((e) => !e.isDeleted && symbolGroupOf(e) === group);
   return members.length === selected.length ? { group, members } : null;
 };
 
