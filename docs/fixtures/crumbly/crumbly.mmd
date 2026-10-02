@@ -1,0 +1,16 @@
+flowchart LR
+  subgraph feed["Feed"]
+    new_crumb["New crumb"]
+    profile_tab["Profile tab"]
+  end
+  subgraph compose["Compose"]
+    share["Share"]
+  end
+  subgraph web_feed["Web feed"]
+    get_the_app["Get the app"]
+  end
+  profile["Profile"]
+  new_crumb -->|"tap"| compose
+  share --> feed
+  profile_tab --> profile
+  get_the_app --> feed

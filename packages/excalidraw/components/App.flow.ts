@@ -248,7 +248,7 @@ export class AppFlow {
    * "Convert to flow element": the selection is wrapped (a placeholder
    * selected with real objects is filled by them). Returns the key or null.
    */
-  convertSelection = (flowId?: string) => {
+  convertSelection = (flowId?: string, label?: string) => {
     const { scene } = this.app;
     const selected = scene.getSelectedElements(this.app.state);
     if (!selected.length) {
@@ -261,7 +261,9 @@ export class AppFlow {
       listFlows(all)[0] ??
       "Flow 1";
     const filled = fillPlaceholder(scene, selected, id);
-    const made = filled ? null : wrapAsFlowElement(scene, selected, id);
+    const made = filled
+      ? null
+      : wrapAsFlowElement(scene, selected, id, label ? { label } : {});
     const key = filled ?? made?.key ?? null;
     if (!key) {
       return null;
