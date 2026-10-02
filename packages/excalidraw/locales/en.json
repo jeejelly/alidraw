@@ -121,6 +121,7 @@
     "libraries": "Browse libraries",
     "loadingScene": "Loading scene…",
     "loadScene": "Load scene from file",
+    "import": "Import SVG and images…",
     "align": "Align",
     "alignTop": "Align top",
     "alignBottom": "Align bottom",

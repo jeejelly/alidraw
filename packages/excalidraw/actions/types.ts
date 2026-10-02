@@ -133,6 +133,7 @@ export type ActionName =
   | "changeLocalFont"
   | "toggleRulers"
   | "togglePalette"
+  | "importFiles"
   | "fitToGrid"
   | "knifeCut"
   | "pathfinderUnite"

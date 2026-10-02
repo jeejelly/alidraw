@@ -1,6 +1,8 @@
 import React from "react";
 
-import { actionSaveFileToDisk } from "../../actions";
+import { actionImportFiles, actionSaveFileToDisk } from "../../actions";
+import { useSetAtom } from "../../editor-jotai";
+import { overwriteConfirmStateAtom } from "./OverwriteConfirmState";
 import { actionChangeExportEmbedScene } from "../../actions/actionExport";
 import { useI18n } from "../../i18n";
 import { useExcalidrawActionManager, useExcalidrawSetAppState } from "../App";
@@ -73,6 +75,26 @@ export const SaveToDisk = () => {
   );
 };
 
+/** the way out that keeps the current design: add the file's content to it */
+export const ImportIntoDesign = ({ onDone }: { onDone?: () => void }) => {
+  const actionManager = useExcalidrawActionManager();
+  const setState = useSetAtom(overwriteConfirmStateAtom);
+  return (
+    <Action
+      title="Import into this design"
+      actionLabel="Import SVG or images"
+      onClick={() => {
+        onDone?.();
+        setState((state) => ({ ...state, active: false }));
+        actionManager.executeAction(actionImportFiles, "ui");
+      }}
+    >
+      Add an SVG (as editable shapes) or pictures to what you have, without
+      replacing anything.
+    </Action>
+  );
+};
+
 const Actions = Object.assign(
   ({ children }: { children: React.ReactNode }) => {
     return <div className="OverwriteConfirm__Actions">{children}</div>;
@@ -80,6 +102,7 @@ const Actions = Object.assign(
   {
     ExportToImage,
     SaveToDisk,
+    ImportIntoDesign,
   },
 );
 

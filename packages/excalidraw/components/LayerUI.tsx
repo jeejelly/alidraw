@@ -114,6 +114,7 @@ const DefaultMainMenu: React.FC<{
   return (
     <MainMenu __fallback>
       <MainMenu.DefaultItems.LoadScene />
+      <MainMenu.DefaultItems.ImportFiles />
       <MainMenu.DefaultItems.SaveToActiveFile />
       {/* FIXME we should to test for this inside the item itself */}
       {UIOptions.canvasActions.export && <MainMenu.DefaultItems.Export />}
@@ -140,6 +141,7 @@ const DefaultOverwriteConfirmDialog = () => {
     <OverwriteConfirmDialog __fallback>
       <OverwriteConfirmDialog.Actions.SaveToDisk />
       <OverwriteConfirmDialog.Actions.ExportToImage />
+      <OverwriteConfirmDialog.Actions.ImportIntoDesign />
     </OverwriteConfirmDialog>
   );
 };

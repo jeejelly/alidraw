@@ -42,7 +42,7 @@ describe("path data", () => {
   });
   it("splits sub-paths and refuses what it cannot draw", () => {
     expect(parsePath("M0 0L1 1M5 5L6 6")).toHaveLength(2);
-    expect(() => parsePath("M0 0A1 1 0 0 1 2 2")).toThrow();
+    expect(() => parsePath("M0 0X1 1")).toThrow();
   });
 });
 

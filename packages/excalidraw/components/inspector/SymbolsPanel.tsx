@@ -34,6 +34,7 @@ import {
 } from "../../actions";
 import { addSwatches } from "../../palette";
 
+import { ColorField } from "./ColorField";
 import { Section } from "./primitives";
 
 import type App from "../App";
@@ -155,21 +156,20 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
         }
       />
     </label>
-    <div className="symbols__swatches">
+    <div className="symbols__tokens">
       {TOKENS.map((tk) => (
-        <label key={tk} title={tk} className="symbols__swatch">
-          <input
-            type="color"
+        <div key={tk} className="symbols__token">
+          <span>{tk}</span>
+          <ColorField
+            compact
+            label={tk}
+            testId={`symbols-token-${tk}`}
             value={theme.colors[tk]}
-            onChange={(e) =>
-              setSymbolTheme({
-                ...theme,
-                colors: { ...theme.colors, [tk]: e.target.value },
-              })
+            onChange={(c) =>
+              setSymbolTheme({ ...theme, colors: { ...theme.colors, [tk]: c } })
             }
           />
-          <span>{tk}</span>
-        </label>
+        </div>
       ))}
     </div>
   </div>

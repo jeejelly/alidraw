@@ -28,6 +28,8 @@ import {
   PANEL_MARGIN,
   snapPanel,
   removeSwatch,
+  moveSwatch,
+  setSwatchColor,
   renameSwatch,
   setLayersDetached,
   setLayersPosition,
@@ -41,6 +43,7 @@ import {
 
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";
+import { ColorField } from "./inspector/ColorField";
 import { FlowPanel } from "./inspector/FlowPanel";
 import { ModesSection } from "./inspector/ModesSection";
 import { SymbolLayoutSection, SymbolsPanel } from "./inspector/SymbolsPanel";
@@ -106,6 +109,31 @@ const LAYER_GLYPH: Record<string, string> = {
  * (horizontal strip / vertical column). Swatches are named, saved across
  * sessions and importable from .ase / .gpl.
  */
+const SwatchIcon = ({
+  kind,
+}: {
+  kind: "plus" | "pencil" | "upload" | "trash";
+}) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {kind === "plus" && <path d="M12 5v14M5 12h14" />}
+    {kind === "pencil" && <path d="M4 20l1-5L16 4l4 4L9 19zM14 6l4 4" />}
+    {kind === "upload" && <path d="M12 16V5M7 9.5L12 4.5l5 5M4 20h16" />}
+    {kind === "trash" && (
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+    )}
+  </svg>
+);
+
 const rectOf = (el: Element | null) => {
   const r = el?.getBoundingClientRect();
   return r && r.width
@@ -141,6 +169,11 @@ export const PalettePanel = ({ app }: { app: App }) => {
   const [tab, setTab] = useState<Tab>("design");
   const [target, setTarget] = useState<Target>("stroke");
   const [managing, setManaging] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const editSwatch =
+    palette.swatches.find((x) => x.id === editId) ??
+    palette.swatches[0] ??
+    null;
   const [message, setMessage] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -364,6 +397,14 @@ export const PalettePanel = ({ app }: { app: App }) => {
               backgroundColor === "transparent" ? "inspector__checker" : ""
             }`}
             data-testid="palette-target-background"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              const color = e.dataTransfer.getData("text/swatch-color");
+              if (color) {
+                e.preventDefault();
+                applyColor(color, "background");
+              }
+            }}
             aria-pressed={target === "background"}
             aria-label={t("labels.background")}
             title={t("labels.background")}
@@ -377,6 +418,14 @@ export const PalettePanel = ({ app }: { app: App }) => {
             type="button"
             className="inspector__well inspector__well--stroke"
             data-testid="palette-target-stroke"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              const color = e.dataTransfer.getData("text/swatch-color");
+              if (color) {
+                e.preventDefault();
+                applyColor(color, "stroke");
+              }
+            }}
             aria-pressed={target === "stroke"}
             aria-label={t("labels.stroke")}
             title={t("labels.stroke")}
@@ -483,100 +532,128 @@ export const PalettePanel = ({ app }: { app: App }) => {
     >
       <div
         data-testid="palette-swatches"
-        className={
-          managing || palette.swatches.length === 0
-            ? undefined
-            : "inspector__swatches"
-        }
-        style={
-          managing
-            ? { display: "flex", flexDirection: "column", gap: 4 }
-            : undefined
-        }
+        className="inspector__swatches"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          // dropped on the empty part: to the end of the list
+          const id = e.dataTransfer.getData("text/swatch-id");
+          if (id) {
+            moveSwatch(id, null);
+          }
+        }}
       >
         {palette.swatches.length === 0 && (
           <span className="inspector__hint">{t("labels.palette.empty")}</span>
         )}
-        {palette.swatches.map((s) =>
-          managing ? (
-            <div key={s.id} className="inspector__row" style={{ marginTop: 0 }}>
-              <span
-                className="inspector__swatch"
-                style={{
-                  background: s.color,
-                  width: 18,
-                  height: 18,
-                  flexShrink: 0,
-                }}
-              />
-              <input
-                className="inspector__text"
-                data-testid="palette-swatch-name"
-                defaultValue={s.name}
-                onBlur={(e) => renameSwatch(s.id, e.target.value)}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === "Enter") {
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="inspector__iconbtn"
-                data-testid="palette-swatch-remove"
-                aria-label={t("labels.palette.remove")}
-                onClick={() => removeSwatch(s.id)}
-              >
-                ×
-              </button>
-            </div>
-          ) : (
-            <button
-              key={s.id}
-              type="button"
-              className="inspector__swatch"
-              data-testid="palette-swatch"
-              title={`${s.name} ${s.color}`}
-              style={{ background: s.color }}
-              onClick={() => applyColor(s.color)}
-            />
-          ),
-        )}
+        {palette.swatches.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            draggable
+            className={`inspector__swatch${
+              managing && editSwatch?.id === s.id ? " is-picked" : ""
+            }`}
+            data-testid="palette-swatch"
+            title={`${s.name} ${s.color}`}
+            style={{ background: s.color }}
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/swatch-id", s.id);
+              e.dataTransfer.setData("text/swatch-color", s.color);
+              e.dataTransfer.effectAllowed = "copyMove";
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.stopPropagation();
+              const id = e.dataTransfer.getData("text/swatch-id");
+              if (id) {
+                moveSwatch(id, s.id);
+              }
+            }}
+            onClick={() => (managing ? setEditId(s.id) : applyColor(s.color))}
+          />
+        ))}
       </div>
+      {managing && editSwatch && (
+        <div
+          className="inspector__swatch-editor"
+          data-testid="palette-swatch-editor"
+        >
+          <ColorField
+            value={editSwatch.color}
+            testId="palette-swatch-hex"
+            label={t("labels.palette.pick")}
+            onChange={(c) => setSwatchColor(editSwatch.id, c)}
+          />
+          <div className="inspector__row" style={{ marginTop: 0 }}>
+            <input
+              className="inspector__text"
+              data-testid="palette-swatch-name"
+              key={editSwatch.id}
+              defaultValue={editSwatch.name}
+              onBlur={(e) => renameSwatch(editSwatch.id, e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") {
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="inspector__iconbtn inspector__iconbtn--lg"
+              data-testid="palette-swatch-remove"
+              aria-label={t("labels.palette.remove")}
+              title={t("labels.palette.remove")}
+              onClick={() => {
+                removeSwatch(editSwatch.id);
+                setEditId(null);
+              }}
+            >
+              <SwatchIcon kind="trash" />
+            </button>
+          </div>
+        </div>
+      )}
       <div className="inspector__row">
         <button
           type="button"
-          className="inspector__iconbtn"
+          className="inspector__iconbtn inspector__iconbtn--lg"
           data-testid="palette-add"
           title={t("labels.palette.add")}
+          aria-label={t("labels.palette.add")}
           disabled={!hex}
           onClick={() => {
-            if (hex && addSwatch(hex)) {
+            const added = hex && addSwatch(hex);
+            if (added) {
               setManaging(true);
+              setEditId(added.id);
             }
           }}
         >
-          +
+          <SwatchIcon kind="plus" />
         </button>
         <button
           type="button"
-          className="inspector__iconbtn"
+          className="inspector__iconbtn inspector__iconbtn--lg"
           data-testid="palette-manage"
           aria-pressed={managing}
           title={managing ? t("labels.palette.done") : t("labels.palette.edit")}
+          aria-label={
+            managing ? t("labels.palette.done") : t("labels.palette.edit")
+          }
           onClick={() => setManaging((m) => !m)}
         >
-          ✎
+          <SwatchIcon kind="pencil" />
         </button>
         <button
           type="button"
-          className="inspector__iconbtn"
+          className="inspector__iconbtn inspector__iconbtn--lg"
           data-testid="palette-import"
           title={t("labels.palette.import")}
+          aria-label={t("labels.palette.import")}
           onClick={() => fileRef.current?.click()}
         >
-          ⇪
+          <SwatchIcon kind="upload" />
         </button>
         <input
           ref={fileRef}

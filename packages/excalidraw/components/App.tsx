@@ -428,6 +428,7 @@ import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
 import { AppStretch } from "./App.stretch";
 import { AppSymbols } from "./App.symbols";
+import { AppImport } from "./App.import";
 import { getSymbolTheme } from "../symbols/themeStore";
 import { StretchOverlay } from "./StretchOverlay";
 import { AppAnchors } from "./App.anchors";
@@ -759,6 +760,7 @@ class App extends React.Component<AppProps, AppState> {
   gizmo = new AppGizmo(this);
   stretch = new AppStretch(this);
   symbols = new AppSymbols(this);
+  imports = new AppImport(this);
   symbolTheme = () => getSymbolTheme();
   anchors = new AppAnchors(this);
   layers = new AppLayers(this);

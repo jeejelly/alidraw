@@ -192,6 +192,35 @@ export const renameSwatch = (id: string, name: string) => {
   });
 };
 
+export const setSwatchColor = (id: string, color: string) => {
+  const hex = normalizeHex(color);
+  if (!hex) {
+    return;
+  }
+  const current = getPaletteState();
+  commit({
+    ...current,
+    swatches: current.swatches.map((s) =>
+      s.id === id
+        ? { ...s, color: hex, name: s.name === s.color ? hex : s.name }
+        : s,
+    ),
+  });
+};
+
+/** puts a swatch where another one is: the list is reordered by dragging */
+export const moveSwatch = (id: string, beforeId: string | null) => {
+  const current = getPaletteState();
+  const moving = current.swatches.find((s) => s.id === id);
+  if (!moving || id === beforeId) {
+    return;
+  }
+  const rest = current.swatches.filter((s) => s.id !== id);
+  const at = beforeId ? rest.findIndex((s) => s.id === beforeId) : rest.length;
+  rest.splice(at < 0 ? rest.length : at, 0, moving);
+  commit({ ...current, swatches: rest });
+};
+
 export const removeSwatch = (id: string) => {
   const current = getPaletteState();
   commit({ ...current, swatches: current.swatches.filter((s) => s.id !== id) });

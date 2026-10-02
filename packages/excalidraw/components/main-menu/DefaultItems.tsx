@@ -10,6 +10,7 @@ import { hasFileSaveProvider } from "../../data/filesystem";
 import {
   actionClearCanvas,
   actionLoadScene,
+  actionImportFiles,
   actionSaveToActiveFile,
   actionShortcuts,
   actionToggleArrowBinding,
@@ -110,6 +111,40 @@ export const LoadScene = () => {
   );
 };
 LoadScene.displayName = "LoadScene";
+
+const ImportIcon = (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 3v11M7.5 9.5L12 14l4.5-4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+  </svg>
+);
+
+export const ImportFiles = () => {
+  const actionManager = useExcalidrawActionManager();
+  if (!actionManager.isActionEnabled(actionImportFiles)) {
+    return null;
+  }
+  return (
+    <DropdownMenuItem
+      icon={ImportIcon}
+      onSelect={() => actionManager.executeAction(actionImportFiles, "ui")}
+      data-testid="import-button"
+      aria-label="Import SVG and images"
+    >
+      Import SVG and images…
+    </DropdownMenuItem>
+  );
+};
+ImportFiles.displayName = "ImportFiles";
 
 export const SaveToActiveFile = () => {
   const { t } = useI18n();

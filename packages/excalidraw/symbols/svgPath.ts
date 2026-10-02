@@ -12,6 +12,90 @@ export type Anchor = {
 
 export type SubPath = { anchors: Anchor[]; closed: boolean };
 
+/** an SVG elliptical arc as cubic curves: [c1x, c1y, c2x, c2y, x, y] each */
+export const arcToCubics = (
+  x1: number,
+  y1: number,
+  rxIn: number,
+  ryIn: number,
+  rotation: number,
+  large: boolean,
+  sweep: boolean,
+  x2: number,
+  y2: number,
+): [number, number, number, number, number, number][] => {
+  let rx = Math.abs(rxIn);
+  let ry = Math.abs(ryIn);
+  if ((x1 === x2 && y1 === y2) || rx === 0 || ry === 0) {
+    return [];
+  }
+  const phi = (rotation * Math.PI) / 180;
+  const cp = Math.cos(phi);
+  const sp = Math.sin(phi);
+  const dx = (x1 - x2) / 2;
+  const dy = (y1 - y2) / 2;
+  const x1p = cp * dx + sp * dy;
+  const y1p = -sp * dx + cp * dy;
+  const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+  if (lambda > 1) {
+    const k = Math.sqrt(lambda);
+    rx *= k;
+    ry *= k;
+  }
+  const num = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+  const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  const coef = (large === sweep ? -1 : 1) * Math.sqrt(Math.max(0, num / den));
+  const cxp = (coef * rx * y1p) / ry;
+  const cyp = (-coef * ry * x1p) / rx;
+  const cx = cp * cxp - sp * cyp + (x1 + x2) / 2;
+  const cy = sp * cxp + cp * cyp + (y1 + y2) / 2;
+  const ang = (ux: number, uy: number, vx: number, vy: number) => {
+    const a = Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+    return a;
+  };
+  const th1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+  let dth = ang(
+    (x1p - cxp) / rx,
+    (y1p - cyp) / ry,
+    (-x1p - cxp) / rx,
+    (-y1p - cyp) / ry,
+  );
+  if (!sweep && dth > 0) {
+    dth -= 2 * Math.PI;
+  } else if (sweep && dth < 0) {
+    dth += 2 * Math.PI;
+  }
+  const n = Math.max(1, Math.ceil(Math.abs(dth) / (Math.PI / 2) - 1e-6));
+  const step = dth / n;
+  const t = (4 / 3) * Math.tan(step / 4);
+  const out: [number, number, number, number, number, number][] = [];
+  const point = (a: number): [number, number] => [
+    cx + rx * Math.cos(a) * cp - ry * Math.sin(a) * sp,
+    cy + rx * Math.cos(a) * sp + ry * Math.sin(a) * cp,
+  ];
+  const deriv = (a: number): [number, number] => [
+    -rx * Math.sin(a) * cp - ry * Math.cos(a) * sp,
+    -rx * Math.sin(a) * sp + ry * Math.cos(a) * cp,
+  ];
+  for (let k = 0; k < n; k++) {
+    const a0 = th1 + k * step;
+    const a1 = a0 + step;
+    const p0 = point(a0);
+    const p1 = point(a1);
+    const d0 = deriv(a0);
+    const d1 = deriv(a1);
+    out.push([
+      p0[0] + t * d0[0],
+      p0[1] + t * d0[1],
+      p1[0] - t * d1[0],
+      p1[1] - t * d1[1],
+      k === n - 1 ? x2 : p1[0],
+      k === n - 1 ? y2 : p1[1],
+    ]);
+  }
+  return out;
+};
+
 const tokens = (d: string) =>
   d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) ?? [];
 
@@ -134,6 +218,35 @@ export const parsePath = (d: string): SubPath[] => {
           y = sy;
         }
         lc = null;
+        break;
+      }
+      case "A": {
+        const rx = num();
+        const ry = num();
+        const rot = num();
+        const large = num();
+        const sweep = num();
+        const px = num() + ox;
+        const py = num() + oy;
+        const segs = arcToCubics(
+          x,
+          y,
+          rx,
+          ry,
+          rot,
+          large !== 0,
+          sweep !== 0,
+          px,
+          py,
+        );
+        for (const seg of segs) {
+          cubic(seg[0], seg[1], seg[2], seg[3], seg[4], seg[5]);
+        }
+        if (!segs.length) {
+          line(px, py);
+        }
+        x = px;
+        y = py;
         break;
       }
       default:
