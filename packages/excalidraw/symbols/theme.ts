@@ -139,6 +139,41 @@ export const THEMES: readonly SymbolTheme[] = [
       danger: "#111111",
     },
   },
+  // the default: white sheets, a coral accent, round shapes (the look of modern banking apps)
+  {
+    name: "Pop",
+    radius: 20,
+    stroke: 1.6,
+    colors: {
+      page: "#f4f5fb",
+      surface: "#ffffff",
+      surfaceAlt: "#eceef7",
+      border: "#e1e3ef",
+      text: "#14142b",
+      muted: "#8b8da5",
+      accent: "#ff6b57",
+      onAccent: "#ffffff",
+      success: "#1fcf9b",
+      danger: "#ff4d6a",
+    },
+  },
+  {
+    name: "Pop dark",
+    radius: 20,
+    stroke: 1.6,
+    colors: {
+      page: "#1d1d2b",
+      surface: "#2a2a3d",
+      surfaceAlt: "#34344b",
+      border: "#42425c",
+      text: "#f5f5fb",
+      muted: "#a0a2bd",
+      accent: "#ff6b57",
+      onAccent: "#ffffff",
+      success: "#2de0ac",
+      danger: "#ff6b81",
+    },
+  },
 ];
 
 export const TONAL_THEMES: readonly SymbolTheme[] = [
@@ -180,7 +215,7 @@ export const TONAL_THEMES: readonly SymbolTheme[] = [
 
 export const ALL_THEMES: readonly SymbolTheme[] = [...THEMES, ...TONAL_THEMES];
 
-export const DEFAULT_THEME = THEMES[2];
+export const DEFAULT_THEME = THEMES.find((t) => t.name === "Pop")!;
 
 /** the radius of controls and of cards, in px, for a control of height `h` */
 export const radiusOf = (theme: SymbolTheme, kind: "ctl" | "card", h = 40) => {

@@ -5,6 +5,7 @@ import { getBoundTextElement, isTextElement } from "@excalidraw/element";
 import {
   actionChangeBackgroundColor,
   actionChangeFontSizeInput,
+  actionTextToVectors,
   actionChangeOpacity,
   actionChangeSloppiness,
   actionChangeStrokeColor,
@@ -823,6 +824,17 @@ export const PalettePanel = ({ app }: { app: App }) => {
           <option value="dp">dp</option>
         </select>
       </div>
+      {textEl && (
+        <button
+          type="button"
+          className="inspector__btn"
+          data-testid="inspector-text-to-vectors"
+          title={t("labels.textToVectors")}
+          onClick={() => run(actionTextToVectors)}
+        >
+          {t("labels.textToVectors")}
+        </button>
+      )}
     </Section>
   );
 

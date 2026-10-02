@@ -104,6 +104,11 @@ export class ExcalidrawFontFace {
     });
   }
 
+  /** whether this face (a unicode-range slice of the family) has the character */
+  public covers(codePoint: number): boolean {
+    return this.getUnicodeRangeRegex().test(String.fromCodePoint(codePoint));
+  }
+
   private getUnicodeRangeRegex() {
     // using \u{h} or \u{hhhhh} to match any number of hex digits,
     // otherwise we would get an "Invalid Unicode escape" error

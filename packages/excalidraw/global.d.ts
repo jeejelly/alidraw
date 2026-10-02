@@ -111,3 +111,29 @@ declare namespace jest {
   interface Expect extends CustomMatchers {}
   interface Matchers extends CustomMatchers {}
 }
+
+// outlines of glyphs (MIT); only what the app uses
+declare module "opentype.js" {
+  export class Path {
+    toPathData(decimalPlaces?: number): string;
+  }
+  export class Glyph {
+    index: number;
+    advanceWidth: number;
+    getPath(x: number, y: number, fontSize: number): Path;
+  }
+  export class Font {
+    unitsPerEm: number;
+    charToGlyph(char: string): Glyph;
+    getKerningValue(left: Glyph, right: Glyph): number;
+  }
+  export function parse(buffer: ArrayBuffer): Font;
+}
+
+// bitmap tracing (Unlicense)
+declare module "imagetracerjs" {
+  const ImageTracer: {
+    imagedataToSVG(imageData: ImageData, options?: Record<string, unknown> | string): string;
+  };
+  export default ImageTracer;
+}

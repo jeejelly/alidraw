@@ -136,6 +136,7 @@ export type ActionName =
   | "importFiles"
   | "replaceFromLibrary"
   | "convertToFlowElement"
+  | "textToVectors"
   | "toggleGuidesLock"
   | "fitToGrid"
   | "knifeCut"

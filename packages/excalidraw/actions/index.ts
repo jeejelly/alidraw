@@ -82,6 +82,7 @@ export {
 export { actionImportFiles } from "./actionImport";
 export { actionReplaceFromLibrary } from "./actionReplaceFromLibrary";
 export { actionConvertToFlowElement } from "./actionConvertToFlowElement";
+export { actionTextToVectors } from "./actionTextToVectors";
 export { actionToggleGridMode } from "./actionToggleGridMode";
 export { actionToggleZenMode } from "./actionToggleZenMode";
 export { actionToggleObjectsSnapMode } from "./actionToggleObjectsSnapMode";
