@@ -175,6 +175,26 @@ describe("workspaces", () => {
   });
 });
 
+describe("exports", () => {
+  it("land in exports/ under their name, replace an earlier export, and cannot escape", async () => {
+    const w = await ws.create({
+      name: "A",
+      parent: path.join(tmp, "projects"),
+    });
+    const b64 = (t) => Buffer.from(t).toString("base64");
+    const one = ws.writeExport(w.id, "Poster.png", b64("v1"));
+    expect(one.path).toBe("exports/Poster.png");
+    ws.writeExport(w.id, "Poster.png", b64("v2"));
+    expect(fs.readFileSync(path.join(w.path, one.path), "utf8")).toBe("v2");
+    // separators and leading dots are flattened: it stays in exports/
+    const odd = ws.writeExport(w.id, "../../evil.svg", b64("x"));
+    expect(odd.path.startsWith("exports/")).toBe(true);
+    expect(odd.path.slice("exports/".length)).not.toMatch(/[\\/]/);
+    expect(fs.existsSync(path.join(tmp, "evil.svg"))).toBe(false);
+    expect(() => ws.writeExport(w.id, "", b64("x"))).toThrow();
+  });
+});
+
 describe("assets", () => {
   const png = Buffer.from("89504e470d0a1a0a0000000d49484452", "hex").toString(
     "base64",

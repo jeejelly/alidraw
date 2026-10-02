@@ -384,9 +384,40 @@ const setupWorkspaces = () => {
     backup.queue(id);
     return result;
   });
+  handle("ws:writeExport", ({ id, name, base64 }) => {
+    const result = workspaces.writeExport(id, name, base64);
+    autoCommit.touch(id, workspaces.root(id), result.path);
+    backup.queue(id);
+    return result;
+  });
+  // the files to read (images, scenes) are picked starting in the workspace; the page gets
+  // their bytes, never their paths
+  handle("ws:pickFiles", async ({ id, extensions, multiple }, event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const exts = (Array.isArray(extensions) ? extensions : [])
+      .map((e) => String(e).replace(/^\./, ""))
+      .filter((e) => /^[A-Za-z0-9]{1,8}$/.test(e));
+    const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+      defaultPath: workspaces.root(id),
+      properties: multiple ? ["openFile", "multiSelections"] : ["openFile"],
+      filters: exts.length ? [{ name: "Files", extensions: exts }] : undefined,
+    });
+    if (canceled || !filePaths.length) {
+      return null;
+    }
+    let total = 0;
+    return filePaths.map((file) => {
+      const bytes = fs.readFileSync(file);
+      total += bytes.length;
+      if (total > 200 * 1024 * 1024) {
+        throw new Error("those files are too large to open together");
+      }
+      return { name: path.basename(file), base64: bytes.toString("base64") };
+    });
+  });
   // a vector PDF of the drawing: the browser engine lays the SVG out and embeds its fonts, so
   // shapes stay shapes and text stays text for other editors
-  handle("pdf:export", async ({ html, name }, event) => {
+  handle("pdf:export", async ({ html, name, workspaceId }, event) => {
     if (typeof html !== "string" || html.length > 200 * 1024 * 1024) {
       throw new Error("nothing to export");
     }
@@ -424,8 +455,18 @@ const setupWorkspaces = () => {
         preferCSSPageSize: true,
       });
       const owner = BrowserWindow.fromWebContents(event.sender);
+      // with a workspace the dialog opens in its exports folder
+      let dir = null;
+      if (typeof workspaceId === "string") {
+        try {
+          dir = path.join(workspaces.root(workspaceId), "exports");
+          fs.mkdirSync(dir, { recursive: true });
+        } catch {
+          dir = null;
+        }
+      }
       const picked = await dialog.showSaveDialog(owner, {
-        defaultPath: `${safe}.pdf`,
+        defaultPath: dir ? path.join(dir, `${safe}.pdf`) : `${safe}.pdf`,
         filters: [{ name: "PDF", extensions: ["pdf"] }],
       });
       if (picked.canceled || !picked.filePath) {

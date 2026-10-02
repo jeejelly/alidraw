@@ -65,6 +65,8 @@ import {
 
 import "./DefaultItems.scss";
 
+import { openSceneThroughHost } from "../../data/filesystem";
+
 import type { InputDevice } from "../../types";
 
 export const LoadScene = () => {
@@ -77,6 +79,10 @@ export const LoadScene = () => {
   }
 
   const handleSelect = async () => {
+    // in a workspace, Open is the project's own: no warning, nothing is lost
+    if (openSceneThroughHost()) {
+      return;
+    }
     if (
       !elements.length ||
       (await openConfirmModal({

@@ -354,6 +354,27 @@ class Workspaces {
     return { path: rel, bytes: bytes.length };
   }
 
+  /**
+   * An export (an image, swatches, code…) kept in the workspace under `exports/`,
+   * under the name it was given (a re-export replaces the earlier one).
+   */
+  writeExport(id, name, base64) {
+    const root = this.root(id);
+    if (typeof base64 !== "string" || typeof name !== "string") {
+      throw new Error("invalid export");
+    }
+    const safe = name
+      .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "-")
+      .replace(/^\.+/, "")
+      .slice(0, 120);
+    if (!safe) {
+      throw new Error("invalid export name");
+    }
+    const rel = `exports/${safe}`;
+    writeAtomic(resolveInside(root, rel), Buffer.from(base64, "base64"));
+    return { path: rel };
+  }
+
   /** the bytes of an asset, base64; only files under `assets/` can be read */
   readAsset(id, rel) {
     if (

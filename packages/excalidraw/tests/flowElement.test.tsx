@@ -1,6 +1,7 @@
 import React from "react";
 
 import { reseed } from "@excalidraw/common";
+import { getCommonBounds } from "@excalidraw/element";
 
 import { Excalidraw } from "../index";
 import { applyFlow, getFlowMeta, readFlow } from "../flow/flowCanvas";
@@ -11,6 +12,9 @@ import {
   wrapAsFlowElement,
 } from "../flow/flowElement";
 import { parseFlow, serializeFlow } from "../flow/flowGraph";
+import { buildElements } from "../symbols/build";
+import { COMPONENTS, defaultsOf } from "../symbols/components";
+import { DEFAULT_THEME } from "../symbols/theme";
 
 import { API } from "./helpers/api";
 import {
@@ -272,6 +276,76 @@ describe("flow elements", () => {
       expect(live().filter((e) => getFlowMeta(e))).toHaveLength(3);
       // and the flow element is what is selected
       expect(Object.keys(h.state.selectedElementIds)).toHaveLength(4);
+    });
+  });
+
+  describe("replacing from the library", () => {
+    const libraryItem = () => {
+      const def = COMPONENTS.find((c) => c.id === "button")!;
+      const v = defaultsOf(def);
+      return {
+        id: "lib-button",
+        status: "unpublished" as const,
+        created: 1,
+        elements: buildElements(
+          def.shapes(DEFAULT_THEME, v),
+          DEFAULT_THEME,
+          { x: 0, y: 0 },
+          "button",
+          v,
+        ),
+      };
+    };
+
+    it.each([
+      ["what it wraps", false],
+      ["the whole flow element", true],
+    ])("replaces %s, never the flow element", async (_name, whole) => {
+      await render(<Excalidraw />);
+      const a = box(0, 0, 200, 80);
+      const b = box(600, 0);
+      API.setElements([a, b]);
+      act(() => {
+        wrapAsFlowElement(scene(), [a], "F", { label: "Buy" });
+        wrapAsFlowElement(scene(), [b], "F", { label: "Pay" });
+        addLink(scene(), "F", "buy", "pay");
+      });
+      const outline = live().find(
+        (e) => getFlowMeta(e)?.kind === "node" && getFlowMeta(e)!.key === "buy",
+      )!;
+      const group = getFlowMeta(outline)!.group!;
+      const pick = whole
+        ? live().filter((e) => e.groupIds.includes(group))
+        : [live().find((e) => e.id === a.id)!];
+      API.setSelectedElements(pick as any);
+      act(() => h.app.replaceSelectionWithLibraryItem(libraryItem() as any));
+
+      // the flow element is the same one, with its label, handle and link
+      const kept = live().find((e) => e.id === outline.id)!;
+      expect(getFlowMeta(kept)).toMatchObject({ key: "buy", wrap: true });
+      expect(
+        live().some(
+          (e) =>
+            getFlowMeta(e)?.kind === "label" && getFlowMeta(e)!.key === "buy",
+        ),
+      ).toBe(true);
+      expect(
+        live().filter((e) => getFlowMeta(e)?.kind === "handle"),
+      ).toHaveLength(2);
+      expect(live().filter((e) => e.type === "arrow")).toHaveLength(1);
+      expect(text()).toContain("buy --> pay");
+      // the old box is gone and a button symbol took its place, inside the group
+      expect(live().some((e) => e.id === a.id)).toBe(false);
+      const symbols = live().filter(
+        (e) => e.groupIds.includes(group) && e.customData?.symbol,
+      );
+      expect(symbols.length).toBeGreaterThan(0);
+      // the outline hugs the new content
+      const [x1, y1, x2, y2] = getCommonBounds(symbols);
+      expect(kept.x).toBeLessThanOrEqual(x1);
+      expect(kept.y).toBeLessThanOrEqual(y1);
+      expect(kept.x + kept.width).toBeGreaterThanOrEqual(x2);
+      expect(kept.y + kept.height).toBeGreaterThanOrEqual(y2);
     });
   });
 });

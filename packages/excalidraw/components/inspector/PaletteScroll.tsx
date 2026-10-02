@@ -75,7 +75,7 @@ export const PaletteScroll = ({ children }: { children: ReactNode }) => {
       </div>
       <div
         ref={track}
-        className={`inspector__slider${thumb ? " is-active" : ""}`}
+        className={`inspector__scrollbar${thumb ? " is-active" : ""}`}
         data-testid="palette-slider"
         onPointerDown={(e) => {
           const el = body.current;
@@ -92,7 +92,7 @@ export const PaletteScroll = ({ children }: { children: ReactNode }) => {
       >
         {thumb && (
           <div
-            className="inspector__thumb"
+            className="inspector__scrollthumb"
             data-testid="palette-slider-thumb"
             style={{ top: thumb.top, height: thumb.height }}
             onPointerDown={(e) => {

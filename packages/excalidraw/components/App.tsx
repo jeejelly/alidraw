@@ -428,6 +428,8 @@ import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
+import { getFlowMeta } from "../flow/flowCanvas";
+import { flowReplaceTarget, refitFlowElement } from "../flow/flowElement";
 import { AppFlow } from "./App.flow";
 import { AppStretch } from "./App.stretch";
 import { AppSymbols } from "./App.symbols";
@@ -12943,7 +12945,7 @@ class App extends React.Component<AppProps, AppState> {
       CONTEXT_MENU_SEPARATOR,
       actionAddToLibrary,
       actionReplaceFromLibrary,
-  actionConvertToFlowElement,
+      actionConvertToFlowElement,
       ...zIndexActions,
       CONTEXT_MENU_SEPARATOR,
       actionFlipHorizontal,
@@ -12974,12 +12976,21 @@ class App extends React.Component<AppProps, AppState> {
     if (!selected.length) {
       return;
     }
-    const frame = frameOf(selected);
+    // a flow element keeps its outline, label, handle and links: only what it wraps is replaced
+    const target = flowReplaceTarget(
+      this.scene.getElementsIncludingDeleted(),
+      selected,
+    );
+    const replaced = target ? target.remove : selected;
+    const frame = frameOf(replaced);
     const fitted = fitIntoBox(item.elements, frame);
     if (!fitted.length) {
       return;
     }
-    for (const el of selected) {
+    const known = new Set(
+      this.scene.getElementsIncludingDeleted().map((e) => e.id),
+    );
+    for (const el of replaced) {
       this.scene.mutateElement(el as any, { isDeleted: true });
     }
     const centre = sceneCoordsToViewportCoords(
@@ -12992,6 +13003,26 @@ class App extends React.Component<AppProps, AppState> {
       position: { clientX: centre.x, clientY: centre.y },
       retainSeed: false,
     });
+    if (target) {
+      // the new content joins the flow element's group and the outline hugs it
+      for (const el of this.scene.getNonDeletedElements()) {
+        if (!known.has(el.id)) {
+          this.scene.mutateElement(el as any, {
+            groupIds: [...el.groupIds, ...target.chain],
+          });
+        }
+      }
+      const meta = getFlowMeta(target.outline);
+      if (meta?.placeholder) {
+        this.scene.mutateElement(target.outline as any, {
+          customData: {
+            ...target.outline.customData,
+            flow: { ...meta, placeholder: false },
+          },
+        });
+      }
+      refitFlowElement(this.scene, target.outline);
+    }
     this.store.scheduleCapture();
   };
 

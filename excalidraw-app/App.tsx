@@ -61,7 +61,9 @@ import { AppFooter } from "./components/AppFooter";
 import { installWorkspaceSave } from "./workspace/workspaceSave";
 import { getWorkspaceBridge } from "./workspace/desktopBridge";
 import { ProjectPanel } from "./workspace/ProjectPanel";
+import { OpenSceneDialog } from "./workspace/OpenSceneDialog";
 import { SaveCopyDialog } from "./workspace/SaveCopyDialog";
+import { activeWorkspaceAtom } from "./workspace/workspaceState";
 import { WorkspaceDialog } from "./workspace/WorkspaceDialog";
 import { WorkspaceWatcher } from "./workspace/WorkspaceWatcher";
 import { AppMainMenu } from "./components/AppMainMenu";
@@ -178,14 +180,25 @@ const ExcalidrawWrapper = () => {
   const debugCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // in the desktop app, saving a scene file goes to a workspace, with no file dialog
-  useEffect(() => installWorkspaceSave(), []);
+  useEffect(
+    () =>
+      installWorkspaceSave((message) =>
+        excalidrawAPI?.setToast({ message, duration: 4000 }),
+      ),
+    [excalidrawAPI],
+  );
   // the desktop app saves PDFs itself, with its own file dialog
   useEffect(() => {
     const desktop = (window as any).excalidrawDesktop;
     if (!desktop?.exportPdf) {
       return;
     }
-    setPdfExportProvider((args) => desktop.exportPdf(args));
+    setPdfExportProvider((args) =>
+      desktop.exportPdf({
+        ...args,
+        workspaceId: appJotaiStore.get(activeWorkspaceAtom)?.id,
+      }),
+    );
     return () => setPdfExportProvider(null);
   }, []);
   // the desktop app's project browser is a tab of the palette
@@ -577,6 +590,7 @@ const ExcalidrawWrapper = () => {
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />
         <WorkspaceDialog api={excalidrawAPI} />
         <SaveCopyDialog api={excalidrawAPI} />
+        <OpenSceneDialog api={excalidrawAPI} />
         <WorkspaceWatcher api={excalidrawAPI} />
         {localStorageQuotaExceeded && (
           <div className="alert alert--danger">

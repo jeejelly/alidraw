@@ -168,6 +168,18 @@ export type DesktopWorkspaceBridge = {
     base64: string,
   ): Promise<{ path: string; bytes: number }>;
   readAsset(id: string, path: string): Promise<string>;
+  /** an export (image, swatches…) kept under exports/ */
+  writeExport(
+    id: string,
+    name: string,
+    base64: string,
+  ): Promise<{ path: string }>;
+  /** pick files starting in the workspace; null when cancelled */
+  pickFiles(
+    id: string,
+    extensions: string[],
+    multiple: boolean,
+  ): Promise<{ name: string; base64: string }[] | null>;
   meta(id: string): Promise<{ name?: string; assets?: "embedded" | "linked" }>;
   setMeta(
     id: string,

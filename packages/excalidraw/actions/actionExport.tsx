@@ -14,7 +14,10 @@ import { IconButton } from "../components/IconButton";
 import { Tooltip } from "../components/Tooltip";
 import { ExportIcon, questionCircle, saveAs } from "../components/icons";
 import { loadFromJSON, saveAsJSON } from "../data";
-import { nativeFileSystemSupported } from "../data/filesystem";
+import {
+  nativeFileSystemSupported,
+  openSceneThroughHost,
+} from "../data/filesystem";
 
 import { writeSceneToHandle } from "../data/writeSceneToHandle";
 
@@ -420,6 +423,9 @@ export const actionLoadScene = register({
     );
   },
   perform: async (elements, appState, _, app) => {
+    if (openSceneThroughHost()) {
+      return false;
+    }
     try {
       const {
         elements: loadedElements,

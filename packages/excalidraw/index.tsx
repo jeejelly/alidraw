@@ -478,7 +478,12 @@ export { LiveCollaborationTrigger };
 export { Stats } from "./components/Stats";
 
 export { DefaultSidebar } from "./components/DefaultSidebar";
-export { setFileSaveProvider, setHostCapabilities } from "./data/filesystem";
+export {
+  setFileOpenProvider,
+  setFileSaveProvider,
+  setHostCapabilities,
+  setSceneOpenProvider,
+} from "./data/filesystem";
 export { setPdfExportProvider } from "./data/pdfExport";
 export { registerPaletteTab } from "./hostPalette";
 export type { HostPaletteTab } from "./hostPalette";

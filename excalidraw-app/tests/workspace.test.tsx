@@ -5,9 +5,12 @@ import {
   useExcalidrawAPI,
 } from "@excalidraw/excalidraw";
 import {
+  fileOpen,
   fileSave,
+  openSceneThroughHost,
   setFileSaveProvider,
 } from "@excalidraw/excalidraw/data/filesystem";
+import { API } from "@excalidraw/excalidraw/tests/helpers/api";
 import {
   act,
   fireEvent,
@@ -22,11 +25,13 @@ import { appJotaiStore, Provider } from "../app-jotai";
 import { installWorkspaceSave } from "../workspace/workspaceSave";
 import { blobText } from "../workspace/blobText";
 import { ProjectPanel } from "../workspace/ProjectPanel";
+import { OpenSceneDialog } from "../workspace/OpenSceneDialog";
 import { SaveCopyDialog } from "../workspace/SaveCopyDialog";
 import { WorkspaceDialog } from "../workspace/WorkspaceDialog";
 import { WorkspaceFileHandle } from "../workspace/WorkspaceFileHandle";
 import {
   activeWorkspaceAtom,
+  openSceneDialogOpenAtom,
   saveCopyDialogOpenAtom,
   workspaceDialogOpenAtom,
 } from "../workspace/workspaceState";
@@ -38,6 +43,8 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
   const assets = new Map<string, string>();
   const meta: { assets?: "embedded" | "linked" } = {};
   const calls: string[] = [];
+  const exportsMade = new Map<string, string>();
+  let picked: { name: string; base64: string }[] | null = null;
   const bridge: DesktopWorkspaceBridge = {
     gitInfo: async () => ({ installed: true, version: "git 2", help: "" }),
     installGit: async () => ({ installed: true }),
@@ -95,6 +102,11 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
     resolve: async () => ({ outcome: "branched", branch: "ws/x" }),
     setPaused: async () => ({}),
     activate: async () => {},
+    writeExport: async (_id, name, base64) => {
+      exportsMade.set(`exports/${name}`, base64);
+      return { path: `exports/${name}` };
+    },
+    pickFiles: async () => picked,
     writeAsset: async (_id, mime, base64) => {
       const path = `assets/h${
         [...assets.values()].indexOf(base64) >= 0
@@ -157,7 +169,17 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
     }),
     ...over,
   };
-  return { bridge, files, calls, assets, meta };
+  return {
+    bridge,
+    files,
+    calls,
+    assets,
+    meta,
+    exportsMade,
+    pick: (files: typeof picked) => {
+      picked = files;
+    },
+  };
 };
 
 afterEach(() => {
@@ -234,6 +256,114 @@ describe("saving a scene in the desktop app", () => {
     off();
     // no provider: the library's own save would run (not exercised here)
     expect((window as any).excalidrawDesktop).toBeUndefined();
+  });
+});
+
+describe("a workspace is where everything goes by default", () => {
+  const png = () => new Blob([new Uint8Array([137, 80, 78, 71])]);
+
+  it("exports (images, swatches…) land in exports/ with no dialog, and say so", async () => {
+    const { bridge, exportsMade } = fakeBridge();
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    const said: string[] = [];
+    installWorkspaceSave((m) => said.push(m));
+    const result = await fileSave(png(), {
+      name: "Poster",
+      extension: "png",
+      description: "x",
+    });
+    expect(result).toBeNull();
+    expect([...exportsMade.keys()]).toEqual(["exports/Poster.png"]);
+    // the bytes are the file's
+    expect(atob(exportsMade.get("exports/Poster.png")!)).toBe(
+      String.fromCharCode(137, 80, 78, 71),
+    );
+    expect(said).toEqual(["Saved to Shop/exports/Poster.png"]);
+  });
+
+  it("Open is the project's: no warning without a workspace to open from, the dialog with one", async () => {
+    const { bridge } = fakeBridge();
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    installWorkspaceSave();
+    // no workspace yet: the default (warning + picker) stays
+    expect(openSceneThroughHost()).toBe(false);
+    expect(appJotaiStore.get(openSceneDialogOpenAtom)).toBe(false);
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    expect(openSceneThroughHost()).toBe(true);
+    expect(appJotaiStore.get(openSceneDialogOpenAtom)).toBe(true);
+    appJotaiStore.set(openSceneDialogOpenAtom, false);
+  });
+
+  it("pickers for import start in the workspace and hand over the bytes", async () => {
+    const { bridge, pick } = fakeBridge();
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    installWorkspaceSave();
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    pick([{ name: "logo.svg", base64: btoa("<svg/>") }]);
+    const file = await fileOpen({
+      description: "x",
+      extensions: ["svg"],
+    });
+    expect(file.name).toBe("logo.svg");
+    expect(await blobText(file)).toBe("<svg/>");
+    pick(null);
+    await expect(
+      fileOpen({ description: "x", extensions: ["svg"] }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+const OpenDialogWithApi = () => <OpenSceneDialog api={useExcalidrawAPI()} />;
+
+describe("the open dialog of a workspace", () => {
+  it("lists the scenes, opens one without any warning, and says when the canvas is not saved", async () => {
+    const { bridge } = fakeBridge({
+      scenes: async () => [
+        {
+          path: "ui/login.excalidraw",
+          name: "login.excalidraw",
+          mtime: 0,
+          size: 1,
+        },
+        { path: "home.excalidraw", name: "home.excalidraw", mtime: 0, size: 1 },
+      ],
+      read: async () =>
+        JSON.stringify({
+          type: "excalidraw",
+          version: 2,
+          source: "t",
+          elements: [],
+          appState: {},
+          files: {},
+        }),
+    });
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    await render(
+      <Provider store={appJotaiStore}>
+        <ExcalidrawAPIProvider>
+          <Excalidraw>
+            <OpenDialogWithApi />
+          </Excalidraw>
+        </ExcalidrawAPIProvider>
+      </Provider>,
+    );
+    API.setElements([API.createElement({ type: "rectangle" })]);
+    act(() => appJotaiStore.set(openSceneDialogOpenAtom, true));
+    expect(await screen.findByTestId("open-unsaved")).toBeTruthy();
+    const items = await screen.findAllByTestId("open-scene-item");
+    expect(items.map((i) => i.textContent).sort()).toEqual(["home", "login"]);
+    fireEvent.change(screen.getByTestId("open-search"), {
+      target: { value: "log" },
+    });
+    expect(screen.getAllByTestId("open-scene-item")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId("open-scene-item"));
+    await waitFor(() =>
+      expect(appJotaiStore.get(openSceneDialogOpenAtom)).toBe(false),
+    );
+    // opened: the scene became the canvas and its file the active one
+    expect(window.h.state.fileHandle).toBeTruthy();
   });
 });
 

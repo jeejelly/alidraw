@@ -31,12 +31,30 @@ export const fileOpen = async <M extends boolean | undefined = false>(opts: {
     return acc.concat(`.${ext}`);
   }, [] as string[]);
 
-  const files = await _fileOpen({
-    description: opts.description,
-    extensions,
-    mimeTypes,
-    multiple: opts.multiple ?? false,
-  });
+  // a host can offer its own picker (the desktop app starts in the workspace)
+  const hosted = fileOpenProvider
+    ? await fileOpenProvider({
+        extensions: extensions ?? [],
+        description: opts.description,
+        multiple: !!opts.multiple,
+      })
+    : undefined;
+  if (hosted === null) {
+    const aborted = new Error("The user aborted a request.");
+    aborted.name = "AbortError";
+    throw aborted;
+  }
+  const files =
+    hosted !== undefined
+      ? opts.multiple
+        ? hosted
+        : hosted[0]
+      : await _fileOpen({
+          description: opts.description,
+          extensions,
+          mimeTypes,
+          multiple: opts.multiple ?? false,
+        });
 
   if (Array.isArray(files)) {
     return (await Promise.all(
@@ -47,14 +65,46 @@ export const fileOpen = async <M extends boolean | undefined = false>(opts: {
 };
 
 /**
- * A host (the desktop app) can take over saving a scene file: no file dialog,
- * it decides where the file goes (a workspace folder) and returns a handle for
- * later saves. Image exports are not affected.
+ * A host (the desktop app) can take over picking files to read: `undefined`
+ * leaves it to the browser's picker, `null` is a cancel, files are the choice.
+ */
+type FileOpenProvider = (opts: {
+  extensions: string[];
+  description: string;
+  multiple: boolean;
+}) => Promise<File[] | null | undefined>;
+
+let fileOpenProvider: FileOpenProvider | null = null;
+
+export const setFileOpenProvider = (provider: FileOpenProvider | null) => {
+  fileOpenProvider = provider;
+};
+
+/**
+ * A host can also take over the Open command of the menu (and Ctrl+O): it
+ * shows its own way to open something and returns true, or false to leave it to
+ * the default (a warning, then the file picker).
+ */
+let sceneOpenProvider: (() => boolean) | null = null;
+
+export const setSceneOpenProvider = (provider: (() => boolean) | null) => {
+  sceneOpenProvider = provider;
+};
+
+/** @returns true when the host opened something itself */
+export const openSceneThroughHost = () =>
+  sceneOpenProvider ? sceneOpenProvider() : false;
+
+/**
+ * A host (the desktop app) can take over saving a file: no file dialog, it
+ * decides where the file goes (a workspace folder). For a scene file it returns
+ * a handle for later saves; for an export (image, swatches…) null once written,
+ * or `undefined` to leave it to the default.
  */
 type FileSaveProvider = (
   blob: Blob | Promise<Blob>,
   opts: { name: string; extension: string },
-) => Promise<FileSystemFileHandle | null>;
+) => Promise<FileSystemFileHandle | null | undefined>;
 
 let fileSaveProvider: FileSaveProvider | null = null;
 
@@ -88,8 +138,25 @@ export const fileSave = (
     fileHandle?: FileSystemFileHandle | null;
   },
 ) => {
-  if (fileSaveProvider && opts.extension === "excalidraw") {
-    return fileSaveProvider(blob, opts) as Promise<any>;
+  if (fileSaveProvider) {
+    const provider = fileSaveProvider;
+    return (async () => {
+      const handled = await provider(blob, opts);
+      if (handled !== undefined) {
+        return handled as any;
+      }
+      return _fileSave(
+        blob,
+        {
+          fileName: `${opts.name}.${opts.extension}`,
+          description: opts.description,
+          extensions: [`.${opts.extension}`],
+          mimeTypes: opts.mimeTypes,
+        },
+        opts.fileHandle,
+        false,
+      );
+    })();
   }
   return _fileSave(
     blob,

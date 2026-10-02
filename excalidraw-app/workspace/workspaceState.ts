@@ -8,3 +8,5 @@ export const activeWorkspaceAtom = atom<ActiveWorkspace | null>(null);
 export const workspaceDialogOpenAtom = atom(false);
 
 export const saveCopyDialogOpenAtom = atom(false);
+
+export const openSceneDialogOpenAtom = atom(false);

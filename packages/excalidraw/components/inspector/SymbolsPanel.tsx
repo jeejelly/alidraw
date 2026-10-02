@@ -186,58 +186,84 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
 
 type LayoutKind = "auto" | "start" | "center" | "end" | "scale";
 
-/** a 16px icon: where the content sits when the component is stretched along an axis */
+/**
+ * a 20px icon: a frame, and where the content sits in it when the component is
+ * stretched along an axis (drawn for each axis, not rotated)
+ */
 const LayoutIcon = ({
   kind,
   vertical,
 }: {
   kind: LayoutKind;
   vertical?: boolean;
-}) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    transform={vertical ? "rotate(90)" : undefined}
-  >
-    {kind === "auto" && (
-      <>
-        <path d="M3 13L8 3L13 13" />
-        <path d="M5 9.5H11" />
-      </>
-    )}
-    {kind === "start" && (
-      <>
-        <path d="M2.5 2V14" />
-        <rect x="5.5" y="5" width="7" height="6" rx="1" />
-      </>
-    )}
-    {kind === "center" && (
-      <>
-        <path d="M8 2V14" strokeDasharray="1.5 2" />
-        <rect x="4.5" y="5" width="7" height="6" rx="1" />
-      </>
-    )}
-    {kind === "end" && (
-      <>
-        <path d="M13.5 2V14" />
-        <rect x="3.5" y="5" width="7" height="6" rx="1" />
-      </>
-    )}
-    {kind === "scale" && (
-      <>
-        <path d="M2.5 2V14M13.5 2V14" />
-        <path d="M5 8H11M5 8L7 6M5 8L7 10M11 8L9 6M11 8L9 10" />
-      </>
-    )}
-  </svg>
-);
+}) => {
+  // a 16 x 12 frame; sizes are (along the axis, across it)
+  const along = 16;
+  const across = 12;
+  const ox = vertical ? 4 : 2;
+  const oy = vertical ? 2 : 4;
+  const R = (a: number, c: number, la: number, lc: number) =>
+    vertical
+      ? { x: ox + c, y: oy + a, width: lc, height: la }
+      : { x: ox + a, y: oy + c, width: la, height: lc };
+  const L = (a1: number, c1: number, a2: number, c2: number) =>
+    vertical
+      ? { x1: ox + c1, y1: oy + a1, x2: ox + c2, y2: oy + a2 }
+      : { x1: ox + a1, y1: oy + c1, x2: ox + a2, y2: oy + c2 };
+  const block = 4;
+  const thick = 6;
+  const mid = (across - thick) / 2;
+  const solid = { fill: "currentColor", stroke: "none" };
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      aria-hidden="true"
+    >
+      <rect
+        {...R(0, 0, along, across)}
+        rx="1.5"
+        strokeDasharray="2 2"
+        opacity="0.55"
+      />
+      {kind === "auto" && (
+        <>
+          <rect {...R(1.5, mid, block, thick)} {...solid} />
+          <rect {...R(along - 1.5 - block, mid, block, thick)} {...solid} />
+          <line
+            {...L(1.5 + block, across / 2, along - 1.5 - block, across / 2)}
+          />
+        </>
+      )}
+      {kind === "start" && (
+        <rect {...R(1.5, mid, block + 1, thick)} {...solid} />
+      )}
+      {kind === "center" && (
+        <rect
+          {...R((along - block - 1) / 2, mid, block + 1, thick)}
+          {...solid}
+        />
+      )}
+      {kind === "end" && (
+        <rect
+          {...R(along - 1.5 - block - 1, mid, block + 1, thick)}
+          {...solid}
+        />
+      )}
+      {kind === "scale" && (
+        <>
+          <rect {...R(4, 3, along - 8, across - 6)} {...solid} opacity="0.85" />
+          <line {...L(0.8, across / 2, 3.2, across / 2)} />
+          <line {...L(along - 3.2, across / 2, along - 0.8, across / 2)} />
+        </>
+      )}
+    </svg>
+  );
+};
 
 const H_CHOICES: [LayoutH, LayoutKind, string][] = [
   [
@@ -318,27 +344,30 @@ export const SymbolLayoutSection = ({ app }: { app: App }) => {
     key: "h" | "v",
     choices: [string, LayoutKind, string][],
   ) => (
-    <div className="symbols__layout">
-      <span>{label}</span>
-      {choices.map(([v, kind, title]) => (
-        <button
-          key={v}
-          type="button"
-          title={title}
-          aria-label={title}
-          data-testid={`symbols-layout-${key}-${v}`}
-          aria-pressed={layout[key] === v}
-          onClick={() => set({ [key]: v } as any)}
-        >
-          <LayoutIcon kind={kind} vertical={key === "v"} />
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="symbols__layout-title">{label}</div>
+      <div className="symbols__layout">
+        {choices.map(([v, kind, title]) => (
+          <button
+            key={v}
+            type="button"
+            className="symbols__layout-btn"
+            title={title}
+            aria-label={title}
+            data-testid={`symbols-layout-${key}-${v}`}
+            aria-pressed={layout[key] === v}
+            onClick={() => set({ [key]: v } as any)}
+          >
+            <LayoutIcon kind={kind} vertical={key === "v"} />
+          </button>
+        ))}
+      </div>
+    </>
   );
   return (
     <Section title="Layout" testId="symbols-layout">
-      {row("↔", "h", H_CHOICES)}
-      {row("↕", "v", V_CHOICES)}
+      {row("When stretched sideways", "h", H_CHOICES)}
+      {row("When stretched up or down", "v", V_CHOICES)}
       <p className="symbols__note">
         Ctrl + drag an edge to stretch. The frame flashes when it lines up with
         another component.
@@ -396,6 +425,7 @@ const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
           <button
             key={c.name}
             type="button"
+            className="symbols__chip"
             title={`${c.name} ${c.color}`}
             data-testid="symbols-scheme-color"
             style={{ background: c.color }}

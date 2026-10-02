@@ -149,7 +149,7 @@
       }
     }
 
-    &__slider {
+    &__scrollbar {
       position: relative;
       flex: 0 0 0.875rem;
       margin: 0.25rem 0.1875rem 0.25rem 0;
@@ -161,7 +161,7 @@
       }
     }
 
-    &__thumb {
+    &__scrollthumb {
       position: absolute;
       left: 2px;
       right: 2px;
@@ -390,56 +390,6 @@
       grid-column: 1 / -1;
     }
 
-    &__layout {
-    display: flex;
-    gap: 0.2rem;
-    align-items: center;
-    margin: 0.25rem 0;
-    > span {
-      flex: 0 0 1.4rem;
-      text-align: center;
-      font-size: 0.875rem;
-      opacity: 0.6;
-    }
-    button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.9rem;
-      height: 1.9rem;
-      padding: 0;
-      border: 1px solid var(--default-border-color);
-      border-radius: 0.4rem;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-      &[aria-pressed="true"] {
-        background: var(--color-primary);
-        border-color: var(--color-primary);
-        color: var(--color-surface-lowest, #fff);
-      }
-    }
-  }
-  &__scheme {
-    margin-top: 0.4rem;
-  }
-  &__chips {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
-    gap: 4px;
-    margin-top: 0.3rem;
-    button {
-      aspect-ratio: 1;
-      min-height: 22px;
-      border: 1px solid var(--default-border-color);
-      border-radius: 0.3rem;
-      cursor: pointer;
-      padding: 0;
-    }
-  }
-  &__num {
-    flex: 0 0 3.5rem !important;
-  }
   &__swatches {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
@@ -734,6 +684,66 @@
 }
 
 .symbols {
+  // how a component re-lays out when stretched: one labelled row of choices per axis
+  &__layout-title {
+    margin: 0.4rem 0 0.2rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+    opacity: 0.65;
+  }
+  &__layout {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border: 1px solid var(--default-border-color);
+    border-radius: 0.45rem;
+    overflow: hidden;
+    .symbols__layout-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      height: 2rem;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      border-right: 1px solid var(--default-border-color);
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      &:last-child {
+        border-right: 0;
+      }
+      &:hover {
+        background: var(--color-primary-light, rgba(0, 0, 0, 0.06));
+      }
+      &[aria-pressed="true"] {
+        background: var(--color-primary);
+        color: var(--color-surface-lowest, #fff);
+      }
+    }
+  }
+  &__scheme {
+    margin-top: 0.4rem;
+  }
+  &__chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+    gap: 4px;
+    margin-top: 0.3rem;
+    .symbols__chip {
+      aspect-ratio: 1;
+      width: auto;
+      height: auto;
+      min-height: 22px;
+      border: 1px solid var(--default-border-color);
+      border-radius: 0.3rem;
+      cursor: pointer;
+      padding: 0;
+    }
+  }
+  &__num {
+    flex: 0 0 3.5rem !important;
+  }
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
