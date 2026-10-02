@@ -29,6 +29,7 @@ import { getSymbolMeta } from "../../symbols/build";
 import { collectCodeItems } from "../../symbols/codeItems";
 import { generateCode } from "../../symbols/codegen";
 import { generateSceneCode } from "../../symbols/sceneCode";
+import { generateResponsiveSceneCode } from "../../symbols/sceneLayout";
 import {
   getLayout,
   getSelectedSymbol,
@@ -411,14 +412,16 @@ const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
 const CodeSection = ({ app }: { app: App }) => {
   const theme = useSymbolTheme();
   const [kind, setKind] = useState<"html" | "compose">("html");
-  const [scope, setScope] = useState<"selection" | "all" | "scene">(
+  const [scope, setScope] = useState<"selection" | "all" | "scene" | "flow">(
     "selection",
   );
   const [text, setText] = useState("");
   const [info, setInfo] = useState<string | null>(null);
   const make = (k: "html" | "compose") => {
-    if (scope === "scene") {
-      const scene = generateSceneCode(app.scene.getNonDeletedElements(), theme);
+    if (scope === "scene" || scope === "flow") {
+      const scene = (
+        scope === "flow" ? generateResponsiveSceneCode : generateSceneCode
+      )(app.scene.getNonDeletedElements(), theme);
       if (!scene) {
         setText("");
         setInfo("The canvas is empty.");
@@ -478,6 +481,7 @@ const CodeSection = ({ app }: { app: App }) => {
           >
             <option value="selection">the selection</option>
             <option value="all">every symbol (stacked)</option>
+            <option value="flow">the whole canvas (rows and columns)</option>
             <option value="scene">the whole canvas (positioned)</option>
           </select>
         </label>

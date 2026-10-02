@@ -6,6 +6,7 @@ import { Excalidraw } from "../index";
 import { buildElements, boundsOf, themeUpdates } from "../symbols/build";
 import { collectCodeItems } from "../symbols/codeItems";
 import { generateSceneCode, pathData } from "../symbols/sceneCode";
+import { generateResponsiveSceneCode } from "../symbols/sceneLayout";
 import { importSvg } from "../svgImport";
 import { generateCode } from "../symbols/codegen";
 import { COMPONENTS, defaultsOf } from "../symbols/components";
@@ -618,6 +619,71 @@ describe("the whole canvas as a page", () => {
     expect(code.compose).toContain("// TODO: path");
     expect(code.notes[0]).toContain("not a responsive layout");
     expect(generateSceneCode([], night)).toBeNull();
+  });
+
+  it("works out rows, columns and padded boxes", () => {
+    const rect = (x: number, y: number, w: number, h: number, extra = {}) =>
+      API.createElement({
+        type: "rectangle",
+        x,
+        y,
+        width: w,
+        height: h,
+        ...extra,
+      } as any);
+    const card = rect(0, 0, 400, 200, { backgroundColor: "#eeeeee" });
+    const title = API.createElement({
+      type: "text",
+      x: 20,
+      y: 20,
+      text: "Title",
+      fontSize: 20,
+    } as any);
+    const a = rect(20, 100, 100, 40, { backgroundColor: "#ff0000" });
+    const b = rect(140, 100, 240, 40, { backgroundColor: "#0000ff" });
+    const footer = rect(0, 240, 400, 60, { backgroundColor: "#00ff00" });
+    const code = generateResponsiveSceneCode(
+      [card, title, a, b, footer] as any,
+      night,
+    )!;
+    // a column of the card and the footer; the card is a padded box holding
+    // the title above a row
+    expect(code.html).toContain("flex-direction:column");
+    expect(code.html).toContain("flex-direction:row");
+    expect(code.html).toContain("margin-top:40px"); // gap card -> footer
+    expect(code.html).toContain("padding:");
+    expect(code.html).toContain("max-width: 400px");
+    // both full-width boxes stretch; the wide button of the row takes the room
+    expect(code.html).toContain("width:100%");
+    expect(code.html).toContain("flex:1");
+    expect(code.compose).toContain("Column(");
+    expect(code.compose).toContain("Row(");
+    expect(code.compose).toContain("Spacer(Modifier.height(40.dp))");
+    expect(code.compose).toContain("fillMaxWidth()");
+    expect(code.compose).toContain("Modifier.weight(1f)");
+    expect(code.notes[0]).toContain("everything flows");
+  });
+
+  it("keeps overlapping parts in a fixed box", () => {
+    const a = API.createElement({
+      type: "ellipse",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    } as any);
+    const b = API.createElement({
+      type: "ellipse",
+      x: 50,
+      y: 50,
+      width: 100,
+      height: 100,
+    } as any);
+    const code = generateResponsiveSceneCode([a, b] as any, night)!;
+    expect(code.html).toContain("position:relative;width:150px;height:150px");
+    expect(code.html).toContain("left:50px;top:50px");
+    expect(code.notes[0]).toContain("1 group(s)");
+    expect(generateResponsiveSceneCode([], night)).toBeNull();
   });
 
   it("path data keeps curves and holes", () => {

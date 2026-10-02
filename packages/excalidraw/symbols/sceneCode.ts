@@ -17,19 +17,19 @@ import type { SymbolTheme } from "./theme";
  * on the canvas. This keeps the look; it does not work out a responsive layout,
  * and says so in the file.
  */
-const esc = (s: string) =>
+export const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const ktText = (s: string) =>
+export const ktText = (s: string) =>
   `"${s
     .replace(/\\/g, "\\\\")
     .replace(/"/g, '\\"')
     .replace(/\$/g, "\\$")
     .replace(/\n/g, "\\n")}"`;
-const r = (n: number) => Math.round(n * 10) / 10;
-const solid = (c: string) => c && c !== "transparent";
-const argb = (hex: string) =>
+export const r = (n: number) => Math.round(n * 10) / 10;
+export const solid = (c: string) => c && c !== "transparent";
+export const argb = (hex: string) =>
   `Color(0xFF${hex.replace("#", "").slice(0, 6).toUpperCase()})`;
-const indent = (s: string, n: number) =>
+export const indent = (s: string, n: number) =>
   s
     .split("\n")
     .map((l) => " ".repeat(n) + l)
@@ -75,7 +75,7 @@ export const pathData = (el: ExcalidrawPathElement) => {
     .join("");
 };
 
-const svgFor = (el: ExcalidrawElement): string | null => {
+export const svgFor = (el: ExcalidrawElement): string | null => {
   const stroke = solid(el.strokeColor) ? el.strokeColor : "none";
   const fill = solid(el.backgroundColor) ? el.backgroundColor : "none";
   const common = `fill="${fill}" stroke="${stroke}" stroke-width="${el.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"`;
@@ -98,11 +98,11 @@ const svgFor = (el: ExcalidrawElement): string | null => {
   )} ${r(el.height)}" style="overflow:visible">${inner}</svg>`;
 };
 
-type Unit =
+export type Unit =
   | { kind: "symbol"; item: CodeItem }
   | { kind: "element"; el: ExcalidrawElement };
 
-const unitsOf = (elements: readonly ExcalidrawElement[]): Unit[] => {
+export const unitsOf = (elements: readonly ExcalidrawElement[]): Unit[] => {
   const all = elements.filter(live);
   const symbolGroups = new Map<string, ExcalidrawElement[]>();
   const loose: ExcalidrawElement[] = [];
@@ -136,7 +136,7 @@ const unitsOf = (elements: readonly ExcalidrawElement[]): Unit[] => {
   return units;
 };
 
-const boundsOfUnit = (u: Unit) =>
+export const boundsOfUnit = (u: Unit) =>
   u.kind === "symbol"
     ? { x: u.item.x, y: u.item.y, w: u.item.width, h: u.item.height }
     : { x: u.el.x, y: u.el.y, w: u.el.width, h: u.el.height };

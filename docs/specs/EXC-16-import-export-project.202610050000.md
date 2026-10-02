@@ -35,3 +35,8 @@ A workspace folder inside a bigger git repository SHALL show, commit and restore
 
 ## Status
 Built and tested. The PDF path was run in the desktop engine: one page of the right size, curves and a real font, with a script in the SVG ignored.
+
+## Addendum: rows and columns, guide input
+
+- **Guide position**: double clicking a guide opens an in-app input next to it (Enter applies, Escape or an empty value leaves it). Electron has no `window.prompt`, so the previous prompt did nothing in the desktop app.
+- **Whole canvas, rows and columns** (`symbols/sceneLayout.ts`, Symbols → Code → "the whole canvas (rows and columns)"): rectangles holding other parts become padded boxes; the rest is cut where it has empty bands, top to bottom (column) then left to right (row), recursively, with the measured gaps as spacers. Parts that overlap and cannot be cut stay at their relative place in a fixed-size box and are counted in the file's header. Widths reaching the edge of a flexible parent stretch (`width:100%`, `fillMaxWidth`), and the widest box of a row takes the free room (`flex:1`, `weight(1f)`). Symbols keep their own size (the generated components do not take a width yet). This is an inference from geometry, not a constraint solver: it is a better start than the positioned export, not a finished layout.
