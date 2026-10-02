@@ -51,6 +51,19 @@ import {
   EdgeSharpIcon,
   knifeToolIcon,
   pathToolIcon,
+  handIcon,
+  SelectionIcon,
+  RectangleIcon,
+  DiamondIcon,
+  EllipseIcon,
+  ArrowIcon,
+  LineIcon,
+  FreedrawIcon,
+  TextIcon,
+  EraserIcon,
+  stickyNoteToolIcon,
+  LockedIcon,
+  UnlockedIcon,
 } from "../icons";
 
 import {
@@ -629,7 +642,7 @@ export const CornersSection = ({ app }: { app: App }) => {
   const radiusTargets = selected.filter(
     (el) => el.type === "rectangle" || el.type === "diamond",
   );
-  const radiusOf = (el: typeof radiusTargets[number]) =>
+  const radiusOf = (el: (typeof radiusTargets)[number]) =>
     Math.round(getCornerRadius(Math.min(el.width, el.height), el));
   const radii = new Set(radiusTargets.map(radiusOf));
   const sharedRadius = radii.size === 1 ? [...radii][0] : null;
@@ -799,7 +812,39 @@ type ToolEntry = {
   tool?: string;
 };
 
+const basic = (
+  id: string,
+  icon: React.ReactNode,
+  title: string,
+  shortcut: string,
+): ToolEntry => ({
+  id,
+  icon,
+  title,
+  shortcut,
+  tool: id,
+  run: (app) => app.setActiveTool({ type: id as any }),
+});
+
 const getToolEntries = (): ToolEntry[] => [
+  {
+    id: "lock",
+    icon: UnlockedIcon,
+    title: t("toolBar.lock"),
+    shortcut: "Q",
+    run: (app) => app.toggleLock("ui"),
+  },
+  basic("hand", handIcon, t("toolBar.hand"), "H"),
+  basic("selection", SelectionIcon, t("toolBar.selection"), "V"),
+  basic("rectangle", RectangleIcon, t("toolBar.rectangle"), "R"),
+  basic("diamond", DiamondIcon, t("toolBar.diamond"), "D"),
+  basic("ellipse", EllipseIcon, t("toolBar.ellipse"), "O"),
+  basic("arrow", ArrowIcon, t("toolBar.arrow"), "A"),
+  basic("line", LineIcon, t("toolBar.line"), "L"),
+  basic("freedraw", FreedrawIcon, t("toolBar.freedraw"), "X"),
+  basic("text", TextIcon, t("toolBar.text"), "T"),
+  basic("stickynote", stickyNoteToolIcon, t("toolBar.stickynote"), "N"),
+  basic("eraser", EraserIcon, t("toolBar.eraser"), "E"),
   {
     id: "image",
     icon: ImageIcon,
@@ -926,7 +971,13 @@ export const ToolsSection = ({ app }: { app: App }) => {
               title={`${e.title}${e.shortcut ? ` (${e.shortcut})` : ""}${
                 customizing ? ` — ${off ? "show" : "hide"}` : ""
               }`}
-              aria-pressed={customizing ? !off : e.tool === active}
+              aria-pressed={
+                customizing
+                  ? !off
+                  : e.id === "lock"
+                  ? !!app.state.activeTool.locked
+                  : e.tool === active
+              }
               disabled={
                 !customizing && !!e.tool && isToolButtonDisabled(app, e.tool)
               }
@@ -960,6 +1011,12 @@ export const ToolsSection = ({ app }: { app: App }) => {
                     }}
                   />
                 </span>
+              ) : e.id === "lock" ? (
+                app.state.activeTool.locked ? (
+                  LockedIcon
+                ) : (
+                  UnlockedIcon
+                )
               ) : (
                 e.icon
               )}
@@ -1014,7 +1071,7 @@ export const ImageStorageSection = ({ app }: { app: App }) => {
   if (!images.length) {
     return null;
   }
-  const valueOf = (el: typeof images[number]) =>
+  const valueOf = (el: (typeof images)[number]) =>
     (el.customData?.imageStorage as string | undefined) ?? "default";
   const values = new Set(images.map(valueOf));
   const current = values.size === 1 ? [...values][0] : null;

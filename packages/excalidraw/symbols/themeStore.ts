@@ -8,10 +8,21 @@ const KEY = "excalidraw-symbol-theme";
 let state: SymbolTheme = DEFAULT_THEME;
 const listeners = new Set<() => void>();
 
+const legacyRadius = (v: unknown, fallback: number) =>
+  v === "sharp"
+    ? 0
+    : v === "soft"
+    ? 8
+    : v === "round"
+    ? 40
+    : Number.isFinite(Number(v))
+    ? Number(v)
+    : fallback;
+
 const read = (): SymbolTheme => {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (raw && raw.colors && typeof raw.radius === "string") {
+    if (raw && raw.colors && raw.radius !== undefined) {
       const base = ALL_THEMES.find((t) => t.name === raw.base) ?? DEFAULT_THEME;
       return {
         ...base,

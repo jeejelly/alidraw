@@ -8,6 +8,7 @@ import { COMPONENTS, defaultsOf } from "../symbols/components";
 import { ICONS } from "../symbols/icons";
 import { parsePath, circle } from "../symbols/svgPath";
 import { ALL_THEMES, THEMES } from "../symbols/theme";
+import { setSymbolTheme } from "../symbols/themeStore";
 
 import { act, fireEvent, render, screen, unmountComponent } from "./test-utils";
 
@@ -17,6 +18,7 @@ const { h } = window;
 
 beforeEach(() => {
   localStorage.clear();
+  setSymbolTheme(THEMES[2]);
   reseed(7);
 });
 
@@ -212,5 +214,95 @@ describe("on the canvas", () => {
     const live = h.elements.filter((e) => !e.isDeleted);
     expect(live.length).toBeGreaterThan(0);
     expect(live.every((e) => e.type === "path")).toBe(true);
+  });
+});
+
+describe("the palette stays, and the theme is live", () => {
+  it("collapses to its title bar and never leaves", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: false } as any));
+    const panel = screen.getByTestId("palette-panel");
+    expect(panel.getAttribute("data-collapsed")).toBe("true");
+    fireEvent.click(screen.getByTestId("palette-collapse"));
+    expect(h.state.paletteOpen).toBe(true);
+    expect(
+      screen.getByTestId("palette-panel").getAttribute("data-collapsed"),
+    ).toBeNull();
+    fireEvent.click(screen.getByTestId("palette-collapse"));
+    expect(h.state.paletteOpen).toBe(false);
+    expect(screen.queryByTestId("palette-panel")).not.toBeNull();
+  });
+
+  it("has every tool of the top bar, on every tab", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    for (const tab of ["design", "symbols", "flow"]) {
+      fireEvent.click(screen.getByTestId(`inspector-tab-${tab}`));
+      for (const id of [
+        "lock",
+        "hand",
+        "selection",
+        "rectangle",
+        "diamond",
+        "ellipse",
+        "arrow",
+        "line",
+        "freedraw",
+        "text",
+        "eraser",
+      ]) {
+        expect(screen.getByTestId(`tool-${id}`)).toBeTruthy();
+      }
+    }
+    fireEvent.click(screen.getByTestId("tool-diamond"));
+    expect(h.state.activeTool.type).toBe("diamond");
+    fireEvent.click(screen.getByTestId("tool-lock"));
+    expect(h.state.activeTool.locked).toBe(true);
+  });
+
+  it("restyles every symbol as soon as the theme changes", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
+    fireEvent.change(screen.getByTestId("symbols-search"), {
+      target: { value: "switch" },
+    });
+    fireEvent.click(screen.getAllByTestId("symbols-tile")[0]);
+    fireEvent.click(screen.getByTestId("symbols-insert"));
+    const colors = () =>
+      h.elements
+        .filter((e) => !e.isDeleted)
+        .map((e) => e.backgroundColor)
+        .join();
+    const before = colors();
+    fireEvent.change(screen.getByTestId("symbols-theme-preset"), {
+      target: { value: "Forest" },
+    });
+    expect(colors()).not.toBe(before);
+    expect(colors()).toContain("#4ade80");
+  });
+
+  it("takes corners as a number or a slider, and any stroke width", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
+    fireEvent.change(screen.getByTestId("symbols-radius"), {
+      target: { value: "13" },
+    });
+    expect(
+      (screen.getByTestId("symbols-radius-range") as HTMLInputElement).value,
+    ).toBe("13");
+    fireEvent.change(screen.getByTestId("symbols-radius-range"), {
+      target: { value: "4" },
+    });
+    expect(
+      (screen.getByTestId("symbols-radius") as HTMLInputElement).value,
+    ).toBe("4");
+    fireEvent.change(screen.getByTestId("symbols-stroke"), {
+      target: { value: "12" },
+    });
+    expect(
+      (screen.getByTestId("symbols-stroke") as HTMLInputElement).value,
+    ).toBe("12");
   });
 });

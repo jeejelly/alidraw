@@ -103,7 +103,7 @@ export const resolveRadius = (
     return Math.min(r, max);
   }
   if (r === "pill") {
-    return theme.radius === "sharp" ? 0 : max;
+    return theme.radius === 0 ? 0 : max;
   }
   if (r === "card") {
     return Math.min(radiusOf(theme, "card", h), max);

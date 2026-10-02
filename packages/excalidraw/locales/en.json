@@ -191,6 +191,8 @@
       "tab_layers": "Layers",
       "tab_flow": "Flow",
       "tab_symbols": "Symbols",
+      "collapse": "Collapse the palette",
+      "expand": "Expand the palette",
       "resize": "Drag to resize, double click to reset",
       "detachLayers": "Pop out the layers",
       "attachLayers": "Put the layers back in the inspector"

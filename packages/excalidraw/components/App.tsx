@@ -426,6 +426,8 @@ import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
+import { AppStretch } from "./App.stretch";
+import { StretchOverlay } from "./StretchOverlay";
 import { AppAnchors } from "./App.anchors";
 import { AppLayers } from "./App.layers";
 import { AppCorners } from "./App.corners";
@@ -753,6 +755,7 @@ class App extends React.Component<AppProps, AppState> {
   path = new AppPath(this);
   guides = new AppGuides(this);
   gizmo = new AppGizmo(this);
+  stretch = new AppStretch(this);
   anchors = new AppAnchors(this);
   layers = new AppLayers(this);
   corners = new AppCorners(this);
@@ -2521,7 +2524,9 @@ class App extends React.Component<AppProps, AppState> {
                           />
                           {this.isDefaultUIEnabled() && <CursorHint />}
                           {this.state.rulersEnabled && <Rulers app={this} />}
-                          {this.state.paletteOpen && (
+                          <StretchOverlay app={this} />
+                          {/* the palette never leaves the screen: it collapses to its title bar */}
+                          {!this.state.viewModeEnabled && (
                             <PalettePanel app={this} />
                           )}
                           {this.state.angleHelper && (
@@ -2626,20 +2631,21 @@ class App extends React.Component<AppProps, AppState> {
                               </ElementCanvasButtons>
                             )}
 
-                          {this.isDefaultUIEnabled() && this.state.contextMenu && (
-                            <ContextMenu
-                              items={this.state.contextMenu.items}
-                              top={this.state.contextMenu.top}
-                              left={this.state.contextMenu.left}
-                              actionManager={this.actionManager}
-                              onClose={(callback) => {
-                                this.setState({ contextMenu: null }, () => {
-                                  this.focusContainer();
-                                  callback?.();
-                                });
-                              }}
-                            />
-                          )}
+                          {this.isDefaultUIEnabled() &&
+                            this.state.contextMenu && (
+                              <ContextMenu
+                                items={this.state.contextMenu.items}
+                                top={this.state.contextMenu.top}
+                                left={this.state.contextMenu.left}
+                                actionManager={this.actionManager}
+                                onClose={(callback) => {
+                                  this.setState({ contextMenu: null }, () => {
+                                    this.focusContainer();
+                                    callback?.();
+                                  });
+                                }}
+                              />
+                            )}
                           <StaticCanvas
                             canvas={this.canvas}
                             rc={this.rc}
@@ -3965,6 +3971,7 @@ class App extends React.Component<AppProps, AppState> {
     this.path.reset();
     this.guides.destroy();
     this.gizmo.destroy();
+    this.stretch.destroy();
     this.corners.destroy();
     this.anchors.destroy();
     this.knife.destroy();
@@ -7800,6 +7807,11 @@ class App extends React.Component<AppProps, AppState> {
 
     // the circle gizmos on the corners of the selected shape
     if (this.corners.handlePointerDown(event)) {
+      return;
+    }
+
+    // Ctrl + drag a handle stretches a component without distorting it
+    if (this.stretch.handlePointerDown(event)) {
       return;
     }
 

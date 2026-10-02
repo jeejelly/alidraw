@@ -41,7 +41,7 @@ import {
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";
 import { FlowPanel } from "./inspector/FlowPanel";
-import { SymbolsPanel } from "./inspector/SymbolsPanel";
+import { SymbolLayoutSection, SymbolsPanel } from "./inspector/SymbolsPanel";
 import { LayersTree } from "./inspector/LayersTree";
 import MultiAngle from "./Stats/MultiAngle";
 import MultiDimension from "./Stats/MultiDimension";
@@ -855,14 +855,17 @@ export const PalettePanel = ({ app }: { app: App }) => {
     </DetachedLayers>
   );
 
+  const collapsed = !app.state.paletteOpen;
+
   return (
     <>
-      {detached}
+      {!collapsed && detached}
       <div
         ref={rootRef}
         className={className}
         data-testid="palette-panel"
         data-layout={layout}
+        data-collapsed={collapsed || undefined}
         style={{
           ...(docked ? {} : { left: pos.x, top: pos.y }),
           ...(layout === "horizontal" ? {} : { width: palette.width }),
@@ -901,7 +904,12 @@ export const PalettePanel = ({ app }: { app: App }) => {
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
         >
-          <div className="inspector__tabs" role="tablist">
+          {collapsed && (
+            <span className="inspector__collapsed-title">
+              {t("labels.palette.title")}
+            </span>
+          )}
+          <div className="inspector__tabs" role="tablist" hidden={collapsed}>
             {(palette.layersDetached
               ? (["design", "symbols", "flow"] as const)
               : (["design", "layers", "symbols", "flow"] as const)
@@ -923,6 +931,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
             type="button"
             className="inspector__iconbtn"
             data-testid="palette-dock"
+            hidden={collapsed}
             aria-pressed={docked}
             title={t("labels.palette.dock")}
             onClick={() => setPaletteLayout(docked ? "vertical" : "docked")}
@@ -933,6 +942,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
             type="button"
             className="inspector__iconbtn"
             data-testid="palette-orientation"
+            hidden={collapsed}
             disabled={docked}
             title={t("labels.palette.orientation")}
             onClick={() =>
@@ -946,41 +956,55 @@ export const PalettePanel = ({ app }: { app: App }) => {
           <button
             type="button"
             className="inspector__iconbtn"
-            data-testid="palette-close"
-            aria-label={t("buttons.close")}
-            onClick={() => app.setState({ paletteOpen: false })}
+            data-testid="palette-collapse"
+            aria-label={
+              collapsed
+                ? t("labels.palette.expand")
+                : t("labels.palette.collapse")
+            }
+            aria-expanded={!collapsed}
+            title={
+              collapsed
+                ? t("labels.palette.expand")
+                : t("labels.palette.collapse")
+            }
+            onClick={() => app.setState({ paletteOpen: collapsed })}
           >
-            ×
+            {collapsed ? "▾" : "▴"}
           </button>
         </div>
 
-        <div className="inspector__body">
-          {tab === "flow" ? (
-            <FlowPanel app={app} />
-          ) : tab === "symbols" ? (
-            <SymbolsPanel app={app} />
-          ) : tab === "design" || palette.layersDetached ? (
-            <>
-              {transform}
-              {multi}
-              <ImageStorageSection app={app} />
-              <ToolsSection app={app} />
-              <PathSection app={app} />
-              <AlignSection app={app} />
-              <PathfinderSection app={app} />
-              {appearance}
-              <CornersSection app={app} />
-              {swatches}
-              {strokeSection}
-              {typeSection}
-              {optionsSection}
-              <GridSection app={app} />
-              <AnchorSection app={app} />
-            </>
-          ) : (
-            layersBody
-          )}
-        </div>
+        {!collapsed && (
+          <div className="inspector__body">
+            {/* the tools stay in reach whichever tab is open */}
+            <ToolsSection app={app} />
+            {tab === "flow" ? (
+              <FlowPanel app={app} />
+            ) : tab === "symbols" ? (
+              <SymbolsPanel app={app} />
+            ) : tab === "design" || palette.layersDetached ? (
+              <>
+                {transform}
+                {multi}
+                <SymbolLayoutSection app={app} />
+                <ImageStorageSection app={app} />
+                <PathSection app={app} />
+                <AlignSection app={app} />
+                <PathfinderSection app={app} />
+                {appearance}
+                <CornersSection app={app} />
+                {swatches}
+                {strokeSection}
+                {typeSection}
+                {optionsSection}
+                <GridSection app={app} />
+                <AnchorSection app={app} />
+              </>
+            ) : (
+              layersBody
+            )}
+          </div>
+        )}
       </div>
     </>
   );

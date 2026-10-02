@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Section } from "./primitives";
 import { buildElements, shapesOf, themeUpdates } from "../../symbols/build";
 import {
   COMPONENT_CATEGORIES,
@@ -15,10 +14,19 @@ import { SymbolPreview } from "../../symbols/SymbolPreview";
 import {
   ALL_THEMES,
   TOKENS,
-  type Radius,
+  MAX_RADIUS,
   type SymbolTheme,
 } from "../../symbols/theme";
 import { setSymbolTheme, useSymbolTheme } from "../../symbols/themeStore";
+
+import {
+  getLayout,
+  getSelectedSymbol,
+  type LayoutH,
+  type LayoutV,
+} from "../../symbols/stretch";
+
+import { Section } from "./primitives";
 
 import type App from "../App";
 
@@ -98,30 +106,38 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
     </label>
     <label className="symbols__param">
       <span>Corners</span>
-      <select
+      <input
+        type="range"
+        data-testid="symbols-radius-range"
+        min={0}
+        max={MAX_RADIUS}
         value={theme.radius}
         onChange={(e) =>
+          setSymbolTheme({ ...theme, radius: Number(e.target.value) })
+        }
+      />
+      <input
+        type="number"
+        className="symbols__num"
+        data-testid="symbols-radius"
+        min={0}
+        value={theme.radius}
+        onKeyDown={(e) => e.stopPropagation()}
+        onChange={(e) =>
+          Number.isFinite(Number(e.target.value)) &&
           setSymbolTheme({
             ...theme,
-            name: `${theme.name} (edited)`.replace(
-              / \(edited\)( \(edited\))+/,
-              " (edited)",
-            ),
-            radius: e.target.value as Radius,
+            radius: Math.max(0, Number(e.target.value)),
           })
         }
-      >
-        <option value="sharp">Sharp</option>
-        <option value="soft">Soft</option>
-        <option value="round">Round</option>
-      </select>
+      />
     </label>
     <label className="symbols__param">
       <span>Stroke</span>
       <input
         type="number"
-        min={1}
-        max={4}
+        data-testid="symbols-stroke"
+        min={0.5}
         step={0.5}
         value={theme.stroke}
         onKeyDown={(e) => e.stopPropagation()}
@@ -150,6 +166,76 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
     </div>
   </div>
 );
+
+const H_CHOICES: [LayoutH, string][] = [
+  ["auto", "Auto"],
+  ["left", "Left"],
+  ["center", "Center"],
+  ["right", "Right"],
+  ["scale", "Scale"],
+];
+const V_CHOICES: [LayoutV, string][] = [
+  ["auto", "Auto"],
+  ["top", "Top"],
+  ["middle", "Middle"],
+  ["bottom", "Bottom"],
+  ["scale", "Scale"],
+];
+
+/** how the selected component re-lays out when it is stretched with Ctrl + drag */
+export const SymbolLayoutSection = ({ app }: { app: App }) => {
+  const symbol = getSelectedSymbol(
+    app.scene.getSelectedElements(app.state),
+    app.scene.getNonDeletedElements(),
+  );
+  if (!symbol) {
+    return null;
+  }
+  const layout = getLayout(symbol.members);
+  const set = (patch: Partial<{ h: LayoutH; v: LayoutV }>) => {
+    const next = { ...layout, ...patch };
+    for (const el of symbol.members) {
+      app.scene.mutateElement(
+        el as any,
+        {
+          customData: {
+            ...el.customData,
+            symbol: { ...el.customData?.symbol, layout: next },
+          },
+        },
+        { informMutation: false, isDragging: false },
+      );
+    }
+    app.scene.triggerUpdate();
+    app.store.scheduleCapture();
+  };
+  const row = (label: string, key: "h" | "v", choices: [string, string][]) => (
+    <div className="symbols__layout">
+      <span>{label}</span>
+      {choices.map(([v, name]) => (
+        <button
+          key={v}
+          type="button"
+          data-testid={`symbols-layout-${key}-${v}`}
+          aria-pressed={layout[key] === v}
+          onClick={() => set({ [key]: v } as any)}
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <Section title="Layout" testId="symbols-layout">
+      {row("Across", "h", H_CHOICES)}
+      {row("Down", "v", V_CHOICES)}
+      <p className="symbols__note">
+        Ctrl + drag a handle stretches it: what spans grows, the rest keeps its
+        place. The frame flashes when it lines up with another component.
+      </p>
+    </Section>
+  );
+};
 
 /** UI components and icons in a theme: pick one, set its parameters, put it on the canvas */
 export const SymbolsPanel = ({ app }: { app: App }) => {
@@ -232,11 +318,37 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
       return;
     }
     for (const { element, updates: u } of updates) {
-      app.scene.mutateElement(element, u as any);
+      app.scene.mutateElement(element, u as any, {
+        informMutation: false,
+        isDragging: false,
+      });
     }
+    // one redraw for all of them: without it the canvas shows the change only when touched
+    app.scene.triggerUpdate();
     app.store.scheduleCapture();
     setNote(`Applied "${theme.name}" to ${updates.length} shapes.`);
   };
+
+  // the theme is live: changing it restyles every symbol on the canvas at once
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const updates = themeUpdates(app.scene.getNonDeletedElements(), theme);
+    if (updates.length) {
+      for (const { element, updates: u } of updates) {
+        app.scene.mutateElement(element, u as any, {
+          informMutation: false,
+          isDragging: false,
+        });
+      }
+      app.scene.triggerUpdate();
+      app.store.scheduleCapture();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
 
   const cats = [
     "All",
@@ -245,6 +357,7 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
 
   return (
     <div className="symbols" data-testid="symbols-panel">
+      <SymbolLayoutSection app={app} />
       <Section title="Theme" testId="symbols-theme-section">
         <ThemeEditor theme={theme} />
         <div className="symbols__row">

@@ -24,9 +24,9 @@ import {
 import { getIcon } from "./icons";
 import { parsePath } from "./svgPath";
 
-export { boundsOf };
-
 import type { SymbolTheme, Token } from "./theme";
+
+export { boundsOf };
 
 /** what a symbol element remembers of its theme: tokens, so a new theme can recolour it */
 export type SymbolMeta = {
@@ -35,6 +35,8 @@ export type SymbolMeta = {
   /** stroke follows the theme's stroke width, scaled by this */
   sw?: number;
   r?: any;
+  /** how the component re-lays out when it is stretched */
+  layout?: { h: string; v: string };
   group: string;
 };
 

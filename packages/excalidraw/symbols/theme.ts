@@ -11,12 +11,13 @@ export type Token =
   | "success"
   | "danger";
 
-export type Radius = "sharp" | "soft" | "round";
+/** corner radius of controls in px; the maximum draws full pills */
+export const MAX_RADIUS = 40;
 
 export type SymbolTheme = {
   name: string;
   colors: Record<Token, string>;
-  radius: Radius;
+  radius: number;
   /** stroke width of outlines and icons */
   stroke: number;
 };
@@ -38,7 +39,7 @@ export const THEMES: readonly SymbolTheme[] = [
   ...([] as SymbolTheme[]),
   {
     name: "Light",
-    radius: "soft",
+    radius: 8,
     stroke: 1.5,
     colors: {
       page: "#f6f7f9",
@@ -55,7 +56,7 @@ export const THEMES: readonly SymbolTheme[] = [
   },
   {
     name: "Dark",
-    radius: "soft",
+    radius: 8,
     stroke: 1.5,
     colors: {
       page: "#16171b",
@@ -72,7 +73,7 @@ export const THEMES: readonly SymbolTheme[] = [
   },
   {
     name: "Night pink",
-    radius: "round",
+    radius: MAX_RADIUS,
     stroke: 1.5,
     colors: {
       page: "#1b1b22",
@@ -89,7 +90,7 @@ export const THEMES: readonly SymbolTheme[] = [
   },
   {
     name: "Ocean",
-    radius: "soft",
+    radius: 8,
     stroke: 1.5,
     colors: {
       page: "#eef6fb",
@@ -106,7 +107,7 @@ export const THEMES: readonly SymbolTheme[] = [
   },
   {
     name: "Forest",
-    radius: "soft",
+    radius: 8,
     stroke: 1.5,
     colors: {
       page: "#14201a",
@@ -123,7 +124,7 @@ export const THEMES: readonly SymbolTheme[] = [
   },
   {
     name: "Mono sharp",
-    radius: "sharp",
+    radius: 0,
     stroke: 2,
     colors: {
       page: "#ffffff",
@@ -143,7 +144,7 @@ export const THEMES: readonly SymbolTheme[] = [
 export const TONAL_THEMES: readonly SymbolTheme[] = [
   {
     name: "Tonal light",
-    radius: "round",
+    radius: MAX_RADIUS,
     stroke: 1.5,
     colors: {
       page: "#fef7ff",
@@ -160,7 +161,7 @@ export const TONAL_THEMES: readonly SymbolTheme[] = [
   },
   {
     name: "Tonal dark",
-    radius: "round",
+    radius: MAX_RADIUS,
     stroke: 1.5,
     colors: {
       page: "#141218",
@@ -182,13 +183,13 @@ export const ALL_THEMES: readonly SymbolTheme[] = [...THEMES, ...TONAL_THEMES];
 export const DEFAULT_THEME = THEMES[2];
 
 /** the radius of controls and of cards, in px, for a control of height `h` */
-export const radiusOf = (theme: SymbolTheme, kind: "ctl" | "card", h = 40) =>
-  theme.radius === "sharp"
-    ? 0
-    : theme.radius === "soft"
-    ? kind === "ctl"
-      ? 8
-      : 12
-    : kind === "ctl"
-    ? h / 2
-    : 20;
+export const radiusOf = (theme: SymbolTheme, kind: "ctl" | "card", h = 40) => {
+  const full = theme.radius >= MAX_RADIUS;
+  return kind === "ctl"
+    ? full
+      ? h / 2
+      : theme.radius
+    : full
+    ? 20
+    : Math.min(theme.radius * 1.5, 28);
+};
