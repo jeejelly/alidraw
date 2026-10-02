@@ -31,6 +31,13 @@ import { copyIcon, downloadIcon, helpIcon } from "./icons";
 import { Dialog } from "./Dialog";
 import { RadioGroup } from "./RadioGroup";
 import { Switch } from "./Switch";
+import {
+  getPdfOptions,
+  sanitizePdfOptions,
+  setPdfOptions,
+  type PdfOptions,
+  type PdfPage,
+} from "../data/pdfExport";
 import { Tooltip } from "./Tooltip";
 import { FilledButton } from "./FilledButton";
 
@@ -300,6 +307,8 @@ const ImageExportModal = ({
           />
         </ExportSetting>
 
+        <PdfSettings />
+
         <div className="ImageExportModal__settings__buttons">
           <FilledButton
             className="ImageExportModal__settings__buttons__button"
@@ -368,6 +377,78 @@ type ExportSettingProps = {
   children: React.ReactNode;
   tooltip?: string;
   name?: string;
+};
+
+/** page size, orientation, margin and scale for the PDF */
+const PdfSettings = () => {
+  const [options, setOptions] = useState<PdfOptions>(getPdfOptions);
+  const change = (patch: Partial<PdfOptions>) => {
+    const next = sanitizePdfOptions({ ...options, ...patch });
+    setOptions(next);
+    setPdfOptions(next);
+  };
+  const fixed = options.page !== "content";
+  return (
+    <div className="ImageExportModal__pdf" data-testid="pdf-settings">
+      <div className="ImageExportModal__pdf__title">PDF</div>
+      <label>
+        Page
+        <select
+          data-testid="pdf-page"
+          value={options.page}
+          onChange={(e) => change({ page: e.target.value as PdfPage })}
+        >
+          <option value="content">Size of the drawing</option>
+          <option value="a4">A4</option>
+          <option value="a3">A3</option>
+          <option value="a5">A5</option>
+          <option value="letter">Letter</option>
+          <option value="legal">Legal</option>
+        </select>
+      </label>
+      <label>
+        Orientation
+        <select
+          data-testid="pdf-orientation"
+          disabled={!fixed}
+          value={options.orientation}
+          onChange={(e) =>
+            change({ orientation: e.target.value as PdfOptions["orientation"] })
+          }
+        >
+          <option value="auto">Automatic</option>
+          <option value="portrait">Portrait</option>
+          <option value="landscape">Landscape</option>
+        </select>
+      </label>
+      <label>
+        Margin (mm)
+        <input
+          type="number"
+          data-testid="pdf-margin"
+          min={0}
+          max={100}
+          value={options.margin}
+          onKeyDown={(e) => e.stopPropagation()}
+          onChange={(e) => change({ margin: Number(e.target.value) })}
+        />
+      </label>
+      <label>
+        Size
+        <select
+          data-testid="pdf-scale"
+          disabled={!fixed}
+          value={options.scale}
+          onChange={(e) =>
+            change({ scale: e.target.value as PdfOptions["scale"] })
+          }
+        >
+          <option value="fit">Fit to the page</option>
+          <option value="actual">Actual size (several pages if needed)</option>
+        </select>
+      </label>
+    </div>
+  );
 };
 
 const ExportSetting = ({

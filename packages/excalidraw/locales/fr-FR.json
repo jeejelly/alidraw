@@ -223,7 +223,7 @@
     "texts": "Textes"
   },
   "buttons": {
-    "clearReset": "Réinitialiser le canevas",
+    "clearReset": "Nouveau canevas",
     "exportJSON": "Exporter comme fichier",
     "exportImage": "Exporter l'image...",
     "export": "Enregistrer sous...",
@@ -637,6 +637,11 @@
       }
     },
     "modal": {
+      "newCanvas": {
+        "title": "Nouveau canevas",
+        "button": "Commencer un nouveau canevas",
+        "description": "Le canevas actuel va être effacé. Pour le garder, enregistrez-le d'abord avec l'une des options ci-dessous."
+      },
       "loadFromFile": {
         "title": "Charger depuis un fichier",
         "button": "Charger depuis un fichier",

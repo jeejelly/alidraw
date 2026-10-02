@@ -61,6 +61,7 @@ import { AppFooter } from "./components/AppFooter";
 import { installWorkspaceSave } from "./workspace/workspaceSave";
 import { getWorkspaceBridge } from "./workspace/desktopBridge";
 import { ProjectPanel } from "./workspace/ProjectPanel";
+import { SaveCopyDialog } from "./workspace/SaveCopyDialog";
 import { WorkspaceDialog } from "./workspace/WorkspaceDialog";
 import { WorkspaceWatcher } from "./workspace/WorkspaceWatcher";
 import { AppMainMenu } from "./components/AppMainMenu";
@@ -575,6 +576,7 @@ const ExcalidrawWrapper = () => {
         </OverwriteConfirmDialog>
         <AppFooter onChange={() => excalidrawAPI?.refresh()} />
         <WorkspaceDialog api={excalidrawAPI} />
+        <SaveCopyDialog api={excalidrawAPI} />
         <WorkspaceWatcher api={excalidrawAPI} />
         {localStorageQuotaExceeded && (
           <div className="alert alert--danger">

@@ -6,3 +6,5 @@ export type ActiveWorkspace = { id: string; name: string };
 export const activeWorkspaceAtom = atom<ActiveWorkspace | null>(null);
 
 export const workspaceDialogOpenAtom = atom(false);
+
+export const saveCopyDialogOpenAtom = atom(false);

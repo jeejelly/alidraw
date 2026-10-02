@@ -28,6 +28,8 @@ import {
   PANEL_MARGIN,
   snapPanel,
   removeSwatch,
+  serializeAse,
+  serializeGpl,
   moveSwatch,
   setSwatchColor,
   renameSwatch,
@@ -113,7 +115,7 @@ const LAYER_GLYPH: Record<string, string> = {
 const SwatchIcon = ({
   kind,
 }: {
-  kind: "plus" | "pencil" | "upload" | "trash";
+  kind: "plus" | "pencil" | "upload" | "trash" | "download";
 }) => (
   <svg
     width="20"
@@ -129,6 +131,7 @@ const SwatchIcon = ({
     {kind === "plus" && <path d="M12 5v14M5 12h14" />}
     {kind === "pencil" && <path d="M4 20l1-5L16 4l4 4L9 19zM14 6l4 4" />}
     {kind === "upload" && <path d="M12 16V5M7 9.5L12 4.5l5 5M4 20h16" />}
+    {kind === "download" && <path d="M12 4v11M7 10.5l5 5 5-5M4 20h16" />}
     {kind === "trash" && (
       <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
     )}
@@ -288,6 +291,29 @@ export const PalettePanel = ({ app }: { app: App }) => {
     ) {
       setPaletteLayout("docked");
     }
+  };
+
+  /** the swatches as a palette file other tools read */
+  const saveSwatches = (format: "gpl" | "ase") => {
+    const colors = palette.swatches.map((x) => ({
+      name: x.name,
+      color: x.color,
+    }));
+    const blob = new Blob(
+      [
+        format === "gpl"
+          ? serializeGpl(colors, "Swatches")
+          : serializeAse(colors),
+      ],
+      { type: "application/octet-stream" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `swatches.${format}`;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setMessage(`${colors.length} swatches exported.`);
   };
 
   const onImport = async (file: File | undefined) => {
@@ -656,6 +682,28 @@ export const PalettePanel = ({ app }: { app: App }) => {
           onClick={() => fileRef.current?.click()}
         >
           <SwatchIcon kind="upload" />
+        </button>
+        <button
+          type="button"
+          className="inspector__iconbtn inspector__iconbtn--lg"
+          data-testid="palette-export"
+          title="Export the swatches as .gpl"
+          aria-label="Export the swatches as .gpl"
+          disabled={palette.swatches.length === 0}
+          onClick={() => saveSwatches("gpl")}
+        >
+          <SwatchIcon kind="download" />
+        </button>
+        <button
+          type="button"
+          className="inspector__iconbtn inspector__iconbtn--lg"
+          data-testid="palette-export-ase"
+          title="Export the swatches as .ase"
+          aria-label="Export the swatches as .ase"
+          disabled={palette.swatches.length === 0}
+          onClick={() => saveSwatches("ase")}
+        >
+          <span style={{ fontSize: "0.6rem", fontWeight: 700 }}>ASE</span>
         </button>
         <input
           ref={fileRef}

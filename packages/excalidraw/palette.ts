@@ -374,6 +374,73 @@ export const parseAse = (buffer: ArrayBuffer): ImportedColor[] => {
   return colors;
 };
 
+// -----------------------------------------------------------------------------
+// export
+// -----------------------------------------------------------------------------
+
+const rgbOf = (hex: string): [number, number, number] => {
+  const h = normalizeHex(hex) ?? "#000000";
+  return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as [
+    number,
+    number,
+    number,
+  ];
+};
+
+/** a .gpl file: the colours as "R G B  name" lines */
+export const serializeGpl = (
+  colors: readonly ImportedColor[],
+  name = "Palette",
+) =>
+  `GIMP Palette\nName: ${name.replace(/[\r\n]/g, " ")}\nColumns: 8\n#\n${colors
+    .map((c) => {
+      const [r, g, b] = rgbOf(c.color);
+      return `${String(r).padStart(3)} ${String(g).padStart(3)} ${String(
+        b,
+      ).padStart(3)}  ${c.name.replace(/[\r\n]/g, " ")}`;
+    })
+    .join("\n")}\n`;
+
+/** an .ase file: one RGB colour entry per swatch */
+export const serializeAse = (colors: readonly ImportedColor[]): ArrayBuffer => {
+  const entries = colors.map((c) => {
+    const name = c.name.slice(0, 80);
+    // name length counts the end mark; the entry is name, model, three floats, kind
+    const length = 2 + (name.length + 1) * 2 + 4 + 12 + 2;
+    return { name, length, rgb: rgbOf(c.color) };
+  });
+  const total = 12 + entries.reduce((n, e) => n + 6 + e.length, 0);
+  const buffer = new ArrayBuffer(total);
+  const view = new DataView(buffer);
+  view.setUint32(0, 0x41534546);
+  view.setUint16(4, 1);
+  view.setUint16(6, 0);
+  view.setUint32(8, entries.length);
+  let p = 12;
+  for (const e of entries) {
+    view.setUint16(p, 0x0001);
+    view.setUint32(p + 2, e.length);
+    p += 6;
+    view.setUint16(p, e.name.length + 1);
+    p += 2;
+    for (let k = 0; k < e.name.length; k++) {
+      view.setUint16(p + k * 2, e.name.charCodeAt(k));
+    }
+    view.setUint16(p + e.name.length * 2, 0);
+    p += (e.name.length + 1) * 2;
+    for (const [k, ch] of "RGB ".split("").entries()) {
+      view.setUint8(p + k, ch.charCodeAt(0));
+    }
+    p += 4;
+    e.rgb.forEach((v, k) => view.setFloat32(p + k * 4, v / 255));
+    p += 12;
+    // "normal" colour
+    view.setUint16(p, 2);
+    p += 2;
+  }
+  return buffer;
+};
+
 export const parsePaletteFile = async (
   file: File,
 ): Promise<ImportedColor[]> => {

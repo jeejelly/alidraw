@@ -523,3 +523,30 @@
     opacity: 0.55;
   }
 }
+
+.savecopy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.8125rem;
+  }
+  input,
+  select {
+    font: inherit;
+    padding: 0.35rem 0.5rem;
+  }
+  &__buttons {
+    display: flex;
+    gap: 0.5rem;
+    button {
+      flex: 1;
+      font: inherit;
+      padding: 0.45rem;
+      cursor: pointer;
+    }
+  }
+}

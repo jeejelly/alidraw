@@ -374,24 +374,16 @@ const setupWorkspaces = () => {
   });
   // a vector PDF of the drawing: the browser engine lays the SVG out and embeds its fonts, so
   // shapes stay shapes and text stays text for other editors
-  handle("pdf:export", async ({ svg, width, height, name }, event) => {
-    if (typeof svg !== "string" || svg.length > 200 * 1024 * 1024) {
+  handle("pdf:export", async ({ html, name }, event) => {
+    if (typeof html !== "string" || html.length > 200 * 1024 * 1024) {
       throw new Error("nothing to export");
-    }
-    const w = Math.ceil(Number(width));
-    const h = Math.ceil(Number(height));
-    if (!(w > 0 && w < 20000 && h > 0 && h < 20000)) {
-      throw new Error("invalid size");
     }
     const safe =
       String(name ?? "drawing")
         .replace(/[^A-Za-z0-9._ -]+/g, "-")
         .slice(0, 80) || "drawing";
     const tmp = path.join(os.tmpdir(), `excalidraw-pdf-${randomUUID()}.html`);
-    fs.writeFileSync(
-      tmp,
-      `<!doctype html><meta charset="utf-8"><style>@page{size:${w}px ${h}px;margin:0}html,body{margin:0;padding:0}svg{display:block}</style>${svg}`,
-    );
+    fs.writeFileSync(tmp, html);
     // its own session: only local files, no network, no scripts
     const ses = session.fromPartition("pdf-export");
     ses.webRequest.onBeforeRequest((details, callback) =>
@@ -403,8 +395,8 @@ const setupWorkspaces = () => {
     );
     const win = new BrowserWindow({
       show: false,
-      width: Math.min(w, 4000),
-      height: Math.min(h, 4000),
+      width: 1200,
+      height: 900,
       webPreferences: {
         session: ses,
         sandbox: true,

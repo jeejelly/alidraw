@@ -549,3 +549,20 @@ describe("panel width", () => {
     expect(screen.getByTestId("palette-panel").style.width).toBe("264px");
   });
 });
+
+describe("swatch files out and back", () => {
+  it("writes .gpl and .ase that read back to the same colours", async () => {
+    const { serializeGpl, serializeAse, parseGpl, parseAse } = await import(
+      "../palette"
+    );
+    const colors = [
+      { name: "Signal", color: "#c80404" },
+      { name: "Sea blue", color: "#0a84ff" },
+      { name: "É ü", color: "#00ff7f" },
+    ];
+    expect(parseGpl(serializeGpl(colors, "Mine"))).toEqual(colors);
+    const ase = parseAse(serializeAse(colors));
+    expect(ase.map((c) => c.color)).toEqual(colors.map((c) => c.color));
+    expect(ase.map((c) => c.name)).toEqual(colors.map((c) => c.name));
+  });
+});

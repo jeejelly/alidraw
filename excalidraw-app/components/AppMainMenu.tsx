@@ -10,7 +10,10 @@ import { LanguageList } from "../app-language/LanguageList";
 import { AutosaveMenuItem } from "../autosave/AutosaveMenuItem";
 import { useSetAtom } from "../app-jotai";
 import { getWorkspaceBridge } from "../workspace/desktopBridge";
-import { workspaceDialogOpenAtom } from "../workspace/workspaceState";
+import {
+  saveCopyDialogOpenAtom,
+  workspaceDialogOpenAtom,
+} from "../workspace/workspaceState";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -19,6 +22,7 @@ export const AppMainMenu: React.FC<{
   refresh: () => void;
 }> = React.memo((props) => {
   const openWorkspaces = useSetAtom(workspaceDialogOpenAtom);
+  const openSaveCopy = useSetAtom(saveCopyDialogOpenAtom);
   return (
     <MainMenu>
       {getWorkspaceBridge() && (
@@ -30,7 +34,16 @@ export const AppMainMenu: React.FC<{
         </MainMenu.Item>
       )}
       <MainMenu.DefaultItems.LoadScene />
+      <MainMenu.DefaultItems.ImportFiles />
       <MainMenu.DefaultItems.SaveToActiveFile />
+      {getWorkspaceBridge() && (
+        <MainMenu.Item
+          data-testid="save-copy-menu"
+          onSelect={() => openSaveCopy(true)}
+        >
+          Save a copy…
+        </MainMenu.Item>
+      )}
       <MainMenu.DefaultItems.Export />
       <MainMenu.DefaultItems.SaveAsImage />
       <MainMenu.DefaultItems.CommandPalette className="highlighted" />

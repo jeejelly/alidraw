@@ -384,7 +384,7 @@
     "texts": "Texts"
   },
   "buttons": {
-    "clearReset": "Reset the canvas",
+    "clearReset": "New canvas",
     "exportJSON": "Export to file",
     "exportImage": "Export image...",
     "export": "Save to...",
@@ -807,6 +807,11 @@
       }
     },
     "modal": {
+      "newCanvas": {
+        "title": "New canvas",
+        "button": "Start a new canvas",
+        "description": "This clears what is on the canvas. If you want to keep it, save it first with one of the options below."
+      },
       "loadFromFile": {
         "title": "Load from file",
         "button": "Load from file",

@@ -173,3 +173,26 @@
     }
   }
 }
+
+.excalidraw .ImageExportModal__pdf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  &__title {
+    grid-column: 1 / -1;
+    font-weight: 600;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  select,
+  input {
+    font: inherit;
+    padding: 0.3rem 0.4rem;
+    border-radius: 0.4rem;
+  }
+}

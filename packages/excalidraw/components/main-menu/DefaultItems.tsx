@@ -32,9 +32,7 @@ import { resolveInputDevice } from "../../appState";
 import { getShortcutFromShortcutName } from "../../actions/shortcuts";
 import { trackEvent } from "../../analytics";
 import { useUIAppState } from "../../context/ui-appState";
-import { useSetAtom } from "../../editor-jotai";
 import { useI18n } from "../../i18n";
-import { activeConfirmDialogAtom } from "../ActiveConfirmDialog";
 import {
   useExcalidrawSetAppState,
   useExcalidrawActionManager,
@@ -248,17 +246,32 @@ Help.displayName = "Help";
 export const ClearCanvas = () => {
   const { t } = useI18n();
 
-  const setActiveConfirmDialog = useSetAtom(activeConfirmDialogAtom);
   const actionManager = useExcalidrawActionManager();
+  const elements = useExcalidrawElements();
 
   if (!actionManager.isActionEnabled(actionClearCanvas)) {
     return null;
   }
 
+  // a new canvas replaces the current one: the way out offers to save it first
+  const handleSelect = async () => {
+    if (
+      !elements.length ||
+      (await openConfirmModal({
+        title: t("overwriteConfirm.modal.newCanvas.title"),
+        actionLabel: t("overwriteConfirm.modal.newCanvas.button"),
+        color: "warning",
+        description: t("overwriteConfirm.modal.newCanvas.description"),
+      }))
+    ) {
+      actionManager.executeAction(actionClearCanvas);
+    }
+  };
+
   return (
     <DropdownMenuItem
       icon={TrashIcon}
-      onSelect={() => setActiveConfirmDialog("clearCanvas")}
+      onSelect={handleSelect}
       data-testid="clear-canvas-button"
       aria-label={t("buttons.clearReset")}
     >
