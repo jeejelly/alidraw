@@ -43,6 +43,7 @@ import {
 
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";
+import { useHostPaletteTabs } from "../hostPalette";
 import { ColorField } from "./inspector/ColorField";
 import { FlowPanel } from "./inspector/FlowPanel";
 import { ModesSection } from "./inspector/ModesSection";
@@ -74,7 +75,7 @@ import {
 import type App from "./App";
 
 type Target = "stroke" | "background";
-type Tab = "design" | "layers" | "flow" | "symbols";
+type Tab = "design" | "layers" | "flow" | "symbols" | `host:${string}`;
 
 export const INSPECTOR_FOCUS_TRANSFORM = "excalidraw:inspector-focus-transform";
 
@@ -167,6 +168,7 @@ const placePanel = (
 export const PalettePanel = ({ app }: { app: App }) => {
   const palette = useSyncExternalStore(subscribePalette, getPaletteState);
   const [tab, setTab] = useState<Tab>("design");
+  const hostTabs = useHostPaletteTabs();
   const [target, setTarget] = useState<Target>("stroke");
   const [managing, setManaging] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -992,9 +994,13 @@ export const PalettePanel = ({ app }: { app: App }) => {
             </span>
           )}
           <div className="inspector__tabs" role="tablist" hidden={collapsed}>
-            {(palette.layersDetached
-              ? (["design", "symbols", "flow"] as const)
-              : (["design", "layers", "symbols", "flow"] as const)
+            {(
+              [
+                ...(palette.layersDetached
+                  ? (["design", "symbols", "flow"] as const)
+                  : (["design", "layers", "symbols", "flow"] as const)),
+                ...hostTabs.map((h) => `host:${h.id}` as const),
+              ] as Tab[]
             ).map((k) => (
               <button
                 key={k}
@@ -1005,7 +1011,9 @@ export const PalettePanel = ({ app }: { app: App }) => {
                 aria-selected={tab === k}
                 onClick={() => setTab(k)}
               >
-                {t(`labels.palette.tab_${k}` as any)}
+                {k.startsWith("host:")
+                  ? hostTabs.find((h) => `host:${h.id}` === k)?.title
+                  : t(`labels.palette.tab_${k}` as any)}
               </button>
             ))}
           </div>
@@ -1061,7 +1069,12 @@ export const PalettePanel = ({ app }: { app: App }) => {
             {/* the tools stay in reach whichever tab is open */}
             <ToolsSection app={app} />
             <ModesSection app={app} />
-            {tab === "flow" ? (
+            {tab.startsWith("host:") &&
+            hostTabs.some((h) => `host:${h.id}` === tab) ? (
+              hostTabs
+                .find((h) => `host:${h.id}` === tab)!
+                .render({ api: app.api })
+            ) : tab === "flow" ? (
               <FlowPanel app={app} />
             ) : tab === "symbols" ? (
               <SymbolsPanel app={app} />

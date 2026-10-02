@@ -28,6 +28,10 @@ contextBridge.exposeInMainWorld("excalidrawDesktop", {
     newScene: (id, name, dir) => call("ws:newScene", { id, name, dir }),
     writeAsset: (id, mime, base64) =>
       call("ws:writeAsset", { id, mime, base64 }),
+    renameScene: (id, path, name) => call("ws:renameScene", { id, path, name }),
+    duplicateScene: (id, path) => call("ws:duplicateScene", { id, path }),
+    deleteScene: (id, path) => call("ws:deleteScene", { id, path }),
+    assets: (id) => call("ws:assets", { id }),
     readAsset: (id, path) => call("ws:readAsset", { id, path }),
     meta: (id) => call("ws:meta", { id }),
     setMeta: (id, meta) => call("ws:setMeta", { id, meta }),

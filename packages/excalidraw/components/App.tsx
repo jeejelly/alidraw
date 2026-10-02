@@ -827,6 +827,8 @@ class App extends React.Component<AppProps, AppState> {
   private createExcalidrawAPI(): ExcalidrawImperativeAPI {
     const api: ExcalidrawImperativeAPI = {
       isDestroyed: false,
+      importFiles: (files, mode) => this.imports.importFiles(files, mode),
+      importFromPicker: () => this.imports.fromPicker(),
       updateScene: this.updateScene,
       applyDeltas: this.applyDeltas,
       mutateElement: this.mutateElement,

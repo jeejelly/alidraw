@@ -1,4 +1,4 @@
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { Excalidraw, registerPaletteTab } from "@excalidraw/excalidraw";
 import {
   fileSave,
   setFileSaveProvider,
@@ -16,6 +16,7 @@ import React from "react";
 import { appJotaiStore, Provider } from "../app-jotai";
 import { installWorkspaceSave } from "../workspace/workspaceSave";
 import { blobText } from "../workspace/blobText";
+import { ProjectPanel } from "../workspace/ProjectPanel";
 import { WorkspaceDialog } from "../workspace/WorkspaceDialog";
 import { WorkspaceFileHandle } from "../workspace/WorkspaceFileHandle";
 import {
@@ -61,6 +62,11 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
       return { path, bytes: text.length };
     },
     newScene: async () => "n.excalidraw",
+    renameScene: async (_id, _p, name) => `${name}.excalidraw`,
+    duplicateScene: async (_id, p) =>
+      p.replace(".excalidraw", "-copy.excalidraw"),
+    deleteScene: async () => {},
+    assets: async () => [],
     getSettings: async () => ({ autoCommit: true, delaySec: 60 }),
     setSettings: async (id, settings) => ({ id, name: "", path: "", settings }),
     status: async () => ({
@@ -774,5 +780,137 @@ describe("linked images", () => {
       description: "x",
     });
     expect(JSON.parse(files.get(handle.path)!).files.f1.link).toBeTruthy();
+  });
+});
+
+describe("the project tab of the palette", () => {
+  const openProject = async (over: Partial<DesktopWorkspaceBridge> = {}) => {
+    const fake = fakeBridge({
+      list: async () => [
+        { id: "w1", name: "Shop", path: "/shop", exists: true, settings: {} },
+      ],
+      scenes: async () => [
+        { path: "a.excalidraw", name: "a.excalidraw", mtime: 0, size: 1 },
+        { path: "ui/b.excalidraw", name: "b.excalidraw", mtime: 0, size: 1 },
+      ],
+      status: async () => ({
+        git: true,
+        repo: true,
+        pending: false,
+        branch: "main",
+        remote: { name: "origin", url: "x" },
+        sync: { state: "idle", message: null },
+        paused: false,
+        upstream: "origin/main",
+        ahead: 1,
+        behind: 2,
+        changes: [{ path: "a.excalidraw", code: " M" }],
+        clean: false,
+      }),
+      assets: async () => [
+        { path: `assets/${"a".repeat(64)}.png`, bytes: 3, mtime: 1 },
+      ],
+      ...over,
+    });
+    (window as any).excalidrawDesktop = { version: 1, workspace: fake.bridge };
+    const off = registerPaletteTab({
+      id: "project",
+      title: "Project",
+      render: ({ api }) => <ProjectPanel api={api} />,
+    });
+    await render(
+      <Provider store={appJotaiStore}>
+        <Excalidraw />
+      </Provider>,
+    );
+    act(() => window.h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-host:project"));
+    return { ...fake, off };
+  };
+
+  it("lists the scenes as a tree, with versions and what changed", async () => {
+    const { off } = await openProject();
+    fireEvent.change(await screen.findByTestId("project-select"), {
+      target: { value: "w1" },
+    });
+    await waitFor(() =>
+      expect(screen.getAllByTestId("project-scene")).toHaveLength(2),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("project-status").textContent).toContain(
+        "↑1 ↓2",
+      ),
+    );
+    expect(screen.getByTestId("project-behind").textContent).toContain(
+      "2 to pull",
+    );
+    expect(screen.getByTestId("project-changes").textContent).toContain(
+      "a.excalidraw",
+    );
+    expect(screen.getAllByTestId("project-asset")).toHaveLength(1);
+    off();
+  });
+
+  it("renames, duplicates and deletes a scene", async () => {
+    const calls: string[] = [];
+    const { off } = await openProject({
+      renameScene: async (_i, p, n) => {
+        calls.push(`rename:${p}>${n}`);
+        return `${n}.excalidraw`;
+      },
+      duplicateScene: async (_i, p) => {
+        calls.push(`dup:${p}`);
+        return "x";
+      },
+      deleteScene: async (_i, p) => {
+        calls.push(`del:${p}`);
+      },
+    });
+    fireEvent.change(await screen.findByTestId("project-select"), {
+      target: { value: "w1" },
+    });
+    await waitFor(() => screen.getAllByTestId("project-scene"));
+    fireEvent.click(screen.getAllByTestId("project-rename")[0]);
+    const input = screen.getByTestId("project-rename-input");
+    fireEvent.change(input, { target: { value: "Home" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(calls).toContain("rename:ui/b.excalidraw>Home"));
+    fireEvent.click(screen.getAllByTestId("project-duplicate")[0]);
+    await waitFor(() => expect(calls).toContain("dup:ui/b.excalidraw"));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(screen.getAllByTestId("project-delete")[0]);
+    await waitFor(() => expect(calls).toContain("del:ui/b.excalidraw"));
+    confirm.mockRestore();
+    off();
+  });
+
+  it("commits with a message and checks, pulls and pushes", async () => {
+    const calls: string[] = [];
+    const { off } = await openProject({
+      commitNow: async (_i, m) => {
+        calls.push(`commit:${m}`);
+        return { hash: "abc123" };
+      },
+      sync: async (_i, o) => {
+        calls.push(`sync:${o?.pull}:${o?.push}`);
+        return { outcome: "in-sync" };
+      },
+    });
+    fireEvent.change(await screen.findByTestId("project-select"), {
+      target: { value: "w1" },
+    });
+    await waitFor(() => screen.getByTestId("project-commit"));
+    fireEvent.change(screen.getByTestId("project-message"), {
+      target: { value: "Cart screen" },
+    });
+    fireEvent.click(screen.getByTestId("project-commit"));
+    await waitFor(() => expect(calls).toContain("commit:Cart screen"));
+    fireEvent.click(screen.getByTestId("project-check"));
+    await waitFor(() => expect(calls).toContain("sync:false:false"));
+    fireEvent.click(screen.getByTestId("project-pull"));
+    await waitFor(() => expect(calls).toContain("sync:true:false"));
+    fireEvent.click(screen.getByTestId("project-push"));
+    await waitFor(() => expect(calls).toContain("sync:false:true"));
+    off();
   });
 });

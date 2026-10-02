@@ -371,6 +371,23 @@ const setupWorkspaces = () => {
     backup.queue(id);
     return result;
   });
+  handle("ws:renameScene", ({ id, path: rel, name }) => {
+    const next = workspaces.renameScene(id, rel, name);
+    // the old name is a deletion and the new one an addition: both are committed
+    autoCommit.touch(id, workspaces.root(id), rel);
+    autoCommit.touch(id, workspaces.root(id), next);
+    return next;
+  });
+  handle("ws:duplicateScene", ({ id, path: rel }) => {
+    const next = workspaces.duplicateScene(id, rel);
+    autoCommit.touch(id, workspaces.root(id), next);
+    return next;
+  });
+  handle("ws:deleteScene", ({ id, path: rel }) => {
+    workspaces.deleteScene(id, rel);
+    autoCommit.touch(id, workspaces.root(id), rel);
+  });
+  handle("ws:assets", ({ id }) => workspaces.listAssets(id));
   handle("ws:readAsset", async ({ id, path: rel }) => {
     try {
       return workspaces.readAsset(id, rel);

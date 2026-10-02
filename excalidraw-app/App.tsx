@@ -2,6 +2,7 @@ import {
   Excalidraw,
   CaptureUpdateAction,
   ExcalidrawAPIProvider,
+  registerPaletteTab,
   useExcalidrawAPI,
 } from "@excalidraw/excalidraw";
 import { trackEvent } from "@excalidraw/excalidraw/analytics";
@@ -57,6 +58,8 @@ import { Provider, useAtomValue, appJotaiStore } from "./app-jotai";
 import { STORAGE_KEYS, SYNC_BROWSER_TABS_TIMEOUT } from "./app_constants";
 import { AppFooter } from "./components/AppFooter";
 import { installWorkspaceSave } from "./workspace/workspaceSave";
+import { getWorkspaceBridge } from "./workspace/desktopBridge";
+import { ProjectPanel } from "./workspace/ProjectPanel";
 import { WorkspaceDialog } from "./workspace/WorkspaceDialog";
 import { WorkspaceWatcher } from "./workspace/WorkspaceWatcher";
 import { AppMainMenu } from "./components/AppMainMenu";
@@ -174,6 +177,18 @@ const ExcalidrawWrapper = () => {
 
   // in the desktop app, saving a scene file goes to a workspace, with no file dialog
   useEffect(() => installWorkspaceSave(), []);
+  // the desktop app's project browser is a tab of the palette
+  useEffect(
+    () =>
+      getWorkspaceBridge()
+        ? registerPaletteTab({
+            id: "project",
+            title: "Project",
+            render: ({ api }) => <ProjectPanel api={api} />,
+          })
+        : undefined,
+    [],
+  );
 
   useEffect(() => {
     trackEvent("load", "frame", getFrame());

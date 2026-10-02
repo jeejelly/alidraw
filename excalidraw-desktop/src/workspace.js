@@ -246,6 +246,72 @@ class Workspaces {
     return rel;
   }
 
+  /** a scene file under a new name, in the same folder; never over another file */
+  renameScene(id, rel, name) {
+    const root = this.root(id);
+    const from = resolveInside(root, rel);
+    if (!isSceneName(from) || !fs.existsSync(from)) {
+      throw new Error("not a scene");
+    }
+    const base = slug(String(name ?? "").replace(/\.excalidraw$/i, ""));
+    if (!String(name ?? "").trim() || !base) {
+      throw new Error("a scene needs a name");
+    }
+    const to = path.join(path.dirname(from), `${base}${SCENE_EXT}`);
+    if (to === from) {
+      return toRel(root, from);
+    }
+    if (fs.existsSync(to)) {
+      throw new Error(`${base}${SCENE_EXT} already exists`);
+    }
+    fs.renameSync(from, to);
+    return toRel(root, to);
+  }
+
+  /** a copy next to the scene: "<name>-copy.excalidraw", numbered when taken */
+  duplicateScene(id, rel) {
+    const root = this.root(id);
+    const from = resolveInside(root, rel);
+    if (!isSceneName(from) || !fs.existsSync(from)) {
+      throw new Error("not a scene");
+    }
+    const stem = path.basename(from, SCENE_EXT);
+    let n = 1;
+    let to = path.join(path.dirname(from), `${stem}-copy${SCENE_EXT}`);
+    while (fs.existsSync(to)) {
+      n++;
+      to = path.join(path.dirname(from), `${stem}-copy-${n}${SCENE_EXT}`);
+    }
+    fs.copyFileSync(from, to);
+    return toRel(root, to);
+  }
+
+  /** removes a scene file; git keeps its history */
+  deleteScene(id, rel) {
+    const from = resolveInside(this.root(id), rel);
+    if (!isSceneName(from) || !fs.existsSync(from)) {
+      throw new Error("not a scene");
+    }
+    fs.rmSync(from);
+  }
+
+  /** the pictures kept beside the scenes */
+  listAssets(id) {
+    const dir = path.join(this.root(id), "assets");
+    try {
+      return fs
+        .readdirSync(dir)
+        .filter((n) => /^[0-9a-f]{64}\.[a-z0-9]{1,5}$/.test(n))
+        .map((n) => {
+          const st = fs.statSync(path.join(dir, n));
+          return { path: `assets/${n}`, bytes: st.size, mtime: st.mtimeMs };
+        })
+        .sort((a, b) => b.mtime - a.mtime);
+    } catch {
+      return [];
+    }
+  }
+
   /** the workspace's shared settings (`workspace.json`, committed with the project) */
   meta(id) {
     try {

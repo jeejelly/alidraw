@@ -1,5 +1,5 @@
 import { Dialog } from "@excalidraw/excalidraw/components/Dialog";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
@@ -14,6 +14,7 @@ import {
   type WorkspaceEntry,
 } from "./desktopBridge";
 import { Fold } from "./Fold";
+import { SceneTreeView } from "./SceneTree";
 import { ServerSection } from "./ServerSection";
 import { openWorkspaceScene } from "./openWorkspaceScene";
 import { activeWorkspaceAtom, workspaceDialogOpenAtom } from "./workspaceState";
@@ -32,43 +33,6 @@ const ago = (iso: string) => {
     return `${Math.round(s / 3600)} h ago`;
   }
   return `${Math.round(s / 86400)} d ago`;
-};
-
-type SceneNode = {
-  name: string;
-  path: string;
-  scene?: SceneEntry;
-  children: SceneNode[];
-};
-
-/** scenes grouped by folder, like a project browser */
-const sceneTree = (scenes: SceneEntry[]): SceneNode[] => {
-  const root: SceneNode = { name: "", path: "", children: [] };
-  for (const s of scenes) {
-    const parts = s.path.split("/");
-    let node = root;
-    parts.forEach((part, i) => {
-      const path = parts.slice(0, i + 1).join("/");
-      let next = node.children.find((c) => c.path === path);
-      if (!next) {
-        next = { name: part, path, children: [] };
-        node.children.push(next);
-      }
-      if (i === parts.length - 1) {
-        next.scene = s;
-      }
-      node = next;
-    });
-  }
-  const sort = (n: SceneNode) => {
-    n.children.sort(
-      (a, b) =>
-        Number(!!a.scene) - Number(!!b.scene) || a.name.localeCompare(b.name),
-    );
-    n.children.forEach(sort);
-  };
-  sort(root);
-  return root.children;
 };
 
 /** Workspaces: named project folders, kept in git, opened and saved without file dialogs. */
@@ -96,7 +60,6 @@ export const WorkspaceDialog = ({
   const [remoteUrl, setRemoteUrl] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [closedDirs, setClosedDirs] = useState<Record<string, boolean>>({});
-  const tree = useMemo(() => sceneTree(scenes), [scenes]);
 
   const fileHandle = api?.getAppState().fileHandle as unknown as
     | { workspaceId?: string; path?: string }
@@ -297,48 +260,28 @@ export const WorkspaceDialog = ({
   const syncInfo = status && "sync" in status ? status.sync : null;
   const paused = !!(status && "paused" in status && status.paused);
 
-  const renderNodes = (nodes: SceneNode[], depth: number): React.ReactNode =>
-    nodes.map((n) =>
-      n.scene ? (
-        <li key={n.path}>
+  const sceneList = (
+    <ul className="workspace__scenes">
+      <SceneTreeView
+        scenes={scenes}
+        closed={closedDirs}
+        onToggle={(p) => setClosedDirs((c) => ({ ...c, [p]: !c[p] }))}
+        leaf={(sc, depth, name) => (
           <button
             type="button"
             data-testid="workspace-scene"
             className={`workspace__leaf${
-              n.path === currentPath ? " is-active" : ""
+              sc.path === currentPath ? " is-active" : ""
             }`}
             style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}
-            title={n.path}
-            onClick={() => openScene(n.scene!)}
+            title={sc.path}
+            onClick={() => openScene(sc)}
           >
             <span className="workspace__icon">▧</span>
-            {n.name.replace(/\.excalidraw$/, "")}
+            {name}
           </button>
-        </li>
-      ) : (
-        <li key={n.path}>
-          <button
-            type="button"
-            className="workspace__leaf"
-            style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}
-            aria-expanded={!closedDirs[n.path]}
-            onClick={() =>
-              setClosedDirs((c) => ({ ...c, [n.path]: !c[n.path] }))
-            }
-          >
-            <span className="workspace__chev">
-              {closedDirs[n.path] ? "▸" : "▾"}
-            </span>
-            {n.name}
-          </button>
-          {!closedDirs[n.path] && <ul>{renderNodes(n.children, depth + 1)}</ul>}
-        </li>
-      ),
-    );
-
-  const sceneList = (
-    <ul className="workspace__scenes">
-      {renderNodes(tree, 1)}
+        )}
+      />
       {scenes.length === 0 && (
         <li className="workspace__hint">No scenes yet.</li>
       )}

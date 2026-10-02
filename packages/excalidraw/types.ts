@@ -1413,6 +1413,17 @@ export type ExcalidrawImperativeAPIEventMap = {
 export interface ExcalidrawImperativeAPI {
   /** Whether the editor has been unmounted and the API is no longer usable. */
   isDestroyed: boolean;
+  /** asks for SVG and image files, then adds them to the design */
+  importFromPicker: () => Promise<{
+    shapes: number;
+    images: number;
+    notes: string[];
+  } | null>;
+  /** adds SVG and image files to the design (SVG as shapes unless told otherwise) */
+  importFiles: (
+    files: File[],
+    mode?: "shapes" | "image",
+  ) => Promise<{ shapes: number; images: number; notes: string[] }>;
   updateScene: InstanceType<typeof App>["updateScene"];
   applyDeltas: InstanceType<typeof App>["applyDeltas"];
   mutateElement: InstanceType<typeof App>["mutateElement"];

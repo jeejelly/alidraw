@@ -379,3 +379,50 @@ describe("app settings", () => {
     expect(ws.registry.appSettings()).toEqual({ paused: false });
   });
 });
+
+describe("scene management", () => {
+  it("renames, duplicates and deletes scenes without overwriting", async () => {
+    const parent = path.join(tmp, "projects");
+    const w = await ws.create({ name: "Shop", parent, useGit: false });
+    const a = ws.newScene(w.id, "Alpha");
+    const b = ws.newScene(w.id, "Beta");
+    expect(ws.renameScene(w.id, a, "Gamma delta")).toBe(
+      "Gamma-delta.excalidraw",
+    );
+    expect(() =>
+      ws.renameScene(w.id, "Gamma-delta.excalidraw", "Beta"),
+    ).toThrow(/already exists/);
+    expect(() => ws.renameScene(w.id, b, "  ")).toThrow(/name/);
+    expect(() => ws.renameScene(w.id, "../x.excalidraw", "x")).toThrow();
+    const copy = ws.duplicateScene(w.id, b);
+    expect(copy).toBe("Beta-copy.excalidraw");
+    expect(ws.duplicateScene(w.id, b)).toBe("Beta-copy-2.excalidraw");
+    ws.deleteScene(w.id, copy);
+    expect(
+      ws
+        .scenes(w.id)
+        .map((s) => s.path)
+        .sort(),
+    ).toEqual([
+      "Beta-copy-2.excalidraw",
+      "Beta.excalidraw",
+      "Gamma-delta.excalidraw",
+    ]);
+    expect(() => ws.deleteScene(w.id, "assets/x.png")).toThrow();
+  });
+
+  it("lists the pictures kept in assets", async () => {
+    const w = await ws.create({
+      name: "Pics",
+      parent: path.join(tmp, "projects"),
+      useGit: false,
+    });
+    expect(ws.listAssets(w.id)).toEqual([]);
+    const { path: p } = ws.writeAsset(
+      w.id,
+      "image/png",
+      Buffer.from("png-bytes").toString("base64"),
+    );
+    expect(ws.listAssets(w.id).map((a) => a.path)).toEqual([p]);
+  });
+});

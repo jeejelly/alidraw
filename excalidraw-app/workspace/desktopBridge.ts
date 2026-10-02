@@ -158,6 +158,10 @@ export type DesktopWorkspaceBridge = {
     text: string,
   ): Promise<{ path: string; bytes: number }>;
   newScene(id: string, name: string, dir?: string): Promise<string>;
+  renameScene(id: string, path: string, name: string): Promise<string>;
+  duplicateScene(id: string, path: string): Promise<string>;
+  deleteScene(id: string, path: string): Promise<void>;
+  assets(id: string): Promise<{ path: string; bytes: number; mtime: number }[]>;
   writeAsset(
     id: string,
     mime: string,
