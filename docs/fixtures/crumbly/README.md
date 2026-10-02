@@ -16,3 +16,6 @@ Regenerate these files (they are the result of the test, not hand edits):
 The test also checks the design: nothing sticks out of its phone (it found the category
 pills 50 px too wide), links reach screens from buttons, and a label added in the
 Mermaid text leaves the drawing untouched.
+
+The illustrations (`packages/excalidraw/illustrations/`) are original flat artwork drawn for this
+app; inserted from Symbols → Art they become ordinary vector paths, every shape editable.

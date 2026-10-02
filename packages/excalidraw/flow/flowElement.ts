@@ -28,6 +28,8 @@ import type { FlowMeta } from "./flowCanvas";
  */
 const PAD = 18;
 const ACCENT = "#e0449b";
+/** links read on light and dark canvases alike */
+export const LINK_COLOR = "#e0449b";
 const HANDLE = "#12b886";
 const HANDLE_SIZE = 16;
 export const PLACEHOLDER = { w: 160, h: 80 };
@@ -367,6 +369,7 @@ export const addLink = (
         end: { id: b.id },
         endArrowhead: "arrow",
         strokeWidth: 2,
+        strokeColor: LINK_COLOR,
         customData: {
           flow: { id: flowId, key: `${fromKey}>${toKey}`, kind: "edge" },
         },

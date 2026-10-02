@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect x="24" y="24" width="352" height="352" rx="70" fill="#f6c443"/>
+  <!-- ground line and plants -->
+  <path d="M60 330H340" stroke="#f08a2c" stroke-width="4" stroke-linecap="round"/>
+  <g fill="#2750c9">
+    <path d="M70 330C46 296 50 254 74 228C86 262 92 298 70 330Z"/>
+    <path d="M94 330C82 292 98 256 126 238C124 276 118 308 94 330Z" fill="#3b7bf0"/>
+    <path d="M330 330C354 296 350 254 326 228C314 262 308 298 330 330Z"/>
+    <path d="M306 330C318 292 302 256 274 238C276 276 282 308 306 330Z" fill="#3b7bf0"/>
+  </g>
+  <!-- jar -->
+  <path d="M138 138h124v14c22 8 34 26 34 54v96c0 16-12 26-28 26H132c-16 0-28-10-28-26v-96c0-28 12-46 34-54z" fill="#eef4fb"/>
+  <path d="M138 138h124v14c22 8 34 26 34 54v8h-192v-8c0-28 12-46 34-54z" fill="#dce8f5"/>
+  <!-- cookies inside -->
+  <g>
+    <circle cx="170" cy="304" r="30" fill="#d9964b"/>
+    <circle cx="232" cy="300" r="34" fill="#e0a45b"/>
+    <circle cx="200" cy="262" r="30" fill="#c98640"/>
+    <g fill="#5a301c">
+      <circle cx="160" cy="298" r="4.5"/><circle cx="178" cy="312" r="4"/><circle cx="182" cy="294" r="3.5"/>
+      <circle cx="224" cy="292" r="4.5"/><circle cx="244" cy="308" r="4"/><circle cx="238" cy="288" r="3.5"/>
+      <circle cx="192" cy="256" r="4"/><circle cx="210" cy="270" r="4.5"/><circle cx="206" cy="252" r="3"/>
+    </g>
+  </g>
+  <!-- glass shine -->
+  <path d="M122 214c0-10 4-18 10-24M122 236v34" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none" opacity=".9"/>
+  <!-- heart label -->
+  <rect x="160" y="196" width="80" height="52" rx="14" fill="#fff"/>
+  <path d="M200 238c-14-9-22-16-22-25 0-7 5-11 11-11 4 0 8 3 11 7 3-4 7-7 11-7 6 0 11 4 11 11 0 9-8 16-22 25z" fill="#ff6b57"/>
+  <!-- lid -->
+  <rect x="126" y="110" width="148" height="34" rx="14" fill="#ff6b57"/>
+  <rect x="126" y="130" width="148" height="14" rx="7" fill="#e2503f"/>
+  <circle cx="200" cy="100" r="16" fill="#ff6b57"/>
+  <!-- sprinkles -->
+  <g stroke-linecap="round" stroke-width="5">
+    <path d="M70 120l10 6" stroke="#fff"/><path d="M322 150l12-4" stroke="#fff"/><path d="M96 196l-6 10" stroke="#ff6b57"/>
+    <path d="M316 222l8 8" stroke="#2750c9"/><path d="M290 80l6-10" stroke="#ff6b57"/>
+  </g>
+  <circle cx="108" cy="80" r="6" fill="#fff"/><circle cx="338" cy="104" r="5" fill="#fff"/>
+</svg>

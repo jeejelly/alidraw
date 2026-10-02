@@ -642,7 +642,7 @@ export const applyFlow = (
           : look.strokeWidth && look.strokeWidth < 4
           ? look.strokeWidth
           : 2,
-      ...(look.strokeColor ? { strokeColor: look.strokeColor } : {}),
+      strokeColor: look.strokeColor ?? "#e0449b",
       ...(look.opacity !== undefined ? { opacity: look.opacity } : {}),
       ...(look.roughness !== undefined ? { roughness: look.roughness } : {}),
       customData: { flow: { id: flowId, key: k, kind: "edge" } },

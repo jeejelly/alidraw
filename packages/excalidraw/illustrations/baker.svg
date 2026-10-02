@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <path d="M200 30C300 26 378 100 372 204C366 306 284 372 192 368C98 364 30 292 34 196C38 100 106 34 200 30Z" fill="#e4ecf7"/>
+  <!-- body: green hoodie -->
+  <path d="M118 372c-6-60 4-118 40-142 22-14 62-14 84 0 36 24 46 82 40 142z" fill="#33b866"/>
+  <path d="M158 230c14 22 70 22 84 0-10-8-24-12-42-12s-32 4-42 12z" fill="#27995a"/>
+  <!-- neck + head -->
+  <rect x="184" y="196" width="32" height="40" rx="14" fill="#e8a987"/>
+  <circle cx="200" cy="158" r="46" fill="#f3c3a0"/>
+  <!-- hair: black bob with fringe -->
+  <path d="M152 164c-8-52 22-84 58-82 38 2 58 34 46 84-2 16 2 30 8 42-18 2-30-8-34-22-2-14-4-26-12-36-18 14-44 18-64 8-4 12-10 22-12 38-12-6-18-18-14-32 2-14 12-20 24-22z" fill="#1d2233"/>
+  <!-- face -->
+  <circle cx="184" cy="170" r="3.6" fill="#1d2233"/><circle cx="218" cy="170" r="3.6" fill="#1d2233"/>
+  <path d="M192 186c6 6 14 6 20 0" stroke="#1d2233" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <circle cx="172" cy="182" r="7" fill="#ff8f86" opacity=".55"/><circle cx="230" cy="182" r="7" fill="#ff8f86" opacity=".55"/>
+  <!-- arms holding a big cookie -->
+  <path d="M118 262c-30 22-34 66-8 88 20 16 54 8 66-12 8-14 2-28-8-34-14-2-24-14-22-34z" fill="#27995a"/>
+  <path d="M282 262c30 22 34 66 8 88-20 16-54 8-66-12-8-14-2-28 8-34 14-2 24-14 22-34z" fill="#27995a"/>
+  <!-- cookie with a bite -->
+  <path d="M225.8 259.6A62 62 0 1 0 259.4 298.3A26 26 0 0 1 225.8 259.6Z" fill="#d9964b" stroke="#c4803a" stroke-width="5" stroke-linejoin="round"/>
+  <g fill="#5a301c">
+    <circle cx="172" cy="296" r="6"/><circle cx="214" cy="336" r="7"/><circle cx="170" cy="338" r="5.5"/>
+    <circle cx="204" cy="300" r="5"/><circle cx="240" cy="324" r="5.5"/>
+  </g>
+  <!-- hands on the cookie -->
+  <ellipse cx="146" cy="338" rx="22" ry="17" fill="#f3c3a0"/>
+  <ellipse cx="254" cy="338" rx="22" ry="17" fill="#f3c3a0"/>
+  <!-- crumbs and sparkle -->
+  <g fill="#d9964b"><circle cx="286" cy="250" r="5"/><circle cx="300" cy="270" r="3.5"/><circle cx="276" cy="238" r="3"/></g>
+  <path d="M96 112l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#f6c443"/>
+  <path d="M312 120l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#ff6b57"/>
+</svg>

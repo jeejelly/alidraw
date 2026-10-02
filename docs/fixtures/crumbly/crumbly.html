@@ -2,15 +2,16 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Rows and columns inferred from the canvas; widths that reach the edge stretch, the rest keep their size. No overlaps, everything flows.
-     4 x overlapping parts (kept at their relative place in a fixed box) -->
+<!-- Rows and columns inferred from the canvas; widths that reach the edge stretch, the rest keep their size. 1 group(s) of overlapping parts could not be split and stay fixed.
+     7 x overlapping parts (kept at their relative place in a fixed box)
+     52 x path (inline SVG in HTML, a placeholder in Compose) -->
 <style>
 :root {
-  --page: #fbf3e4; --surface: #fffaf0; --surface-alt: #f3e4c8;
-  --border: #e0c9a0; --text: #3b2412; --muted: #8a6a4a;
-  --accent: #b5651d; --on-accent: #fffaf0;
-  --success: #5a8f3d; --danger: #c0392b;
-  --radius: 14px; --radius-card: 21px; --stroke: 1.5px;
+  --page: #f4f5fb; --surface: #ffffff; --surface-alt: #eceef7;
+  --border: #e1e3ef; --text: #14142b; --muted: #8b8da5;
+  --accent: #ff6b57; --on-accent: #ffffff;
+  --success: #1fcf9b; --danger: #ff4d6a;
+  --radius: 20px; --radius-card: 28px; --stroke: 1.6px;
 }
 body { margin: 0; padding: 16px; background: var(--page); color: var(--text); font-family: system-ui, sans-serif; }
 .stack { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
@@ -58,7 +59,7 @@ button { font: inherit; cursor: pointer; }
 progress { accent-color: var(--accent); }
 .slider { accent-color: var(--accent); }
 .switch { display: inline-flex; align-items: center; gap: 8px; }
-.page { width: 100%; max-width: 1400px; margin: 0 auto; }
+.page { width: 100%; max-width: 2440px; margin: 0 auto; }
 .page * { box-sizing: border-box; }
 </style>
 <body>
@@ -67,6 +68,100 @@ progress { accent-color: var(--accent); }
     <div style="width:100%;">
       <div style="display:flex;flex-direction:row;align-items:flex-start;width:100%;">
         <div>
+          <div style="position:relative;width:360px;height:720px">
+            <div style="position:absolute;left:0px;top:0px">
+              
+            </div>
+            <div style="position:absolute;left:0px;top:28px">
+              <header class="appbar" style="width:360px"><h1>Welcome to Crumbly</h1></header>
+            </div>
+            <div style="position:absolute;left:16px;top:600px">
+              <button class="btn btn--filled" style="width:328px">Let's bake</button>
+            </div>
+            <div style="position:absolute;left:60px;top:492px">
+              <nav class="row"><button class="chip">1</button><button class="chip is-active">2</button><button class="chip">3</button><button class="chip">4</button><button class="chip">5</button></nav>
+            </div>
+            <div style="position:absolute;left:55.4px;top:212.4px">
+              <div style="width:253.8px;height:253.7px;"><svg width="253.8" height="253.7" viewBox="0 0 253.8 253.7" style="overflow:visible"><path d="M124.6 0.1C199.6 -2.9 258.1 52.6 253.6 130.6C249.1 207.1 187.6 256.6 118.6 253.6C48.1 250.6 -2.9 196.6 0.1 124.6C3.1 52.6 54.1 3.1 124.6 0.1Z" fill="#e4ecf7" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:117.3px;top:354.6px">
+              <div style="width:125.4px;height:114.4px;"><svg width="125.4" height="114.4" viewBox="0 0 125.4 114.4" style="overflow:visible"><path d="M1.2 114.4C-3.3 69.4 4.2 25.9 31.2 7.9C47.7 -2.6 77.7 -2.6 94.2 7.9C121.2 25.9 128.7 69.4 124.2 114.4L1.2 114.4Z" fill="#33b866" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:148.5px;top:353.5px">
+              <div style="width:63px;height:21.4px;"><svg width="63" height="21.4" viewBox="0 0 63 21.4" style="overflow:visible"><path d="M0 9C10.5 25.5 52.5 25.5 63 9C55.5 3 45 0 31.5 0C18 0 7.5 3 0 9Z" fill="#27995a" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:168px;top:337px">
+              <div style="width:24px;height:30px;box-sizing:border-box;background:#e8a987;border-radius:6px;"></div>
+            </div>
+            <div style="position:absolute;left:145.5px;top:274px">
+              <div style="width:69px;height:69px;box-sizing:border-box;background:#f3c3a0;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:125.1px;top:251.4px">
+              <div style="width:102.9px;height:94.7px;"><svg width="102.9" height="94.7" viewBox="0 0 102.9 94.7" style="overflow:visible"><path d="M18.9 61.6C12.9 22.6 35.4 -1.4 62.4 0.1C90.9 1.6 105.9 25.6 96.9 63.1C95.4 75.1 98.4 85.6 102.9 94.6C89.4 96.1 80.4 88.6 77.4 78.1C75.9 67.6 74.4 58.6 68.4 51.1C54.9 61.6 35.4 64.6 20.4 57.1C17.4 66.1 12.9 73.6 11.4 85.6C2.4 81.1 -2.1 72.1 0.9 61.6C2.4 51.1 9.9 46.6 18.9 45.1L18.9 61.6Z" fill="#1d2233" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:165.3px;top:314.8px">
+              <div style="width:5.4px;height:5.4px;box-sizing:border-box;background:#1d2233;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:190.8px;top:314.8px">
+              <div style="width:5.4px;height:5.4px;box-sizing:border-box;background:#1d2233;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:174px;top:329.5px">
+              <div style="width:15px;height:3.4px;"><svg width="15" height="3.4" viewBox="0 0 15 3.4" style="overflow:visible"><path d="M0 0C4.5 4.5 10.5 4.5 15 0" fill="none" stroke="#1d2233" stroke-width="2.4000000000000004" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:153.8px;top:321.3px">
+              <div style="width:10.5px;height:10.5px;opacity:0.55;box-sizing:border-box;background:#ff8f86;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:197.3px;top:321.3px">
+              <div style="width:10.5px;height:10.5px;opacity:0.55;box-sizing:border-box;background:#ff8f86;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:99.6px;top:386.5px">
+              <div style="width:65.2px;height:72.4px;"><svg width="65.2" height="72.4" viewBox="0 0 65.2 72.4" style="overflow:visible"><path d="M18.9 0C-3.6 16.5 -6.6 49.5 12.9 66C27.9 78 53.4 72 62.4 57C68.4 46.5 63.9 36 56.4 31.5C45.9 30 38.4 21 39.9 6L18.9 0Z" fill="#27995a" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:195.2px;top:386.5px">
+              <div style="width:65.2px;height:72.4px;"><svg width="65.2" height="72.4" viewBox="0 0 65.2 72.4" style="overflow:visible"><path d="M46.3 0C68.8 16.5 71.8 49.5 52.3 66C37.3 78 11.8 72 2.8 57C-3.2 46.5 1.3 36 8.8 31.5C19.3 30 26.8 21 25.3 6L46.3 0Z" fill="#27995a" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:133.5px;top:380.5px">
+              <div style="width:93px;height:93px;"><svg width="93" height="93" viewBox="0 0 93 93" style="overflow:visible"><path d="M65.9 4.2C46 -4.9 22.4 1.1 9.3 18.6C-3.9 36.1 -3 60.4 11.4 77C25.7 93.5 49.7 97.8 68.9 87.3C88.1 76.7 97.3 54.2 91.1 33.2C82.9 38.2 72.5 36.5 66.2 29.3C60 22.2 59.8 11.6 65.9 4.2Z" fill="#d9964b" stroke="#c4803a" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:154.5px;top:407.5px">
+              <div style="width:9px;height:9px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:185.3px;top:436.8px">
+              <div style="width:10.5px;height:10.5px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:153.4px;top:439.4px">
+              <div style="width:8.3px;height:8.3px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:179.3px;top:411.3px">
+              <div style="width:7.5px;height:7.5px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:205.9px;top:428.9px">
+              <div style="width:8.3px;height:8.3px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:123px;top:430.8px">
+              <div style="width:33px;height:25.5px;box-sizing:border-box;background:#f3c3a0;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:204px;top:430.8px">
+              <div style="width:33px;height:25.5px;box-sizing:border-box;background:#f3c3a0;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:240.8px;top:373.8px">
+              <div style="width:7.5px;height:7.5px;box-sizing:border-box;background:#d9964b;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:252.4px;top:389.9px">
+              <div style="width:5.3px;height:5.3px;box-sizing:border-box;background:#d9964b;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:234.8px;top:366.3px">
+              <div style="width:4.5px;height:4.5px;box-sizing:border-box;background:#d9964b;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:89.3px;top:274px">
+              <div style="width:25.5px;height:25.5px;"><svg width="25.5" height="25.5" viewBox="0 0 25.5 25.5" style="overflow:visible"><path d="M12.8 0L16.5 9L25.5 12.8L16.5 16.5L12.8 25.5L9 16.5L0 12.8L9 9L12.8 0Z" fill="#f6c443" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:254.3px;top:280px">
+              <div style="width:19.5px;height:19.5px;"><svg width="19.5" height="19.5" viewBox="0 0 19.5 19.5" style="overflow:visible"><path d="M9.8 0L12.8 6.8L19.5 9.8L12.8 12.8L9.8 19.5L6.8 12.8L0 9.8L6.8 6.8L9.8 0Z" fill="#ff6b57" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-left:160px;">
           <div style="position:relative;width:360px;height:720px">
             <div style="position:absolute;left:0px;top:0px">
               
@@ -83,13 +178,16 @@ progress { accent-color: var(--accent); }
             <div style="position:absolute;left:16px;top:152px">
               <article class="card card--outlined" style="width:328px"><div class="card__media"></div><h3>Maya ate 3 chocolate chips</h3><p>Still warm. Would dunk again.</p></article>
             </div>
+            <div style="position:absolute;left:16px;top:316px">
+              <article class="card card--outlined" style="width:328px"><div class="card__media"></div><h3>Leo dunked oatmeal raisin</h3><p>Two glasses of milk later.</p></article>
+            </div>
             <div style="position:absolute;left:280px;top:578px">
               <button class="fab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5V19M5 12H19"/></svg></button>
             </div>
           </div>
         </div>
         <div style="margin-left:52px;margin-top:519.6px;">
-          <span style="display:block;font-size:20px;color:#1e1e1e;white-space:pre;line-height:1.25">tap</span>
+          <span style="display:block;font-size:20px;color:#e0449b;white-space:pre;line-height:1.25">tap</span>
         </div>
         <div style="margin-left:78px;">
           <div style="position:relative;width:360px;height:720px">
@@ -142,24 +240,233 @@ progress { accent-color: var(--accent); }
             </div>
           </div>
         </div>
+        <div style="margin-left:160px;">
+          <div style="position:relative;width:360px;height:720px">
+            <div style="position:absolute;left:0px;top:0px">
+              
+            </div>
+            <div style="position:absolute;left:0px;top:28px">
+              <header class="appbar" style="width:360px"><h1>Thank you!</h1></header>
+            </div>
+            <div style="position:absolute;left:16px;top:600px">
+              <button class="btn btn--filled" style="width:328px">Continue</button>
+            </div>
+            <div style="position:absolute;left:62.9px;top:219.9px">
+              <div style="width:238.7px;height:238.7px;"><svg width="238.7" height="238.7" viewBox="0 0 238.7 238.7" style="overflow:visible"><path d="M117.1 0.1C184.6 -2.9 241.6 48.1 238.6 117.1C235.6 189.1 178.6 241.6 114.1 238.6C48.1 235.6 -2.9 184.6 0.1 117.1C3.1 51.1 51.1 3.1 117.1 0.1Z" fill="#cfe3fb" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:63px;top:235px">
+              <div style="width:39px;height:39px;box-sizing:border-box;border:2.25px solid #f5c542;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:270.8px;top:408.3px">
+              <div style="width:13.5px;height:13.5px;box-sizing:border-box;background:#ff6b57;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:90px;top:422.5px">
+              <div style="width:9px;height:9px;box-sizing:border-box;background:#33b866;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;left:250.5px;top:245.5px">
+              <div style="width:36px;height:34.5px;"><svg width="36" height="34.5" viewBox="0 0 36 34.5" style="overflow:visible"><path d="M18 0L23.3 12L36 13.5L26.3 21.8L29.3 34.5L18 27.8L6.8 34.5L9.8 21.8L0 13.5L12.8 12L18 0Z" fill="#f5c542" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:117.1px;top:384.2px">
+              <div style="width:50.2px;height:55.2px;"><svg width="50.2" height="55.2" viewBox="0 0 50.2 55.2" style="overflow:visible"><path d="M27 0.7L38.5 4.2C47.2 6.9 52.1 16.1 49.5 24.8L43.8 43.5C41.1 52.2 31.9 57.1 23.1 54.4L11.7 50.9C3 48.3 -1.9 39 0.7 30.3L6.4 11.7C9.1 3 18.3 -1.9 27 0.7Z" fill="#f2b390" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:127.9px;top:332.7px">
+              <div style="width:24.1px;height:55px;"><svg width="24.1" height="55" viewBox="0 0 24.1 55" style="overflow:visible"><path d="M20.4 0.2L20.4 0.2C23.2 1.1 24.7 4 23.9 6.8L10.3 51.3C9.4 54 6.5 55.6 3.7 54.7L3.7 54.7C0.9 53.9 -0.6 51 0.2 48.2L13.8 3.7C14.7 0.9 17.6 -0.6 20.4 0.2Z" fill="#f2b390" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:140.8px;top:320.8px">
+              <div style="width:28.9px;height:70.7px;"><svg width="28.9" height="70.7" viewBox="0 0 28.9 70.7" style="overflow:visible"><path d="M25.2 0.2L25.2 0.2C28 1.1 29.5 4 28.7 6.8L10.3 67C9.4 69.8 6.5 71.4 3.7 70.5L3.7 70.5C0.9 69.7 -0.6 66.7 0.2 64L18.6 3.7C19.5 0.9 22.4 -0.6 25.2 0.2Z" fill="#f2b390" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:153.7px;top:330.5px">
+              <div style="width:27.2px;height:65px;"><svg width="27.2" height="65" viewBox="0 0 27.2 65" style="overflow:visible"><path d="M23.4 0.2L23.4 0.2C26.2 1.1 27.8 4 26.9 6.8L10.3 61.3C9.4 64.1 6.5 65.6 3.7 64.8L3.7 64.8C0.9 63.9 -0.6 61 0.2 58.2L16.9 3.7C17.7 0.9 20.7 -0.6 23.4 0.2Z" fill="#f2b390" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:164.6px;top:349.7px">
+              <div style="width:22.2px;height:50.6px;"><svg width="22.2" height="50.6" viewBox="0 0 22.2 50.6" style="overflow:visible"><path d="M18.8 0.2L18.8 0.2C21.4 1 22.8 3.7 22 6.3L9.5 47.2C8.7 49.8 6 51.2 3.4 50.4L3.4 50.4C0.9 49.6 -0.6 46.9 0.2 44.3L12.7 3.4C13.5 0.9 16.2 -0.6 18.8 0.2Z" fill="#f2b390" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:106.8px;top:361.6px">
+              <div style="width:21.8px;height:39.9px;"><svg width="21.8" height="39.9" viewBox="0 0 21.8 39.9" style="overflow:visible"><path d="M3.4 0.3L3.4 0.3C6.1 -0.7 9.1 0.7 10.2 3.4L21.4 32.8C22.5 35.5 21.1 38.5 18.4 39.6L18.4 39.6C15.7 40.6 12.7 39.2 11.6 36.5L0.3 7.1C-0.7 4.4 0.7 1.4 3.4 0.3Z" fill="#f2b390" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:125.2px;top:380.1px">
+              <div style="width:46.1px;height:23.7px;opacity:0.55;"><svg width="46.1" height="23.7" viewBox="0 0 46.1 23.7" style="overflow:visible"><path d="M3.1 0L46.1 13.2L43 23.2C26.7 25.3 12.4 20.9 0 10L3.1 0Z" fill="#e3977a" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:82.3px;top:416.2px">
+              <div style="width:85.8px;height:80.9px;"><svg width="85.8" height="80.9" viewBox="0 0 85.8 80.9" style="overflow:visible"><path d="M25.6 0L85.8 18.4L74.6 80.9L0 58.1L25.6 0Z" fill="#ec5b9a" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:104.5px;top:432.4px">
+              <div style="width:57.4px;height:17.5px;"><svg width="57.4" height="17.5" viewBox="0 0 57.4 17.5" style="overflow:visible"><path d="M0 0L57.4 17.5" fill="none" stroke="#14142b" stroke-width="2.9999999999999996" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:98.6px;top:446.3px">
+              <div style="width:60.2px;height:18.4px;"><svg width="60.2" height="18.4" viewBox="0 0 60.2 18.4" style="overflow:visible"><path d="M0 0L60.2 18.4" fill="none" stroke="#14142b" stroke-width="2.9999999999999996" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:108.6px;top:461.9px">
+              <div style="width:13.5px;height:13.5px;opacity:0.8;"><svg width="13.5" height="13.5" viewBox="0 0 13.5 13.5" style="overflow:visible"><path d="M0.3 4.8C1.4 1.2 5.2 -0.8 8.7 0.3C12.3 1.4 14.3 5.2 13.2 8.7C12.1 12.3 8.3 14.3 4.8 13.2C1.2 12.1 -0.8 8.3 0.3 4.8Z" fill="none" stroke="#ffffff" stroke-width="1.8749999999999998" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:123.1px;top:472.1px">
+              <div style="width:10.5px;height:10.5px;opacity:0.8;"><svg width="10.5" height="10.5" viewBox="0 0 10.5 10.5" style="overflow:visible"><path d="M0.2 3.7C1.1 0.9 4 -0.6 6.8 0.2C9.6 1.1 11.1 4 10.3 6.8C9.4 9.6 6.5 11.1 3.7 10.3C0.9 9.4 -0.6 6.5 0.2 3.7Z" fill="none" stroke="#ffffff" stroke-width="1.8749999999999998" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:192.8px;top:384.2px">
+              <div style="width:50.2px;height:55.2px;"><svg width="50.2" height="55.2" viewBox="0 0 50.2 55.2" style="overflow:visible"><path d="M23.1 0.7L11.7 4.2C3 6.9 -1.9 16.1 0.7 24.8L6.4 43.5C9.1 52.2 18.3 57.1 27 54.4L38.5 50.9C47.2 48.3 52.1 39 49.5 30.3L43.8 11.7C41.1 3 31.9 -1.9 23.1 0.7Z" fill="#f4bf9f" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:208.1px;top:332.7px">
+              <div style="width:24.1px;height:55px;"><svg width="24.1" height="55" viewBox="0 0 24.1 55" style="overflow:visible"><path d="M3.7 0.2L3.7 0.2C0.9 1.1 -0.6 4 0.2 6.8L13.8 51.3C14.7 54 17.6 55.6 20.4 54.7L20.4 54.7C23.2 53.9 24.7 51 23.9 48.2L10.3 3.7C9.4 0.9 6.5 -0.6 3.7 0.2Z" fill="#f4bf9f" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:190.3px;top:320.8px">
+              <div style="width:28.9px;height:70.7px;"><svg width="28.9" height="70.7" viewBox="0 0 28.9 70.7" style="overflow:visible"><path d="M3.7 0.2L3.7 0.2C0.9 1.1 -0.6 4 0.2 6.8L18.6 67C19.5 69.8 22.4 71.4 25.2 70.5L25.2 70.5C28 69.7 29.5 66.7 28.7 64L10.3 3.7C9.4 0.9 6.5 -0.6 3.7 0.2Z" fill="#f4bf9f" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:179.2px;top:330.5px">
+              <div style="width:27.2px;height:65px;"><svg width="27.2" height="65" viewBox="0 0 27.2 65" style="overflow:visible"><path d="M3.7 0.2L3.7 0.2C0.9 1.1 -0.6 4 0.2 6.8L16.9 61.3C17.7 64.1 20.7 65.6 23.4 64.8L23.4 64.8C26.2 63.9 27.8 61 26.9 58.2L10.3 3.7C9.4 0.9 6.5 -0.6 3.7 0.2Z" fill="#f4bf9f" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:173.1px;top:349.7px">
+              <div style="width:22.2px;height:50.6px;"><svg width="22.2" height="50.6" viewBox="0 0 22.2 50.6" style="overflow:visible"><path d="M3.4 0.2L3.4 0.2C0.9 1 -0.6 3.7 0.2 6.3L12.7 47.2C13.5 49.8 16.2 51.2 18.8 50.4L18.8 50.4C21.4 49.6 22.8 46.9 22 44.3L9.5 3.4C8.7 0.9 6 -0.6 3.4 0.2Z" fill="#f4bf9f" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:231.4px;top:361.6px">
+              <div style="width:21.8px;height:39.9px;"><svg width="21.8" height="39.9" viewBox="0 0 21.8 39.9" style="overflow:visible"><path d="M18.4 0.3L18.4 0.3C15.7 -0.7 12.7 0.7 11.6 3.4L0.3 32.8C-0.7 35.5 0.7 38.5 3.4 39.6L3.4 39.6C6.1 40.6 9.1 39.2 10.2 36.5L21.4 7.1C22.5 4.4 21.1 1.4 18.4 0.3Z" fill="#f4bf9f" stroke="none" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:188.7px;top:380.1px">
+              <div style="width:46.1px;height:23.7px;opacity:0.55;"><svg width="46.1" height="23.7" viewBox="0 0 46.1 23.7" style="overflow:visible"><path d="M43 0L0 13.2L3.1 23.2C19.4 25.3 33.7 20.9 46.1 10L43 0Z" fill="#e3977a" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:191.9px;top:416.2px">
+              <div style="width:85.8px;height:80.9px;"><svg width="85.8" height="80.9" viewBox="0 0 85.8 80.9" style="overflow:visible"><path d="M60.2 0L0 18.4L11.2 80.9L85.8 58.1L60.2 0Z" fill="#4f8dff" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:223.2px;top:450.2px">
+              <div style="width:22px;height:15.1px;"><svg width="22" height="15.1" viewBox="0 0 22 15.1" style="overflow:visible"><path d="M14.3 0.3L4.2 3.3C1.1 4.3 -0.7 7.7 0.3 10.8L0.3 10.8C1.2 14 4.6 15.8 7.8 14.8L17.8 11.7C21 10.8 22.7 7.4 21.8 4.2L21.8 4.2C20.8 1.1 17.5 -0.7 14.3 0.3Z" fill="#1d63e8" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:230.5px;top:454px">
+              <div style="width:7.5px;height:7.5px;"><svg width="7.5" height="7.5" viewBox="0 0 7.5 7.5" style="overflow:visible"><path d="M7.3 2.7C6.7 0.7 4.6 -0.4 2.7 0.2C0.7 0.8 -0.4 2.9 0.2 4.8C0.8 6.8 2.9 7.9 4.8 7.3C6.8 6.7 7.9 4.6 7.3 2.7Z" fill="#35e0d0" stroke="none" stroke-width="0.7499999999999999" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:180px;top:242.5px">
+              <div style="width:0px;height:19.5px;"><svg width="0" height="19.5" viewBox="0 0 0 19.5" style="overflow:visible"><path d="M0 19.5L0 0" fill="none" stroke="#ff6b57" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:147px;top:254.5px">
+              <div style="width:10.5px;height:15px;"><svg width="10.5" height="15" viewBox="0 0 10.5 15" style="overflow:visible"><path d="M10.5 15L0 0" fill="none" stroke="#ff6b57" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+            <div style="position:absolute;left:202.5px;top:254.5px">
+              <div style="width:10.5px;height:15px;"><svg width="10.5" height="15" viewBox="0 0 10.5 15" style="overflow:visible"><path d="M0 15L10.5 0" fill="none" stroke="#ff6b57" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div style="margin-top:290px;">
-      <div style="position:relative;width:900px;height:500px">
+      <div style="position:relative;width:800px;height:500px">
         <div style="position:absolute;left:0px;top:0px">
           
         </div>
         <div style="position:absolute;left:0px;top:40px">
-          <header class="appbar" style="width:900px"><h1>Crumbly</h1></header>
+          <header class="appbar" style="width:800px"><h1>Crumbly</h1></header>
         </div>
-        <div style="position:absolute;left:260px;top:112px">
-          <div class="searchbar" style="width:380px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5C4 6.9101491263 6.9101491263 4 10.5 4C14.0898508737 4 17 6.9101491263 17 10.5C17 14.0898508737 14.0898508737 17 10.5 17C6.9101491263 17 4 14.0898508737 4 10.5ZM15.5 15.5L21 21"/></svg><input placeholder="Search or paste a link"></div>
+        <div style="position:absolute;left:24px;top:112px">
+          <div class="searchbar" style="width:400px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5C4 6.9101491263 6.9101491263 4 10.5 4C14.0898508737 4 17 6.9101491263 17 10.5C17 14.0898508737 14.0898508737 17 10.5 17C6.9101491263 17 4 14.0898508737 4 10.5ZM15.5 15.5L21 21"/></svg><input placeholder="Search or paste a link"></div>
         </div>
-        <div style="position:absolute;left:700px;top:112px">
-          <button class="btn btn--filled" style="width:160px">Get the app</button>
+        <div style="position:absolute;left:640px;top:112px">
+          <button class="btn btn--filled" style="width:136px">Get the app</button>
         </div>
-        <div style="position:absolute;left:260px;top:180px">
-          <article class="card card--outlined" style="width:380px"><div class="card__media"></div><h3>Tonight's jar: oatmeal raisin</h3><p>412 bakers are dunking right now</p></article>
+        <div style="position:absolute;left:24px;top:172px">
+          <article class="card card--outlined" style="width:400px"><div class="card__media"></div><h3>Tonight's jar: oatmeal raisin</h3><p>412 bakers are dunking right now</p></article>
+        </div>
+        <div style="position:absolute;left:464px;top:196px">
+          <ul class="list"><li><strong>Chocolate milk</strong><span>Secondary text</span></li><li><strong>Apple pie</strong><span>Secondary text</span></li><li><strong>Tomato soup</strong><span>Secondary text</span></li></ul>
+        </div>
+        <div style="position:absolute;left:30.6px;top:386.6px">
+          <div style="box-sizing:border-box;width:96.8px;padding:12.7px 8.2px 11.5px 8.2px;background:#f6c443;border-radius:19.3px">
+            <div style="position:relative;width:80.4px;height:72.6px">
+              <div style="position:absolute;left:1.7px;top:71.5px">
+                <div style="width:77px;height:0px;"><svg width="77" height="0" viewBox="0 0 77 0" style="overflow:visible"><path d="M0 0L77 0" fill="none" stroke="#f08a2c" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:0px;top:43.5px">
+                <div style="width:8.5px;height:28.1px;"><svg width="8.5" height="28.1" viewBox="0 0 8.5 28.1" style="overflow:visible"><path d="M4.4 28.1C-2.2 18.7 -1.1 7.2 5.5 0C8.8 9.4 10.5 19.3 4.4 28.1Z" fill="#2750c9" stroke="none" stroke-width="0.275" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:9.9px;top:46.2px">
+                <div style="width:9.9px;height:25.3px;"><svg width="9.9" height="25.3" viewBox="0 0 9.9 25.3" style="overflow:visible"><path d="M1.1 25.3C-2.2 14.9 2.2 5 9.9 0C9.3 10.5 7.7 19.3 1.1 25.3Z" fill="#3b7bf0" stroke="none" stroke-width="0.275" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:71.9px;top:43.5px">
+                <div style="width:8.5px;height:28.1px;"><svg width="8.5" height="28.1" viewBox="0 0 8.5 28.1" style="overflow:visible"><path d="M4.1 28.1C10.7 18.7 9.6 7.2 3 0C-0.3 9.4 -2 19.3 4.1 28.1Z" fill="#2750c9" stroke="none" stroke-width="0.275" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:60.5px;top:46.2px">
+                <div style="width:9.9px;height:25.3px;"><svg width="9.9" height="25.3" viewBox="0 0 9.9 25.3" style="overflow:visible"><path d="M8.8 25.3C12.1 14.9 7.7 5 0 0C0.6 10.5 2.2 19.3 8.8 25.3Z" fill="#3b7bf0" stroke="none" stroke-width="0.275" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:13.8px;top:18.7px">
+                <div style="width:52.8px;height:52.3px;"><svg width="52.8" height="52.3" viewBox="0 0 52.8 52.3" style="overflow:visible"><path d="M9.4 0L43.5 0L43.5 3.9C49.5 6.1 52.8 11 52.8 18.7L52.8 45.1C52.8 49.5 49.5 52.3 45.1 52.3L7.7 52.3C3.3 52.3 0 49.5 0 45.1L0 18.7C0 11 3.3 6.1 9.4 3.9L9.4 0Z" fill="#eef4fb" stroke="none" stroke-width="0.275" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:13.8px;top:18.7px">
+                <div style="width:52.8px;height:20.9px;"><svg width="52.8" height="20.9" viewBox="0 0 52.8 20.9" style="overflow:visible"><path d="M9.4 0L43.5 0L43.5 3.9C49.5 6.1 52.8 11 52.8 18.7L52.8 20.9L0 20.9L0 18.7C0 11 3.3 6.1 9.4 3.9L9.4 0Z" fill="#dce8f5" stroke="none" stroke-width="0.275" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:23.7px;top:56.1px">
+                <div style="width:16.5px;height:16.5px;box-sizing:border-box;background:#d9964b;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:39.6px;top:53.9px">
+                <div style="width:18.7px;height:18.7px;box-sizing:border-box;background:#e0a45b;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:31.9px;top:44.5px">
+                <div style="width:16.5px;height:16.5px;box-sizing:border-box;background:#c98640;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:27.9px;top:61.5px">
+                <div style="width:2.5px;height:2.5px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:33px;top:65.5px">
+                <div style="width:2.2px;height:2.2px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:34.3px;top:60.6px">
+                <div style="width:1.9px;height:1.9px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:45.5px;top:59.8px">
+                <div style="width:2.5px;height:2.5px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:51.2px;top:64.3px">
+                <div style="width:2.2px;height:2.2px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:49.7px;top:59px">
+                <div style="width:1.9px;height:1.9px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:36.9px;top:50px">
+                <div style="width:2.2px;height:2.2px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:41.7px;top:53.8px">
+                <div style="width:2.5px;height:2.5px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:41px;top:49.2px">
+                <div style="width:1.7px;height:1.7px;box-sizing:border-box;background:#5a301c;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:18.7px;top:33px">
+                <div style="width:2.8px;height:6.6px;opacity:0.9;"><svg width="2.8" height="6.6" viewBox="0 0 2.8 6.6" style="overflow:visible"><path d="M0 6.6C0 3.9 1.1 1.7 2.8 0" fill="none" stroke="#ffffff" stroke-width="1.6500000000000001" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:18.7px;top:45.7px">
+                <div style="width:0px;height:9.4px;opacity:0.9;"><svg width="0" height="9.4" viewBox="0 0 0 9.4" style="overflow:visible"><path d="M0 0L0 9.4" fill="none" stroke="#ffffff" stroke-width="1.6500000000000001" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:29.2px;top:34.7px">
+                <div style="box-sizing:border-box;width:22px;padding:1.6px 4.9px 2.8px 4.9px;background:#ffffff;border-radius:3.6px">
+                  <div style="width:12.1px;height:9.9px;"><svg width="12.1" height="9.9" viewBox="0 0 12.1 9.9" style="overflow:visible"><path d="M6 9.9C2.2 7.4 0 5.5 0 3C0 1.1 1.4 0 3 0C4.1 0 5.2 0.8 6 1.9C6.9 0.8 8 0 9.1 0C10.7 0 12.1 1.1 12.1 3C12.1 5.5 9.9 7.4 6 9.9Z" fill="#ff6b57" stroke="none" stroke-width="0.275" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+                </div>
+              </div>
+              <div style="position:absolute;left:19.8px;top:11px">
+                <div style="box-sizing:border-box;width:40.7px;padding:5.5px 0px 0px 0px;background:#ff6b57;border-radius:2.3px">
+                  <div style="width:40.7px;height:3.9px;box-sizing:border-box;background:#e2503f;border-radius:1px;"></div>
+                </div>
+              </div>
+              <div style="position:absolute;left:35.8px;top:3.8px">
+                <div style="width:8.8px;height:8.8px;box-sizing:border-box;background:#ff6b57;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:4.4px;top:13.8px">
+                <div style="width:2.8px;height:1.6px;"><svg width="2.8" height="1.6" viewBox="0 0 2.8 1.6" style="overflow:visible"><path d="M0 0L2.8 1.6" fill="none" stroke="#ffffff" stroke-width="1.375" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:73.7px;top:20.9px">
+                <div style="width:3.3px;height:1.1px;"><svg width="3.3" height="1.1" viewBox="0 0 3.3 1.1" style="overflow:visible"><path d="M0 1.1L3.3 0" fill="none" stroke="#ffffff" stroke-width="1.375" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:9.9px;top:34.7px">
+                <div style="width:1.7px;height:2.8px;"><svg width="1.7" height="2.8" viewBox="0 0 1.7 2.8" style="overflow:visible"><path d="M1.7 0L0 2.8" fill="none" stroke="#ff6b57" stroke-width="1.375" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:72.1px;top:41.8px">
+                <div style="width:2.2px;height:2.2px;"><svg width="2.2" height="2.2" viewBox="0 0 2.2 2.2" style="overflow:visible"><path d="M0 0L2.2 2.2" fill="none" stroke="#2750c9" stroke-width="1.375" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:64.9px;top:0px">
+                <div style="width:1.7px;height:2.8px;"><svg width="1.7" height="2.8" viewBox="0 0 1.7 2.8" style="overflow:visible"><path d="M0 2.8L1.7 0" fill="none" stroke="#ff6b57" stroke-width="1.375" stroke-linecap="round" stroke-linejoin="round" fill-rule="evenodd"/></svg></div>
+              </div>
+              <div style="position:absolute;left:13.2px;top:1.1px">
+                <div style="width:3.3px;height:3.3px;box-sizing:border-box;background:#ffffff;border-radius:50%;"></div>
+              </div>
+              <div style="position:absolute;left:76.8px;top:8px">
+                <div style="width:2.8px;height:2.8px;box-sizing:border-box;background:#ffffff;border-radius:50%;"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

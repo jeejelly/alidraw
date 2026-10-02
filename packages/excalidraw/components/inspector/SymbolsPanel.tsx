@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ILLUSTRATIONS } from "../../illustrations";
+import { importSvg } from "../../svgImport";
+
 import { buildElements, shapesOf, themeUpdates } from "../../symbols/build";
 import {
   COMPONENT_CATEGORIES,
@@ -580,9 +583,9 @@ const CodeSection = ({ app }: { app: App }) => {
 /** UI components and icons in a theme: pick one, set its parameters, put it on the canvas */
 export const SymbolsPanel = ({ app }: { app: App }) => {
   const theme = useSymbolTheme();
-  const [mode, setMode] = useState<"components" | "icons" | "templates">(
-    "components",
-  );
+  const [mode, setMode] = useState<
+    "components" | "icons" | "templates" | "art"
+  >("components");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [picked, setPicked] = useState<string | null>(null);
@@ -724,7 +727,7 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
       </Section>
 
       <div className="symbols__modes" role="tablist">
-        {(["components", "icons", "templates"] as const).map((m) => (
+        {(["components", "icons", "templates", "art"] as const).map((m) => (
           <button
             key={m}
             type="button"
@@ -740,7 +743,9 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
               ? `Components (${COMPONENTS.length})`
               : m === "icons"
               ? `Icons (${ICONS.length})`
-              : `Screens (${TEMPLATES.length})`}
+              : m === "templates"
+              ? `Screens (${TEMPLATES.length})`
+              : `Art (${ILLUSTRATIONS.length})`}
           </button>
         ))}
       </div>
@@ -752,13 +757,18 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
             ? "Search components…"
             : mode === "icons"
             ? "Search icons…"
+            : mode === "art"
+            ? "Search illustrations…"
             : "Search screens…"
         }
         value={query}
         onKeyDown={(e) => e.stopPropagation()}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div className="symbols__cats" hidden={mode === "templates"}>
+      <div
+        className="symbols__cats"
+        hidden={mode === "templates" || mode === "art"}
+      >
         {cats.map((c) => (
           <button
             key={c}
@@ -771,7 +781,33 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
         ))}
       </div>
 
-      {mode === "templates" ? (
+      {mode === "art" ? (
+        <div
+          className="symbols__grid symbols__grid--screens"
+          data-testid="symbols-art"
+        >
+          {ILLUSTRATIONS.filter(
+            (il) => !q || `${il.name} ${il.tags}`.toLowerCase().includes(q),
+          ).map((il) => (
+            <button
+              key={il.id}
+              type="button"
+              className="symbols__tile"
+              data-testid="symbols-art-item"
+              title={`${il.name}: vector paths, every shape editable`}
+              onClick={() => insert(importSvg(il.svg, { x: 0, y: 0 }).elements)}
+            >
+              <img
+                alt={il.name}
+                width={136}
+                height={136}
+                src={`data:image/svg+xml;utf8,${encodeURIComponent(il.svg)}`}
+              />
+              <span>{il.name}</span>
+            </button>
+          ))}
+        </div>
+      ) : mode === "templates" ? (
         <div
           className="symbols__grid symbols__grid--screens"
           data-testid="symbols-templates"

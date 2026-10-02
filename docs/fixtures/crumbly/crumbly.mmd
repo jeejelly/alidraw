@@ -9,8 +9,16 @@ flowchart LR
   subgraph web_feed["Web feed"]
     get_the_app["Get the app"]
   end
+  subgraph welcome["Welcome"]
+    let_s_bake["Let's bake"]
+  end
+  subgraph thank_you["Thank you"]
+    continue["Continue"]
+  end
   profile["Profile"]
   new_crumb -->|"tap"| compose
-  share --> feed
+  share --> thank_you
+  continue --> feed
+  let_s_bake --> feed
   profile_tab --> profile
   get_the_app --> feed

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- backdrop -->
+  <path d="M200 40C290 36 366 104 362 196C358 292 282 362 196 358C108 354 40 286 44 196C48 108 112 44 200 40Z" fill="#cfe3fb"/>
+  <circle cx="70" cy="86" r="26" fill="none" stroke="#f5c542" stroke-width="3"/>
+  <circle cx="330" cy="300" r="9" fill="#ff6b57"/>
+  <circle cx="86" cy="316" r="6" fill="#33b866"/>
+  <path d="M318 74l7 16 17 2-13 11 4 17-15-9-15 9 4-17-13-11 17-2z" fill="#f5c542"/>
+
+  <!-- left hand: pink cuff -->
+  <g transform="translate(158 268) rotate(17)">
+    <g fill="#f2b390">
+      <rect x="-30" y="-6" width="60" height="70" rx="22"/>
+      <rect x="-30" y="-74" width="14" height="76" rx="7"/>
+      <rect x="-12" y="-96" width="14" height="98" rx="7"/>
+      <rect x="6" y="-88" width="14" height="90" rx="7"/>
+      <rect x="22" y="-66" width="13" height="70" rx="6.5"/>
+      <rect x="-50" y="-28" width="14" height="56" rx="7" transform="rotate(-38 -43 0)"/>
+    </g>
+    <g fill="#e3977a">
+      <path d="M-30 -6h60v14c-20 9-40 9-60 0z" opacity=".55"/>
+    </g>
+    <path d="M-42 48h84l10 84h-104z" fill="#ec5b9a"/>
+    <path d="M-40 70h80M-42 90h84" stroke="#14142b" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <circle cx="-12" cy="112" r="9" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/>
+    <circle cx="8" cy="118" r="7" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/>
+  </g>
+
+  <!-- right hand: blue cuff -->
+  <g transform="translate(242 268) rotate(-17) scale(-1 1)">
+    <g fill="#f4bf9f">
+      <rect x="-30" y="-6" width="60" height="70" rx="22"/>
+      <rect x="-30" y="-74" width="14" height="76" rx="7"/>
+      <rect x="-12" y="-96" width="14" height="98" rx="7"/>
+      <rect x="6" y="-88" width="14" height="90" rx="7"/>
+      <rect x="22" y="-66" width="13" height="70" rx="6.5"/>
+      <rect x="-50" y="-28" width="14" height="56" rx="7" transform="rotate(-38 -43 0)"/>
+    </g>
+    <path d="M-30 -6h60v14c-20 9-40 9-60 0z" fill="#e3977a" opacity=".55"/>
+    <path d="M-42 48h84l10 84h-104z" fill="#4f8dff"/>
+    <rect x="-18" y="86" width="30" height="16" rx="8" fill="#1d63e8"/>
+    <circle cx="-3" cy="94" r="5" fill="#35e0d0"/>
+  </g>
+  <!-- spark lines where they meet -->
+  <path d="M200 96v-26M170 106l-14-20M230 106l14-20" stroke="#ff6b57" stroke-width="5" stroke-linecap="round"/>
+</svg>

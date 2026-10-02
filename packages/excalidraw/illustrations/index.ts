@@ -1,0 +1,39 @@
+/**
+ * Flat vector illustrations, drawn for this app (original artwork, same licence as the app).
+ * They are plain SVG: inserting one makes ordinary, editable vector paths in one group.
+ */
+export type Illustration = {
+  id: string;
+  name: string;
+  tags: string;
+  svg: string;
+  width: number;
+  height: number;
+};
+
+export const ILLUSTRATIONS: readonly Illustration[] = [
+  {
+    id: "hands",
+    name: "Cheers",
+    tags: "two hands meeting",
+    width: 400,
+    height: 400,
+    svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">\n  <!-- backdrop -->\n  <path d="M200 40C290 36 366 104 362 196C358 292 282 362 196 358C108 354 40 286 44 196C48 108 112 44 200 40Z" fill="#cfe3fb"/>\n  <circle cx="70" cy="86" r="26" fill="none" stroke="#f5c542" stroke-width="3"/>\n  <circle cx="330" cy="300" r="9" fill="#ff6b57"/>\n  <circle cx="86" cy="316" r="6" fill="#33b866"/>\n  <path d="M318 74l7 16 17 2-13 11 4 17-15-9-15 9 4-17-13-11 17-2z" fill="#f5c542"/>\n\n  <!-- left hand: pink cuff -->\n  <g transform="translate(158 268) rotate(17)">\n    <g fill="#f2b390">\n      <rect x="-30" y="-6" width="60" height="70" rx="22"/>\n      <rect x="-30" y="-74" width="14" height="76" rx="7"/>\n      <rect x="-12" y="-96" width="14" height="98" rx="7"/>\n      <rect x="6" y="-88" width="14" height="90" rx="7"/>\n      <rect x="22" y="-66" width="13" height="70" rx="6.5"/>\n      <rect x="-50" y="-28" width="14" height="56" rx="7" transform="rotate(-38 -43 0)"/>\n    </g>\n    <g fill="#e3977a">\n      <path d="M-30 -6h60v14c-20 9-40 9-60 0z" opacity=".55"/>\n    </g>\n    <path d="M-42 48h84l10 84h-104z" fill="#ec5b9a"/>\n    <path d="M-40 70h80M-42 90h84" stroke="#14142b" stroke-width="4" fill="none" stroke-linecap="round"/>\n    <circle cx="-12" cy="112" r="9" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/>\n    <circle cx="8" cy="118" r="7" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/>\n  </g>\n\n  <!-- right hand: blue cuff -->\n  <g transform="translate(242 268) rotate(-17) scale(-1 1)">\n    <g fill="#f4bf9f">\n      <rect x="-30" y="-6" width="60" height="70" rx="22"/>\n      <rect x="-30" y="-74" width="14" height="76" rx="7"/>\n      <rect x="-12" y="-96" width="14" height="98" rx="7"/>\n      <rect x="6" y="-88" width="14" height="90" rx="7"/>\n      <rect x="22" y="-66" width="13" height="70" rx="6.5"/>\n      <rect x="-50" y="-28" width="14" height="56" rx="7" transform="rotate(-38 -43 0)"/>\n    </g>\n    <path d="M-30 -6h60v14c-20 9-40 9-60 0z" fill="#e3977a" opacity=".55"/>\n    <path d="M-42 48h84l10 84h-104z" fill="#4f8dff"/>\n    <rect x="-18" y="86" width="30" height="16" rx="8" fill="#1d63e8"/>\n    <circle cx="-3" cy="94" r="5" fill="#35e0d0"/>\n  </g>\n  <!-- spark lines where they meet -->\n  <path d="M200 96v-26M170 106l-14-20M230 106l14-20" stroke="#ff6b57" stroke-width="5" stroke-linecap="round"/>\n</svg>',
+  },
+  {
+    id: "jar",
+    name: "Cookie jar",
+    tags: "a jar of cookies with a heart",
+    width: 400,
+    height: 400,
+    svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">\n  <rect x="24" y="24" width="352" height="352" rx="70" fill="#f6c443"/>\n  <!-- ground line and plants -->\n  <path d="M60 330H340" stroke="#f08a2c" stroke-width="4" stroke-linecap="round"/>\n  <g fill="#2750c9">\n    <path d="M70 330C46 296 50 254 74 228C86 262 92 298 70 330Z"/>\n    <path d="M94 330C82 292 98 256 126 238C124 276 118 308 94 330Z" fill="#3b7bf0"/>\n    <path d="M330 330C354 296 350 254 326 228C314 262 308 298 330 330Z"/>\n    <path d="M306 330C318 292 302 256 274 238C276 276 282 308 306 330Z" fill="#3b7bf0"/>\n  </g>\n  <!-- jar -->\n  <path d="M138 138h124v14c22 8 34 26 34 54v96c0 16-12 26-28 26H132c-16 0-28-10-28-26v-96c0-28 12-46 34-54z" fill="#eef4fb"/>\n  <path d="M138 138h124v14c22 8 34 26 34 54v8h-192v-8c0-28 12-46 34-54z" fill="#dce8f5"/>\n  <!-- cookies inside -->\n  <g>\n    <circle cx="170" cy="304" r="30" fill="#d9964b"/>\n    <circle cx="232" cy="300" r="34" fill="#e0a45b"/>\n    <circle cx="200" cy="262" r="30" fill="#c98640"/>\n    <g fill="#5a301c">\n      <circle cx="160" cy="298" r="4.5"/><circle cx="178" cy="312" r="4"/><circle cx="182" cy="294" r="3.5"/>\n      <circle cx="224" cy="292" r="4.5"/><circle cx="244" cy="308" r="4"/><circle cx="238" cy="288" r="3.5"/>\n      <circle cx="192" cy="256" r="4"/><circle cx="210" cy="270" r="4.5"/><circle cx="206" cy="252" r="3"/>\n    </g>\n  </g>\n  <!-- glass shine -->\n  <path d="M122 214c0-10 4-18 10-24M122 236v34" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none" opacity=".9"/>\n  <!-- heart label -->\n  <rect x="160" y="196" width="80" height="52" rx="14" fill="#fff"/>\n  <path d="M200 238c-14-9-22-16-22-25 0-7 5-11 11-11 4 0 8 3 11 7 3-4 7-7 11-7 6 0 11 4 11 11 0 9-8 16-22 25z" fill="#ff6b57"/>\n  <!-- lid -->\n  <rect x="126" y="110" width="148" height="34" rx="14" fill="#ff6b57"/>\n  <rect x="126" y="130" width="148" height="14" rx="7" fill="#e2503f"/>\n  <circle cx="200" cy="100" r="16" fill="#ff6b57"/>\n  <!-- sprinkles -->\n  <g stroke-linecap="round" stroke-width="5">\n    <path d="M70 120l10 6" stroke="#fff"/><path d="M322 150l12-4" stroke="#fff"/><path d="M96 196l-6 10" stroke="#ff6b57"/>\n    <path d="M316 222l8 8" stroke="#2750c9"/><path d="M290 80l6-10" stroke="#ff6b57"/>\n  </g>\n  <circle cx="108" cy="80" r="6" fill="#fff"/><circle cx="338" cy="104" r="5" fill="#fff"/>\n</svg>',
+  },
+  {
+    id: "baker",
+    name: "Cookie lover",
+    tags: "a character holding a bitten cookie",
+    width: 400,
+    height: 400,
+    svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">\n  <path d="M200 30C300 26 378 100 372 204C366 306 284 372 192 368C98 364 30 292 34 196C38 100 106 34 200 30Z" fill="#e4ecf7"/>\n  <!-- body: green hoodie -->\n  <path d="M118 372c-6-60 4-118 40-142 22-14 62-14 84 0 36 24 46 82 40 142z" fill="#33b866"/>\n  <path d="M158 230c14 22 70 22 84 0-10-8-24-12-42-12s-32 4-42 12z" fill="#27995a"/>\n  <!-- neck + head -->\n  <rect x="184" y="196" width="32" height="40" rx="14" fill="#e8a987"/>\n  <circle cx="200" cy="158" r="46" fill="#f3c3a0"/>\n  <!-- hair: black bob with fringe -->\n  <path d="M152 164c-8-52 22-84 58-82 38 2 58 34 46 84-2 16 2 30 8 42-18 2-30-8-34-22-2-14-4-26-12-36-18 14-44 18-64 8-4 12-10 22-12 38-12-6-18-18-14-32 2-14 12-20 24-22z" fill="#1d2233"/>\n  <!-- face -->\n  <circle cx="184" cy="170" r="3.6" fill="#1d2233"/><circle cx="218" cy="170" r="3.6" fill="#1d2233"/>\n  <path d="M192 186c6 6 14 6 20 0" stroke="#1d2233" stroke-width="3.2" stroke-linecap="round" fill="none"/>\n  <circle cx="172" cy="182" r="7" fill="#ff8f86" opacity=".55"/><circle cx="230" cy="182" r="7" fill="#ff8f86" opacity=".55"/>\n  <!-- arms holding a big cookie -->\n  <path d="M118 262c-30 22-34 66-8 88 20 16 54 8 66-12 8-14 2-28-8-34-14-2-24-14-22-34z" fill="#27995a"/>\n  <path d="M282 262c30 22 34 66 8 88-20 16-54 8-66-12-8-14-2-28 8-34 14-2 24-14 22-34z" fill="#27995a"/>\n  <!-- cookie with a bite -->\n  <path d="M225.8 259.6A62 62 0 1 0 259.4 298.3A26 26 0 0 1 225.8 259.6Z" fill="#d9964b" stroke="#c4803a" stroke-width="5" stroke-linejoin="round"/>\n  <g fill="#5a301c">\n    <circle cx="172" cy="296" r="6"/><circle cx="214" cy="336" r="7"/><circle cx="170" cy="338" r="5.5"/>\n    <circle cx="204" cy="300" r="5"/><circle cx="240" cy="324" r="5.5"/>\n  </g>\n  <!-- hands on the cookie -->\n  <ellipse cx="146" cy="338" rx="22" ry="17" fill="#f3c3a0"/>\n  <ellipse cx="254" cy="338" rx="22" ry="17" fill="#f3c3a0"/>\n  <!-- crumbs and sparkle -->\n  <g fill="#d9964b"><circle cx="286" cy="250" r="5"/><circle cx="300" cy="270" r="3.5"/><circle cx="276" cy="238" r="3"/></g>\n  <path d="M96 112l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#f6c443"/>\n  <path d="M312 120l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#ff6b57"/>\n</svg>',
+  },
+];
