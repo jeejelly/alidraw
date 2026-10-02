@@ -5,6 +5,8 @@ import { reseed } from "@excalidraw/common";
 import { Excalidraw } from "../index";
 import { buildElements, boundsOf, themeUpdates } from "../symbols/build";
 import { collectCodeItems } from "../symbols/codeItems";
+import { generateSceneCode, pathData } from "../symbols/sceneCode";
+import { importSvg } from "../svgImport";
 import { generateCode } from "../symbols/codegen";
 import { COMPONENTS, defaultsOf } from "../symbols/components";
 import { buildTemplate, TEMPLATES, templateShapes } from "../symbols/templates";
@@ -14,6 +16,7 @@ import { ALL_THEMES, colorScheme, THEMES } from "../symbols/theme";
 import { getPaletteState, setPaletteHeight } from "../palette";
 import { setSymbolTheme } from "../symbols/themeStore";
 
+import { API } from "./helpers/api";
 import { act, fireEvent, render, screen, unmountComponent } from "./test-utils";
 
 unmountComponent();
@@ -555,5 +558,75 @@ describe("screen templates and more code", () => {
     expect(new Set(live.map((e) => e.groupIds[0])).size).toBe(
       TEMPLATES[0].parts.length,
     );
+  });
+});
+
+describe("the whole canvas as a page", () => {
+  it("places symbols and plain shapes where they are drawn", () => {
+    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const button = buildElements(
+      def.shapes(night, defaultsOf(def)),
+      night,
+      { x: 300, y: 200 },
+      "button",
+      defaultsOf(def),
+    );
+    const box = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 80,
+      height: 40,
+      backgroundColor: "#ff0000",
+      strokeColor: "#000000",
+    } as any);
+    const dot = API.createElement({
+      type: "ellipse",
+      x: 120,
+      y: 300,
+      width: 30,
+      height: 30,
+      backgroundColor: "#00ff00",
+    } as any);
+    const label = API.createElement({
+      type: "text",
+      x: 100,
+      y: 60,
+      text: "Hello <b>",
+      fontSize: 20,
+    } as any);
+    const svg = importSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><path d="M0 0 L40 0 L20 40 Z" fill="#00f"/></svg>',
+      { x: 400, y: 100 },
+    ).elements;
+    const code = generateSceneCode(
+      [box, dot, label, ...svg, ...button] as any,
+      night,
+    )!;
+    expect(code.count).toBe(5);
+    // the page starts at the top-left of what is drawn
+    expect(code.html).toContain("left:0px;top:40px");
+    expect(code.html).toContain("position:absolute;left:200px;top:140px");
+    expect(code.html).toContain("background:#ff0000");
+    expect(code.html).toContain("border-radius:50%");
+    expect(code.html).toContain("Hello &lt;b&gt;");
+    expect(code.html).toContain("<svg");
+    expect(code.html).toContain('<button class="btn btn--filled"');
+    expect(code.compose).toContain("Box(Modifier.offset(200.dp, 140.dp))");
+    expect(code.compose).toContain(".background(Color(0xFFFF0000)");
+    expect(code.compose).toContain('Text("Hello <b>"');
+    expect(code.compose).toContain("// TODO: path");
+    expect(code.notes[0]).toContain("not a responsive layout");
+    expect(generateSceneCode([], night)).toBeNull();
+  });
+
+  it("path data keeps curves and holes", () => {
+    const { elements } = importSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><path fill="#000" d="M0 0H40V40H0Z M10 10V30H30V10Z"/><path d="M0 0C10 0 20 10 20 20"/></svg>',
+    );
+    const d = pathData(elements[0] as any);
+    expect(d.match(/M/g)).toHaveLength(2);
+    expect(d.match(/Z/g)).toHaveLength(2);
+    expect(pathData(elements[1] as any)).toContain("C");
   });
 });

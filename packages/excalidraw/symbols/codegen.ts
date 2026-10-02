@@ -746,7 +746,7 @@ const placeholder = (id: string, name: string): Out => ({
   kt: `// TODO: ${name} has no Compose mapping yet\nBox(Modifier.size(48.dp))`,
 });
 
-const cssFor = (theme: SymbolTheme) => {
+export const cssFor = (theme: SymbolTheme) => {
   const c = theme.colors;
   const rc = rad(theme, "ctl");
   const rk = rad(theme, "card");
@@ -806,7 +806,7 @@ progress { accent-color: var(--accent); }
 `;
 };
 
-const composeTheme = (theme: SymbolTheme) => {
+export const composeTheme = (theme: SymbolTheme) => {
   const c = theme.colors;
   const col = (hex: string) =>
     `Color(0xFF${hex.replace("#", "").toUpperCase()})`;
@@ -823,28 +823,30 @@ const composeTheme = (theme: SymbolTheme) => {
 )`;
 };
 
+export const codeForItem = (it: CodeItem, theme: SymbolTheme): Out => {
+  if (it.component.startsWith("icon:")) {
+    const name = it.component.slice(5);
+    return {
+      html: iconSvg(name, num(it.width)),
+      kt: `Icon(${iconKt(name)}, contentDescription = ${kt(
+        name,
+      )}, modifier = Modifier.size(${num(it.width)}.dp))`,
+    };
+  }
+  const def = COMPONENTS.find((c) => c.id === it.component);
+  const values = { ...(def ? defaultsOf(def) : {}), ...it.values };
+  const gen = GENERATORS[it.component]?.(theme);
+  return gen
+    ? gen(values, it)
+    : placeholder(it.component, def?.name ?? it.component);
+};
+
 export const generateCode = (
   items: readonly CodeItem[],
   theme: SymbolTheme,
 ) => {
   const sorted = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
-  const parts = sorted.map((it) => {
-    if (it.component.startsWith("icon:")) {
-      const name = it.component.slice(5);
-      return {
-        html: iconSvg(name, num(it.width)),
-        kt: `Icon(${iconKt(name)}, contentDescription = ${kt(
-          name,
-        )}, modifier = Modifier.size(${num(it.width)}.dp))`,
-      };
-    }
-    const def = COMPONENTS.find((c) => c.id === it.component);
-    const values = { ...(def ? defaultsOf(def) : {}), ...it.values };
-    const gen = GENERATORS[it.component]?.(theme);
-    return gen
-      ? gen(values, it)
-      : placeholder(it.component, def?.name ?? it.component);
-  });
+  const parts = sorted.map((it) => codeForItem(it, theme));
   const shown = parts.filter((p) => p.html || p.kt);
   const indent = (s: string, n: number) =>
     s

@@ -122,6 +122,7 @@
     "loadingScene": "Loading scene…",
     "loadScene": "Load scene from file",
     "import": "Import SVG and images…",
+    "replaceFromLibrary": "Replace with a library item…",
     "align": "Align",
     "alignTop": "Align top",
     "alignBottom": "Align bottom",

@@ -18,5 +18,20 @@ In the desktop app the palette SHALL carry a Project tab: the workspace, its sce
 ## Requirement: Swatches
 Swatches SHALL be a grid of small squares: click to apply, drag to reorder, drop on the fill or stroke to apply, and edit with the same colour field used everywhere in the palette.
 
+## Requirement: PDF options
+The PDF export SHALL offer the page (the size of the drawing, A5, A4, A3, Letter, Legal), the orientation, a margin in mm, and fit-to-page or actual size (several pages when needed). A drawing too big for a page SHALL be scaled down, never refused.
+
+## Requirement: The whole canvas as code
+Besides components, the Code section SHALL export the whole canvas as a page (HTML) or a Compose function, each part at the place it has on the canvas: symbols as their components, boxes, ellipses and text as positioned elements, paths and lines as inline SVG (a TODO in Compose). The file SHALL say it is positioned from the canvas and not a responsive layout, and name what was left out.
+
+## Requirement: Library
+Right-clicking a selection SHALL offer to replace it with an item of the library, which takes the selection's place and size: a component stretches like it does with Ctrl + drag, other shapes scale in proportion. Copies of a symbol (duplicates, items from the library) SHALL be their own components.
+
+## Requirement: Files
+The menu SHALL offer "New canvas" (offering to save the current one first) instead of "Reset", and, in the desktop app, "Save a copy…" and "Save as" into the workspace under a chosen name and folder. Swatches SHALL export as .gpl and .ase as well as import.
+
+## Requirement: Workspaces inside a repository
+A workspace folder inside a bigger git repository SHALL show, commit and restore only its own folder, with paths relative to it.
+
 ## Status
 Built and tested. The PDF path was run in the desktop engine: one page of the right size, curves and a real font, with a script in the SVG ignored.

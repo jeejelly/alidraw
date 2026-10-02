@@ -80,6 +80,7 @@ export {
 } from "./actionClipboard";
 
 export { actionImportFiles } from "./actionImport";
+export { actionReplaceFromLibrary } from "./actionReplaceFromLibrary";
 export { actionToggleGridMode } from "./actionToggleGridMode";
 export { actionToggleZenMode } from "./actionToggleZenMode";
 export { actionToggleObjectsSnapMode } from "./actionToggleObjectsSnapMode";

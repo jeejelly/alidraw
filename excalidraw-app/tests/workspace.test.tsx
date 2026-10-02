@@ -1,4 +1,9 @@
-import { Excalidraw, registerPaletteTab } from "@excalidraw/excalidraw";
+import {
+  Excalidraw,
+  ExcalidrawAPIProvider,
+  registerPaletteTab,
+  useExcalidrawAPI,
+} from "@excalidraw/excalidraw";
 import {
   fileSave,
   setFileSaveProvider,
@@ -17,10 +22,12 @@ import { appJotaiStore, Provider } from "../app-jotai";
 import { installWorkspaceSave } from "../workspace/workspaceSave";
 import { blobText } from "../workspace/blobText";
 import { ProjectPanel } from "../workspace/ProjectPanel";
+import { SaveCopyDialog } from "../workspace/SaveCopyDialog";
 import { WorkspaceDialog } from "../workspace/WorkspaceDialog";
 import { WorkspaceFileHandle } from "../workspace/WorkspaceFileHandle";
 import {
   activeWorkspaceAtom,
+  saveCopyDialogOpenAtom,
   workspaceDialogOpenAtom,
 } from "../workspace/workspaceState";
 
@@ -912,5 +919,57 @@ describe("the project tab of the palette", () => {
     fireEvent.click(screen.getByTestId("project-push"));
     await waitFor(() => expect(calls).toContain("sync:false:true"));
     off();
+  });
+});
+
+const CopyDialogWithApi = () => <SaveCopyDialog api={useExcalidrawAPI()} />;
+
+describe("save a copy", () => {
+  it("writes a new file of the workspace and stays on the current one, or opens the copy", async () => {
+    const saved: any[] = [];
+    const { bridge } = fakeBridge({
+      scenes: async () => [
+        { path: "ui/a.excalidraw", name: "a.excalidraw", mtime: 0, size: 1 },
+      ],
+      saveNew: async (id, name, _text, dir) => {
+        saved.push([id, name, dir]);
+        return { path: `${dir ? `${dir}/` : ""}${name}.excalidraw` };
+      },
+    });
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    await render(
+      <Provider store={appJotaiStore}>
+        <ExcalidrawAPIProvider>
+          <Excalidraw>
+            <CopyDialogWithApi />
+          </Excalidraw>
+        </ExcalidrawAPIProvider>
+      </Provider>,
+    );
+    act(() => appJotaiStore.set(saveCopyDialogOpenAtom, true));
+    const name = (await screen.findByTestId(
+      "savecopy-name",
+    )) as HTMLInputElement;
+    expect(name.value).toContain("copy");
+    fireEvent.change(name, { target: { value: "Variant" } });
+    await waitFor(() =>
+      expect(
+        (screen.getByTestId("savecopy-dir") as HTMLSelectElement).options
+          .length,
+      ).toBe(2),
+    );
+    fireEvent.change(screen.getByTestId("savecopy-dir"), {
+      target: { value: "ui" },
+    });
+    fireEvent.click(screen.getByTestId("savecopy-copy"));
+    await waitFor(() => expect(saved).toEqual([["w1", "Variant", "ui"]]));
+    await waitFor(() =>
+      expect(screen.getByTestId("savecopy-done").textContent).toContain(
+        "ui/Variant.excalidraw",
+      ),
+    );
+    // still open: it was a copy
+    expect(screen.getByTestId("savecopy-name")).toBeTruthy();
   });
 });

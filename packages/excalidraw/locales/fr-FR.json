@@ -118,6 +118,7 @@
     "libraryLoadingMessage": "Chargement de la bibliothèque…",
     "libraries": "Parcourir les bibliothèques",
     "loadingScene": "Chargement de la scène…",
+    "replaceFromLibrary": "Remplacer par un élément de la bibliothèque…",
     "loadScene": "Charger une scène depuis un fichier",
     "align": "Alignement",
     "alignTop": "Aligner en haut",

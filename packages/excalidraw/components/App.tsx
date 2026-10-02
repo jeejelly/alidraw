@@ -275,6 +275,7 @@ import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 
 import {
   actionAddToLibrary,
+  actionReplaceFromLibrary,
   actionBringForward,
   actionBringToFront,
   actionCopy,
@@ -428,6 +429,8 @@ import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
 import { AppStretch } from "./App.stretch";
 import { AppSymbols } from "./App.symbols";
+import { fitIntoBox } from "../symbols/fit";
+import { frameOf } from "../symbols/stretch";
 import { AppImport } from "./App.import";
 import { getSymbolTheme } from "../symbols/themeStore";
 import { StretchOverlay } from "./StretchOverlay";
@@ -491,6 +494,7 @@ import type {
   BinaryFiles,
   Gesture,
   GestureEvent,
+  LibraryItem,
   LibraryItems,
   PointerDownState,
   SceneData,
@@ -12927,6 +12931,7 @@ class App extends React.Component<AppProps, AppState> {
       actionUngroup,
       CONTEXT_MENU_SEPARATOR,
       actionAddToLibrary,
+      actionReplaceFromLibrary,
       ...zIndexActions,
       CONTEXT_MENU_SEPARATOR,
       actionFlipHorizontal,
@@ -12945,6 +12950,37 @@ class App extends React.Component<AppProps, AppState> {
       CONTEXT_MENU_SEPARATOR,
       actionDeleteSelected,
     ];
+  };
+
+  /** the library item takes the place and size of the selection */
+  public replaceSelectionWithLibraryItem = (item: LibraryItem) => {
+    const selected = this.scene.getSelectedElements({
+      selectedElementIds: this.state.selectedElementIds,
+      includeBoundTextElement: true,
+      includeElementsInFrames: true,
+    });
+    if (!selected.length) {
+      return;
+    }
+    const frame = frameOf(selected);
+    const fitted = fitIntoBox(item.elements, frame);
+    if (!fitted.length) {
+      return;
+    }
+    for (const el of selected) {
+      this.scene.mutateElement(el as any, { isDeleted: true });
+    }
+    const centre = sceneCoordsToViewportCoords(
+      { sceneX: (frame.x0 + frame.x1) / 2, sceneY: (frame.y0 + frame.y1) / 2 },
+      this.state,
+    );
+    this.addElementsFromPasteOrLibrary({
+      elements: fitted,
+      files: null,
+      position: { clientX: centre.x, clientY: centre.y },
+      retainSeed: false,
+    });
+    this.store.scheduleCapture();
   };
 
   public savePointer = (x: number, y: number, button: "up" | "down") => {

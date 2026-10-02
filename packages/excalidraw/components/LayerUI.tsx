@@ -45,6 +45,7 @@ import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
 import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
 import { useAppProps, useEditorInterface, useStylesPanelMode } from "./App";
+import { LibraryReplaceDialog } from "./LibraryReplaceDialog";
 import { OverwriteConfirmDialog } from "./OverwriteConfirm/OverwriteConfirm";
 import { sidebarRightIcon } from "./icons";
 import { DefaultSidebar } from "./DefaultSidebar";
@@ -579,6 +580,12 @@ const LayerUI = ({
             }}
           />
         )}
+      {appState.openDialog?.name === "libraryReplace" && (
+        <LibraryReplaceDialog
+          app={app as any}
+          onClose={() => setAppState({ openDialog: null })}
+        />
+      )}
       {appState.openDialog?.name === "help" && (
         <HelpDialog
           onClose={() => {
@@ -587,19 +594,20 @@ const LayerUI = ({
         />
       )}
       <ActiveConfirmDialog />
-      {defaultUIEnabled && appState.openDialog?.name === "elementLinkSelector" && (
-        <ElementLinkDialog
-          sourceElementId={appState.openDialog.sourceElementId}
-          onClose={() => {
-            setAppState({
-              openDialog: null,
-            });
-          }}
-          scene={app.scene}
-          appState={appState}
-          generateLinkForSelection={generateLinkForSelection}
-        />
-      )}
+      {defaultUIEnabled &&
+        appState.openDialog?.name === "elementLinkSelector" && (
+          <ElementLinkDialog
+            sourceElementId={appState.openDialog.sourceElementId}
+            onClose={() => {
+              setAppState({
+                openDialog: null,
+              });
+            }}
+            scene={app.scene}
+            appState={appState}
+            generateLinkForSelection={generateLinkForSelection}
+          />
+        )}
       <tunnels.OverwriteConfirmDialogTunnel.Out />
       {renderImageExportDialog()}
       {renderJSONExportDialog()}

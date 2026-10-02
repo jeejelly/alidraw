@@ -3,7 +3,9 @@ import React from "react";
 import { reseed } from "@excalidraw/common";
 import { getCommonBounds } from "@excalidraw/element";
 
+import { actionReplaceFromLibrary } from "../actions";
 import { Excalidraw } from "../index";
+import { fitIntoBox } from "../symbols/fit";
 import { buildElements } from "../symbols/build";
 import { collectCodeItems } from "../symbols/codeItems";
 import { COMPONENTS, defaultsOf } from "../symbols/components";
@@ -317,5 +319,68 @@ describe("copies of a symbol", () => {
       original.length,
     );
     expect(collectCodeItems(all)).toHaveLength(2);
+  });
+});
+
+describe("replacing from the library", () => {
+  it("fits a symbol into the selection's box, stretching it like Ctrl + drag", () => {
+    const item = make("button", { x: 0, y: 0 });
+    const fitted = fitIntoBox(item, { x0: 500, y0: 500, x1: 800, y1: 560 });
+    const frame = frameOf(fitted);
+    expect([
+      frame.x0,
+      frame.y0,
+      Math.round(frame.x1),
+      Math.round(frame.y1),
+    ]).toEqual([500, 500, 800, 560]);
+    // the corners stay round: the pill grew, it did not scale
+    const pill = fitted.find((e) => e.type === "path") as any;
+    expect(pill.handles[0].radius).toBe(20);
+  });
+
+  it("scales other shapes in proportion and centres them", () => {
+    const a = API.createElement({
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 50,
+    } as any);
+    const fitted = fitIntoBox([a] as any, { x0: 0, y0: 0, x1: 400, y1: 400 });
+    expect(fitted[0]).toMatchObject({ width: 400, height: 200, x: 0, y: 100 });
+  });
+
+  it("right-click offers it, and picking an item replaces the selection", async () => {
+    await render(<Excalidraw />);
+    const old = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 100,
+    } as any);
+    API.setElements([old] as any);
+    API.setSelectedElements([old] as any);
+    const item = make("toggle", { x: 0, y: 0 });
+    await act(async () => {
+      await h.app.library.setLibrary([
+        {
+          id: "lib1",
+          status: "unpublished",
+          created: 1,
+          elements: item as any,
+        },
+      ]);
+    });
+    act(() => h.app.actionManager.executeAction(actionReplaceFromLibrary));
+    expect(h.state.openDialog).toEqual({ name: "libraryReplace" });
+    const choice = await screen.findByTestId("library-replace-item");
+    fireEvent.click(choice);
+    const live = h.elements.filter((e) => !e.isDeleted);
+    expect(live.some((e) => e.id === old.id)).toBe(false);
+    expect(live.length).toBe(item.length);
+    const frame = frameOf(live as any);
+    expect(Math.round(frame.x1 - frame.x0)).toBe(200);
+    expect(h.state.openDialog).toBeNull();
   });
 });

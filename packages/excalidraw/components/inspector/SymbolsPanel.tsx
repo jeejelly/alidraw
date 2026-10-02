@@ -28,6 +28,7 @@ import { setSymbolTheme, useSymbolTheme } from "../../symbols/themeStore";
 import { getSymbolMeta } from "../../symbols/build";
 import { collectCodeItems } from "../../symbols/codeItems";
 import { generateCode } from "../../symbols/codegen";
+import { generateSceneCode } from "../../symbols/sceneCode";
 import {
   getLayout,
   getSelectedSymbol,
@@ -410,10 +411,28 @@ const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
 const CodeSection = ({ app }: { app: App }) => {
   const theme = useSymbolTheme();
   const [kind, setKind] = useState<"html" | "compose">("html");
-  const [scope, setScope] = useState<"selection" | "all">("selection");
+  const [scope, setScope] = useState<"selection" | "all" | "scene">(
+    "selection",
+  );
   const [text, setText] = useState("");
   const [info, setInfo] = useState<string | null>(null);
   const make = (k: "html" | "compose") => {
+    if (scope === "scene") {
+      const scene = generateSceneCode(app.scene.getNonDeletedElements(), theme);
+      if (!scene) {
+        setText("");
+        setInfo("The canvas is empty.");
+        return;
+      }
+      setKind(k);
+      setText(k === "html" ? scene.html : scene.compose);
+      setInfo(
+        `${scene.count} parts on a ${scene.width} x ${
+          scene.height
+        } page. ${scene.notes.join(" ")}`,
+      );
+      return;
+    }
     const selected = app.scene.getSelectedElements(app.state);
     const all = app.scene.getNonDeletedElements();
     // a selected group stands for all of its members
@@ -458,7 +477,8 @@ const CodeSection = ({ app }: { app: App }) => {
             data-testid="symbols-code-scope"
           >
             <option value="selection">the selection</option>
-            <option value="all">every symbol</option>
+            <option value="all">every symbol (stacked)</option>
+            <option value="scene">the whole canvas (positioned)</option>
           </select>
         </label>
       </div>
