@@ -124,6 +124,7 @@
     "import": "Import SVG and images…",
     "replaceFromLibrary": "Replace with a library item…",
     "textToVectors": "Create outlines (text to vectors)",
+    "convertToSymbol": "Convert to symbol",
     "italic": "Italic",
     "libraryFont": "Library fonts",
     "libraryFontSearch": "Search the font library…",
@@ -745,6 +746,8 @@
     "width": "Width"
   },
   "toast": {
+    "alreadySymbol": "This already is a symbol",
+    "symbolMade": "Symbol made, {{count}} parameters to set in the Symbols tab. Add it to the library to use it again.",
     "vectorized": "{{count}} shapes made from the picture, next to it",
     "textToVectorsNone": "Nothing could be turned into shapes: the font has no outlines for this text",
     "textToVectorsMissing": "These characters have no outline in the font and were left out: {{chars}}",

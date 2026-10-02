@@ -6,7 +6,7 @@ import type {
 } from "@excalidraw/element/types";
 
 import { getSymbolMeta, symbolGroupOf } from "./build";
-import { codeForItem, composeTheme, cssFor } from "./codegen";
+import { codeForItem, composeTheme, cssFor, isMapped } from "./codegen";
 
 import type { CodeItem } from "./codegen";
 import type { SymbolTheme } from "./theme";
@@ -108,7 +108,8 @@ export const unitsOf = (elements: readonly ExcalidrawElement[]): Unit[] => {
   const loose: ExcalidrawElement[] = [];
   for (const el of all) {
     const g = symbolGroupOf(el);
-    if (g && getSymbolMeta(el)?.component) {
+    const component = getSymbolMeta(el)?.component ?? "";
+    if (g && (isMapped(component) || component.startsWith("icon:"))) {
       symbolGroups.set(g, [...(symbolGroups.get(g) ?? []), el]);
     } else {
       loose.push(el);

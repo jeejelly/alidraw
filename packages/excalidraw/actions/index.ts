@@ -82,6 +82,7 @@ export {
 export { actionImportFiles } from "./actionImport";
 export { actionReplaceFromLibrary } from "./actionReplaceFromLibrary";
 export { actionConvertToFlowElement } from "./actionConvertToFlowElement";
+export { actionConvertToSymbol } from "./actionConvertToSymbol";
 export { actionTextToVectors } from "./actionTextToVectors";
 export {
   actionChangeLibraryFont,

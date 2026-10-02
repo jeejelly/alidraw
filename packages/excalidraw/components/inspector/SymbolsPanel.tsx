@@ -47,6 +47,7 @@ import {
 import { addSwatches } from "../../palette";
 
 import { ColorField } from "./ColorField";
+import { CustomSymbolSection } from "./CustomSymbolSection";
 import { Section } from "./primitives";
 
 import type App from "../App";
@@ -703,6 +704,7 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
   return (
     <div className="symbols" data-testid="symbols-panel">
       <SymbolLayoutSection app={app} />
+      <CustomSymbolSection app={app} />
       <CodeSection app={app} />
       <Section title="Theme" testId="symbols-theme-section">
         <ThemeEditor theme={theme} />
