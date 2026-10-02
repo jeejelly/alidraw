@@ -21,7 +21,6 @@ export const actionToggleGridMode = register({
       appState: {
         ...appState,
         gridModeEnabled: !this.checked!(appState),
-        objectsSnapModeEnabled: false,
       },
       captureUpdate: CaptureUpdateAction.EVENTUALLY,
     };

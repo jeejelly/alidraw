@@ -112,6 +112,7 @@ export {
 export {
   actionToggleRulers,
   actionToggleGuidesSnap,
+  actionToggleGuidesLock,
   actionClearGuides,
 } from "./actionGuides";
 export {

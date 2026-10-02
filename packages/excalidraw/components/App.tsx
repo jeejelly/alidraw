@@ -1524,11 +1524,14 @@ class App extends React.Component<AppProps, AppState> {
 
   /**
    * Returns gridSize taking into account `gridModeEnabled`.
-   * If disabled, returns null.
+   * If disabled, returns null. While snapping to objects the grid is only
+   * drawn: both can be on, and the objects win over the grid's lines.
    */
   public getEffectiveGridSize = () => {
     return (
-      isGridModeEnabled(this) ? this.state.gridSize : null
+      isGridModeEnabled(this) && !this.state.objectsSnapModeEnabled
+        ? this.state.gridSize
+        : null
     ) as NullableGridSize;
   };
 

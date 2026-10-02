@@ -135,7 +135,10 @@ export class AppGuides {
 
   /** the guide under a viewport point, if any */
   hitGuide = (event: { clientX: number; clientY: number }): Guide | null => {
-    const { zoom, guides } = this.app.state;
+    const { zoom, guides, guidesLocked } = this.app.state;
+    if (guidesLocked) {
+      return null;
+    }
     const p = this.scene(event);
     const r = GRAB_DISTANCE / zoom.value;
     let best: Guide | null = null;

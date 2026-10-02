@@ -291,6 +291,7 @@
     },
     "rulers": {
       "toggle": "Rulers and guides",
+      "lock": "Lock the guides",
       "snap": "Snap to guides (magnet)",
       "clear": "Clear all guides"
     },

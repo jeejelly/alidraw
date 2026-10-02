@@ -549,6 +549,8 @@ export interface AppState {
   guides: readonly Guide[];
   /** the magnet: dragged elements and points snap to guides (opt-out) */
   guidesSnapEnabled: boolean;
+  /** the guides cannot be grabbed, so they are not moved by mistake */
+  guidesLocked: boolean;
   /** the colour palette panel stays open over the canvas */
   paletteOpen: boolean;
   /** an angle gesture is running: the keys that lock it, and the one held */

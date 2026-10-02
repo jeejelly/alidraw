@@ -1,6 +1,7 @@
 import {
   actionToggleArrowBinding,
   actionToggleGridMode,
+  actionToggleGuidesLock,
   actionToggleGuidesSnap,
   actionToggleMidpointSnapping,
   actionToggleObjectsSnapMode,
@@ -52,6 +53,20 @@ const MODES = [
       <Svg>
         <path d="M4 3v6a5 5 0 0 0 10 0V3h-3v6a2 2 0 0 1-4 0V3z" />
         <path d="M3 20h18" strokeDasharray="2 2.5" />
+      </Svg>
+    ),
+  },
+  {
+    id: "lock-guides",
+    action: actionToggleGuidesLock,
+    title: () => t("labels.rulers.lock"),
+    on: (s: App["state"]) => s.guidesLocked,
+    // a padlock over a guide line
+    icon: (
+      <Svg>
+        <rect x="6" y="11" width="12" height="9" rx="1.8" />
+        <path d="M8.5 11V8.5a3.5 3.5 0 017 0V11" />
+        <path d="M3 4.5h18" strokeDasharray="2 2.5" />
       </Svg>
     ),
   },

@@ -45,6 +45,22 @@ export const actionToggleGuidesSnap = register({
   checked: (appState) => appState.guidesSnapEnabled,
 });
 
+export const actionToggleGuidesLock = register({
+  name: "toggleGuidesLock",
+  label: "labels.rulers.lock",
+  category: DEFAULT_CATEGORIES.editor,
+  keywords: ["lock", "guides", "rulers"],
+  viewMode: true,
+  trackEvent: { category: "canvas" },
+  perform(elements, appState) {
+    return {
+      appState: { ...appState, guidesLocked: !appState.guidesLocked },
+      captureUpdate: CaptureUpdateAction.EVENTUALLY,
+    };
+  },
+  checked: (appState) => appState.guidesLocked,
+});
+
 export const actionClearGuides = register({
   name: "clearGuides",
   label: "labels.rulers.clear",
