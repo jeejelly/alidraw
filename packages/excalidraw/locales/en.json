@@ -124,6 +124,7 @@
     "import": "Import SVG and images…",
     "replaceFromLibrary": "Replace with a library item…",
     "textToVectors": "Create outlines (text to vectors)",
+    "italic": "Italic",
     "vectorizeImage": "Vectorize image",
     "align": "Align",
     "alignTop": "Align top",

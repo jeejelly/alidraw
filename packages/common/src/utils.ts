@@ -146,12 +146,19 @@ export const getFontString = ({
   fontSize,
   fontFamily,
   fontFamilyName,
+  fontWeight,
+  fontStyle,
 }: {
   fontSize: number;
   fontFamily: FontFamilyValues;
   fontFamilyName?: string | null;
+  /** 100 to 900; absent or 400 is regular */
+  fontWeight?: number | null;
+  fontStyle?: "normal" | "italic" | null;
 }) => {
-  return `${fontSize}px ${getFontFamilyString({
+  const style = fontStyle === "italic" ? "italic " : "";
+  const weight = fontWeight && fontWeight !== 400 ? `${fontWeight} ` : "";
+  return `${style}${weight}${fontSize}px ${getFontFamilyString({
     fontFamily,
     fontFamilyName,
   })}` as FontString;

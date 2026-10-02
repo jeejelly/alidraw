@@ -375,6 +375,8 @@ export const resizeSingleTextElement = (
         fontSize: element.fontSize,
         fontFamily: element.fontFamily,
         fontFamilyName: element.fontFamilyName,
+        fontWeight: element.fontWeight,
+        fontStyle: element.fontStyle,
       }),
       element.lineHeight,
     );
@@ -1513,7 +1515,7 @@ export const resizeMultipleElements = (
         false,
       );
 
-      const update: typeof elementsAndUpdates[0]["update"] = {
+      const update: (typeof elementsAndUpdates)[0]["update"] = {
         x,
         y,
         width,

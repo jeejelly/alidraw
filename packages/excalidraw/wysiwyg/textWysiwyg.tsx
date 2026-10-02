@@ -57,6 +57,10 @@ import type {
 } from "@excalidraw/element/types";
 
 import { actionSaveFileToDisk, actionSaveToActiveFile } from "../actions";
+import {
+  actionToggleBold,
+  actionToggleItalic,
+} from "../actions/actionTypography";
 
 import {
   parseClipboard,
@@ -323,6 +327,14 @@ export const textWysiwyg = ({
       return true;
     }
     if (`${updatedTextElement.fontSize}px` !== editable.style.fontSize) {
+      return true;
+    }
+    if (
+      (updatedTextElement.fontWeight ?? 400) !==
+        (Number(editable.style.fontWeight) || 400) ||
+      (updatedTextElement.fontStyle ?? "normal") !==
+        (editable.style.fontStyle || "normal")
+    ) {
       return true;
     }
     return false;
@@ -857,6 +869,12 @@ export const textWysiwyg = ({
       event.preventDefault();
       app.actionManager.executeAction(actionResetZoom);
       updateWysiwygStyle();
+    } else if (actionToggleBold.keyTest(event)) {
+      event.preventDefault();
+      app.actionManager.executeAction(actionToggleBold);
+    } else if (actionToggleItalic.keyTest(event)) {
+      event.preventDefault();
+      app.actionManager.executeAction(actionToggleItalic);
     } else if (actionDecreaseFontSize.keyTest(event)) {
       app.actionManager.executeAction(actionDecreaseFontSize);
     } else if (actionIncreaseFontSize.keyTest(event)) {

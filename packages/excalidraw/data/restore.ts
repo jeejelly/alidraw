@@ -567,6 +567,16 @@ export const restoreElement = (
       if (element.fontUnit !== "dp" && element.fontUnit !== "px") {
         delete (element as any).fontUnit;
       }
+      if (
+        typeof element.fontWeight !== "number" ||
+        !(element.fontWeight >= 100 && element.fontWeight <= 900) ||
+        element.fontWeight === 400
+      ) {
+        delete (element as any).fontWeight;
+      }
+      if (element.fontStyle !== "italic") {
+        delete (element as any).fontStyle;
+      }
 
       // line-height might not be specified either when creating elements
       // programmatically, or when importing old diagrams.
@@ -590,6 +600,12 @@ export const restoreElement = (
           : {}),
         ...(element.fontUnit === "dp" || element.fontUnit === "px"
           ? { fontUnit: element.fontUnit }
+          : {}),
+        ...(typeof element.fontWeight === "number"
+          ? { fontWeight: Math.round(element.fontWeight / 100) * 100 }
+          : {}),
+        ...(element.fontStyle === "italic"
+          ? { fontStyle: "italic" as const }
           : {}),
         text,
         textAlign: element.textAlign || DEFAULT_TEXT_ALIGN,

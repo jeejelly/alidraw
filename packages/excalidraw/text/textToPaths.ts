@@ -107,6 +107,15 @@ export const textToPaths = async (
   const missing = new Set<string>();
   const shapes: string[] = [];
   const fill = el.strokeColor === "transparent" ? "#000000" : el.strokeColor;
+  // a family without a bold or italic face: the weight is faked with an outline of the
+  // same colour, the slant with a shear (what browsers do too)
+  const bold = (el.fontWeight ?? 400) >= 600;
+  const italic = el.fontStyle === "italic";
+  const heavy = bold
+    ? ` stroke="${fill}" stroke-width="${num(
+        el.fontSize * 0.04,
+      )}" stroke-linejoin="round"`
+    : "";
 
   for (let i = 0; i < lines.length; i++) {
     // runs of characters that share a font file, so kerning and ligatures survive
@@ -137,6 +146,7 @@ export const textToPaths = async (
         ? el.width - lineWidth
         : 0;
     const y = i * lineHeightPx + offset;
+    const lineShapes: string[] = [];
     runs.forEach((r, k) => {
       for (const { glyph, x: gx } of laid[k]?.glyphs ?? []) {
         // glyph outlines are closed shapes, whether or not the font says so
@@ -145,11 +155,20 @@ export const textToPaths = async (
           ? `${raw.replace(/Z/g, "").replace(/M/g, "ZM").replace(/^Z/, "")}Z`
           : "";
         if (d) {
-          shapes.push(`<path d="${d}" fill="${fill}"/>`);
+          lineShapes.push(`<path d="${d}" fill="${fill}"${heavy}/>`);
         }
       }
       x += widths[k];
     });
+    if (lineShapes.length) {
+      shapes.push(
+        italic
+          ? `<g transform="translate(0 ${num(y)}) skewX(-12) translate(0 ${num(
+              -y,
+            )})">${lineShapes.join("")}</g>`
+          : lineShapes.join(""),
+      );
+    }
   }
   if (!shapes.length) {
     return null;

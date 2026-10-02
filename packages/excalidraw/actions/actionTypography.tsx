@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { KEYS } from "@excalidraw/common";
+
 import {
   DEFAULT_FONT_SIZE,
   FONT_UNITS,
@@ -356,3 +358,97 @@ export const LocalFontPicker = ({
     </div>
   );
 };
+
+// -----------------------------------------------------------------------------
+// bold and italic
+// -----------------------------------------------------------------------------
+
+const selectedTexts = (
+  appState: AppState,
+  app: any,
+): ExcalidrawTextElement[] => {
+  const found = new Map<string, ExcalidrawTextElement>();
+  for (const el of app.scene.getSelectedElements({
+    selectedElementIds: appState.selectedElementIds,
+    includeBoundTextElement: true,
+  })) {
+    if (isTextElement(el)) {
+      found.set(el.id, el);
+    }
+  }
+  if (appState.editingTextElement) {
+    found.set(appState.editingTextElement.id, appState.editingTextElement);
+  }
+  return [...found.values()];
+};
+
+const BOLD = 700;
+
+/** one switch for the whole selection: off when all of it is already on */
+const makeToggle = (
+  name: "toggleBold" | "toggleItalic",
+  label: string,
+  key: string,
+  isOn: (t: ExcalidrawTextElement) => boolean,
+  patch: (on: boolean) => Record<string, unknown>,
+) =>
+  register({
+    name,
+    label,
+    trackEvent: { category: "element" },
+    predicate: (_elements, appState, _props, app) =>
+      !appState.viewModeEnabled && selectedTexts(appState, app).length > 0,
+    perform: (elements, appState, _value, app) => {
+      const texts = selectedTexts(appState, app);
+      const ids = new Set(texts.map((t) => t.id));
+      const turnOn = !(texts.length > 0 && texts.every(isOn));
+      const updated: ExcalidrawTextElement[] = [];
+      const next = changeProperty(
+        elements,
+        appState,
+        (element) => {
+          if (!isTextElement(element) || !ids.has(element.id)) {
+            return element;
+          }
+          const changed = newElementWith(element, patch(turnOn) as any);
+          updated.push(changed);
+          redrawTextBoundingBox(
+            changed,
+            app.scene.getContainerElement(changed),
+            app.scene,
+          );
+          return changed;
+        },
+        true,
+      );
+      updated.forEach((el) =>
+        updateBoundElements(el as NonDeletedExcalidrawElement, app.scene),
+      );
+      return {
+        elements: next,
+        appState,
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      };
+    },
+    keyTest: (event) =>
+      event[KEYS.CTRL_OR_CMD] &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.key.toLowerCase() === key,
+  });
+
+export const actionToggleBold = makeToggle(
+  "toggleBold",
+  "labels.bold",
+  "b",
+  (t) => (t.fontWeight ?? 400) >= 600,
+  (on) => ({ fontWeight: on ? BOLD : 400 }),
+);
+
+export const actionToggleItalic = makeToggle(
+  "toggleItalic",
+  "labels.italic",
+  "i",
+  (t) => t.fontStyle === "italic",
+  (on) => ({ fontStyle: on ? ("italic" as const) : ("normal" as const) }),
+);

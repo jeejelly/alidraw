@@ -6,6 +6,8 @@ import {
   actionChangeBackgroundColor,
   actionChangeFontSizeInput,
   actionTextToVectors,
+  actionToggleBold,
+  actionToggleItalic,
   actionChangeOpacity,
   actionChangeSloppiness,
   actionChangeStrokeColor,
@@ -825,6 +827,32 @@ export const PalettePanel = ({ app }: { app: App }) => {
           <option value="dp">dp</option>
         </select>
       </div>
+      {textEl && (
+        <div className="inspector__row" style={{ gap: 4 }}>
+          <button
+            type="button"
+            className="inspector__text"
+            style={{ fontWeight: 700, cursor: "pointer", width: "2rem" }}
+            data-testid="inspector-bold"
+            aria-pressed={(textEl.fontWeight ?? 400) >= 600}
+            title={`${t("labels.bold")} (Ctrl+B)`}
+            onClick={() => run(actionToggleBold)}
+          >
+            B
+          </button>
+          <button
+            type="button"
+            className="inspector__text"
+            style={{ fontStyle: "italic", cursor: "pointer", width: "2rem" }}
+            data-testid="inspector-italic"
+            aria-pressed={textEl.fontStyle === "italic"}
+            title={`${t("labels.italic")} (Ctrl+I)`}
+            onClick={() => run(actionToggleItalic)}
+          >
+            I
+          </button>
+        </div>
+      )}
       {textEl && (
         <button
           type="button"

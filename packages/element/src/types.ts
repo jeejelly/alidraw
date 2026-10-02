@@ -18,18 +18,18 @@ import type {
 export type ChartType = "bar" | "line" | "radar";
 export type FillStyle = "hachure" | "cross-hatch" | "solid" | "zigzag";
 export type FontFamilyKeys = keyof typeof FONT_FAMILY;
-export type FontFamilyValues = typeof FONT_FAMILY[FontFamilyKeys];
-export type Theme = typeof THEME[keyof typeof THEME];
+export type FontFamilyValues = (typeof FONT_FAMILY)[FontFamilyKeys];
+export type Theme = (typeof THEME)[keyof typeof THEME];
 export type FontString = string & { _brand: "fontString" };
 export type GroupId = string;
 export type PointerType = "mouse" | "pen" | "touch";
 export type StrokeRoundness = "round" | "sharp";
 export type RoundnessType = ValueOf<typeof ROUNDNESS>;
 export type StrokeStyle = "solid" | "dashed" | "dotted";
-export type TextAlign = typeof TEXT_ALIGN[keyof typeof TEXT_ALIGN];
+export type TextAlign = (typeof TEXT_ALIGN)[keyof typeof TEXT_ALIGN];
 
 type VerticalAlignKeys = keyof typeof VERTICAL_ALIGN;
-export type VerticalAlign = typeof VERTICAL_ALIGN[VerticalAlignKeys];
+export type VerticalAlign = (typeof VERTICAL_ALIGN)[VerticalAlignKeys];
 export type FractionalIndex = string & { _brand: "franctionalIndex" };
 
 export type BoundElement = Readonly<{
@@ -262,6 +262,10 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
      * editors that don't know this field use).
      */
     fontFamilyName?: string | null;
+    /** 100 to 900, absent means regular (400); a family without that weight is emboldened by the browser */
+    fontWeight?: number;
+    /** absent or "normal" means upright */
+    fontStyle?: "normal" | "italic";
     /** the unit `fontSize` is expressed in; absent means px */
     fontUnit?: "px" | "dp";
     /**

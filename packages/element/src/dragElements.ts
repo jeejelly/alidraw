@@ -275,6 +275,8 @@ export const dragNewTextElement = ({
         fontSize: newElement.fontSize,
         fontFamily: newElement.fontFamily,
         fontFamilyName: newElement.fontFamilyName,
+        fontWeight: newElement.fontWeight,
+        fontStyle: newElement.fontStyle,
       }),
       newElement.lineHeight,
     ),

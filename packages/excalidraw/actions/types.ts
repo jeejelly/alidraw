@@ -137,6 +137,8 @@ export type ActionName =
   | "replaceFromLibrary"
   | "convertToFlowElement"
   | "textToVectors"
+  | "toggleBold"
+  | "toggleItalic"
   | "vectorizeImage"
   | "toggleGuidesLock"
   | "fitToGrid"

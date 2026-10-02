@@ -858,6 +858,12 @@ const renderElementToSvg = (
           text.setAttribute("y", `${i * lineHeightPx + verticalOffset}`);
           text.setAttribute("font-family", getFontFamilyString(element));
           text.setAttribute("font-size", `${element.fontSize}px`);
+          if (element.fontWeight && element.fontWeight !== 400) {
+            text.setAttribute("font-weight", `${element.fontWeight}`);
+          }
+          if (element.fontStyle === "italic") {
+            text.setAttribute("font-style", "italic");
+          }
           text.setAttribute(
             "fill",
             applyDarkModeFilter(

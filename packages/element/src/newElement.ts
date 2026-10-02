@@ -341,6 +341,8 @@ export const newTextElement = (
     fontSize?: number;
     fontFamily?: FontFamilyValues;
     fontFamilyName?: string | null;
+    fontWeight?: number;
+    fontStyle?: "normal" | "italic";
     fontUnit?: ExcalidrawTextElement["fontUnit"];
     textAlign?: TextAlign;
     verticalAlign?: VerticalAlign;
@@ -361,6 +363,8 @@ export const newTextElement = (
       fontFamily,
       fontSize,
       fontFamilyName: opts.fontFamilyName,
+      fontWeight: opts.fontWeight,
+      fontStyle: opts.fontStyle,
     }),
     lineHeight,
   );
@@ -378,6 +382,10 @@ export const newTextElement = (
     baseFontSize: opts.baseFontSize ?? null,
     fontFamily,
     ...(opts.fontFamilyName ? { fontFamilyName: opts.fontFamilyName } : {}),
+    ...(opts.fontWeight && opts.fontWeight !== 400
+      ? { fontWeight: opts.fontWeight }
+      : {}),
+    ...(opts.fontStyle === "italic" ? { fontStyle: opts.fontStyle } : {}),
     ...(opts.fontUnit ? { fontUnit: opts.fontUnit } : {}),
     textAlign,
     verticalAlign,
