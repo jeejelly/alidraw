@@ -63,6 +63,7 @@ import {
   AlignSection,
   CornersSection,
   ImageStorageSection,
+  VectorizeSection,
   PathSection,
   ToolsSection,
   AnchorSection,
@@ -1145,6 +1146,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
                 {multi}
                 <SymbolLayoutSection app={app} />
                 <ImageStorageSection app={app} />
+                <VectorizeSection app={app} />
                 <PathSection app={app} />
                 <AlignSection app={app} />
                 <PathfinderSection app={app} />

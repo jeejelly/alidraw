@@ -481,6 +481,15 @@ exports[`contextMenu element > right-clicking on a group should select whole gro
           "category": "element",
         },
       },
+      {
+        "label": "labels.vectorizeImage",
+        "name": "vectorizeImage",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
       "separator",
       {
         "PanelComponent": [Function],
@@ -5641,6 +5650,15 @@ exports[`contextMenu element > shows 'Group selection' in context menu for multi
           "category": "element",
         },
       },
+      {
+        "label": "labels.vectorizeImage",
+        "name": "vectorizeImage",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
       "separator",
       {
         "PanelComponent": [Function],
@@ -6969,6 +6987,15 @@ exports[`contextMenu element > shows 'Ungroup selection' in context menu for gro
       {
         "label": "labels.textToVectors",
         "name": "textToVectors",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
+      {
+        "label": "labels.vectorizeImage",
+        "name": "vectorizeImage",
         "perform": [Function],
         "predicate": [Function],
         "trackEvent": {
@@ -9145,6 +9172,15 @@ exports[`contextMenu element > shows context menu for element > [end of test] ap
           "category": "element",
         },
       },
+      {
+        "label": "labels.vectorizeImage",
+        "name": "vectorizeImage",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
       "separator",
       {
         "PanelComponent": [Function],
@@ -10239,6 +10275,15 @@ exports[`contextMenu element > shows context menu for element > [end of test] ap
       {
         "label": "labels.textToVectors",
         "name": "textToVectors",
+        "perform": [Function],
+        "predicate": [Function],
+        "trackEvent": {
+          "category": "element",
+        },
+      },
+      {
+        "label": "labels.vectorizeImage",
+        "name": "vectorizeImage",
         "perform": [Function],
         "predicate": [Function],
         "trackEvent": {

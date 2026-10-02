@@ -124,6 +124,7 @@
     "import": "Import SVG and images…",
     "replaceFromLibrary": "Replace with a library item…",
     "textToVectors": "Create outlines (text to vectors)",
+    "vectorizeImage": "Vectorize image",
     "align": "Align",
     "alignTop": "Align top",
     "alignBottom": "Align bottom",
@@ -217,6 +218,12 @@
     "corners": {
       "toggle": "Live corners (Shift+B)",
       "hint": "Drag a circle to round that corner; Shift for all"
+    },
+    "vectorize": {
+      "title": "Vectorize",
+      "colors": "Colours",
+      "smoothing": "Smoothing",
+      "hint": "Traces the picture into smooth shapes in its own colours, next to it. Fewer colours and more smoothing suit logos and flat artwork; more colours suit illustrations."
     },
     "imageStorage": {
       "title": "Image file",
@@ -734,6 +741,7 @@
     "width": "Width"
   },
   "toast": {
+    "vectorized": "{{count}} shapes made from the picture, next to it",
     "textToVectorsNone": "Nothing could be turned into shapes: the font has no outlines for this text",
     "textToVectorsMissing": "These characters have no outline in the font and were left out: {{chars}}",
     "addedToLibrary": "Added to library",

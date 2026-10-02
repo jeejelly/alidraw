@@ -29,6 +29,7 @@ import {
   actionMakeCompoundShape,
   actionReleaseCompoundShape,
 } from "../../actions";
+import { actionVectorizeImage } from "../../actions/actionVectorizeImage";
 import { t } from "../../i18n";
 import {
   AlignLeftIcon,
@@ -642,7 +643,7 @@ export const CornersSection = ({ app }: { app: App }) => {
   const radiusTargets = selected.filter(
     (el) => el.type === "rectangle" || el.type === "diamond",
   );
-  const radiusOf = (el: typeof radiusTargets[number]) =>
+  const radiusOf = (el: (typeof radiusTargets)[number]) =>
     Math.round(getCornerRadius(Math.min(el.width, el.height), el));
   const radii = new Set(radiusTargets.map(radiusOf));
   const sharedRadius = radii.size === 1 ? [...radii][0] : null;
@@ -1071,7 +1072,7 @@ export const ImageStorageSection = ({ app }: { app: App }) => {
   if (!images.length) {
     return null;
   }
-  const valueOf = (el: typeof images[number]) =>
+  const valueOf = (el: (typeof images)[number]) =>
     (el.customData?.imageStorage as string | undefined) ?? "default";
   const values = new Set(images.map(valueOf));
   const current = values.size === 1 ? [...values][0] : null;
@@ -1111,6 +1112,55 @@ export const ImageStorageSection = ({ app }: { app: App }) => {
           </button>
         ))}
       </div>
+    </Section>
+  );
+};
+
+/** trace the selected picture into smooth vector shapes, with the palette size and the smoothing to choose */
+export const VectorizeSection = ({ app }: { app: App }) => {
+  const [colors, setColors] = useState(12);
+  const [smoothing, setSmoothing] = useState(40);
+  const images = app.scene
+    .getSelectedElements(app.state)
+    .filter((el) => el.type === "image");
+  if (!images.length) {
+    return null;
+  }
+  return (
+    <Section title={t("labels.vectorize.title")} testId="inspector-vectorize">
+      <SliderRow
+        label={t("labels.vectorize.colors")}
+        value={colors}
+        min={2}
+        max={32}
+        onChange={setColors}
+        testId="vectorize-colors"
+      />
+      <SliderRow
+        label={t("labels.vectorize.smoothing")}
+        value={smoothing}
+        min={0}
+        max={100}
+        unit="%"
+        onChange={setSmoothing}
+        testId="vectorize-smoothing"
+      />
+      <button
+        type="button"
+        className="inspector__text"
+        style={{ cursor: "pointer", width: "100%" }}
+        data-testid="vectorize-run"
+        title={t("labels.vectorize.hint")}
+        onClick={() =>
+          app.actionManager.executeAction(actionVectorizeImage, "ui", {
+            colors,
+            smoothing: smoothing / 100,
+          })
+        }
+      >
+        {t("labels.vectorizeImage")}
+      </button>
+      <div className="inspector__hint">{t("labels.vectorize.hint")}</div>
     </Section>
   );
 };

@@ -1,0 +1,30 @@
+import type { PixelData } from "./vectorize";
+
+/** the pixels of an image (a data URL), shrunk so its longest side is at most `maxSide` */
+export const loadPixels = (
+  dataURL: string,
+  maxSide = 900,
+): Promise<PixelData> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(
+        1,
+        maxSide / Math.max(img.naturalWidth, img.naturalHeight),
+      );
+      const width = Math.max(1, Math.round(img.naturalWidth * k));
+      const height = Math.max(1, Math.round(img.naturalHeight * k));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) {
+        reject(new Error("no canvas"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(ctx.getImageData(0, 0, width, height));
+    };
+    img.onerror = () => reject(new Error("the image could not be read"));
+    img.src = dataURL;
+  });
