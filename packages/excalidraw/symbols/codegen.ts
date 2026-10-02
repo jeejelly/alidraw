@@ -532,6 +532,213 @@ const GENERATORS: Record<string, (t: SymbolTheme) => Gen> = {
   },
 };
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** more components: layout aids, pickers, carousel, and the simple display parts */
+const MORE: Record<string, (t: SymbolTheme) => Gen> = {
+  "grid-columns": () => (v) => ({
+    html: `<!-- layout grid: ${v.columns} columns, ${v.gutter}px gutter, ${
+      v.margin
+    }px margin -->\n<div style="display:grid;grid-template-columns:repeat(${
+      v.columns
+    },1fr);gap:${v.gutter}px;padding:0 ${v.margin}px;max-width:${num(
+      v.width,
+    )}px"></div>`,
+    kt: `// layout grid: ${v.columns} columns, ${v.gutter}dp gutter, ${v.margin}dp margin\nLazyVerticalGrid(\n    columns = GridCells.Fixed(${v.columns}),\n    horizontalArrangement = Arrangement.spacedBy(${v.gutter}.dp),\n    contentPadding = PaddingValues(horizontal = ${v.margin}.dp),\n) { /* items */ }`,
+  }),
+  "grid-baseline": () => (v) => ({
+    html: `<!-- baseline grid: ${v.step}px -->`,
+    kt: `// baseline grid: ${v.step}dp (spacing in multiples of ${v.step}.dp)`,
+  }),
+  "grid-square": () => (v) => ({
+    html: `<!-- square grid: ${v.step}px cells -->`,
+    kt: `// square grid: ${v.step}dp cells`,
+  }),
+  "grid-safe-area": () => (v) => ({
+    html: `<!-- safe areas: ${v.top}px top, ${v.bottom}px bottom, ${v.side}px sides -->\n<div style="padding:env(safe-area-inset-top, ${v.top}px) ${v.side}px env(safe-area-inset-bottom, ${v.bottom}px)"></div>`,
+    kt: `// safe areas: ${v.top}dp top, ${v.bottom}dp bottom, ${v.side}dp sides\nScaffold(modifier = Modifier.safeDrawingPadding()) { padding -> /* content */ }`,
+  }),
+  "grid-thirds": () => (v) => ({
+    html: `<!-- composition guide: ${v.kind} -->`,
+    kt: `// composition guide: ${v.kind}`,
+  }),
+  carousel: () => (v) => ({
+    html: `<div class="carousel" style="display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory">${Array.from(
+      { length: v.items },
+      (_, k) =>
+        `<div style="flex:0 0 ${num(v.height * 1.2)}px;height:${num(
+          v.height,
+        )}px;scroll-snap-align:start;background:var(--surface-alt);border-radius:var(--radius-card)">Item ${
+          k + 1
+        }</div>`,
+    ).join("")}</div>`,
+    kt: `LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {\n    items(${
+      v.items
+    }) { index ->\n        Card(Modifier.size(width = ${num(
+      v.height * 1.2,
+    )}.dp, height = ${num(
+      v.height,
+    )}.dp)) { Text("Item \${index + 1}", Modifier.padding(12.dp)) }\n    }\n}`,
+  }),
+  calendar: () => (v) => ({
+    html: `<input type="date" value="${v.year}-${pad2(v.month)}-${pad2(
+      v.selected || 1,
+    )}">`,
+    kt: `val state = rememberDatePickerState()\nDatePicker(state = state)`,
+  }),
+  "date-picker": () => (v) => ({
+    html: `<dialog open><input type="date" value="${v.year}-${pad2(
+      v.month,
+    )}-${pad2(
+      v.day,
+    )}"><div><button>Cancel</button><button>OK</button></div></dialog>`,
+    kt: `val state = rememberDatePickerState()\nDatePickerDialog(\n    onDismissRequest = { /* TODO */ },\n    confirmButton = { TextButton(onClick = { /* TODO */ }) { Text("OK") } },\n    dismissButton = { TextButton(onClick = { /* TODO */ }) { Text("Cancel") } },\n) { DatePicker(state = state) }`,
+  }),
+  "time-picker": () => (v) => ({
+    html: `<input type="time" value="${pad2(v.hour)}:${pad2(v.minute)}">`,
+    kt: `val state = rememberTimePickerState(initialHour = ${
+      v.hour
+    }, initialMinute = ${v.minute}, is24Hour = ${!v.ampm})\n${
+      v.style === "dial" ? "TimePicker" : "TimeInput"
+    }(state = state)`,
+  }),
+  stat: () => () => ({
+    html: `<article class="card" style="width:160px"><p>Listeners</p><h3>12.4k</h3></article>`,
+    kt: `Card(Modifier.width(160.dp)) {\n    Column(Modifier.padding(16.dp)) {\n        Text("Listeners", style = MaterialTheme.typography.labelMedium)\n        Text("12.4k", style = MaterialTheme.typography.headlineSmall)\n    }\n}`,
+  }),
+  avatar: () => () => ({
+    html: `<span class="badge" style="width:44px;height:44px;display:inline-grid;place-items:center;background:var(--accent)">AB</span>`,
+    kt: `Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(44.dp)) {\n    Box(contentAlignment = Alignment.Center) { Text("AB", color = MaterialTheme.colorScheme.onPrimary) }\n}`,
+  }),
+  divider: () => () => ({ html: "<hr>", kt: "HorizontalDivider()" }),
+  tooltip: () => (v) => ({
+    html: `<span role="tooltip" class="snackbar">${html(v.text)}</span>`,
+    kt: `PlainTooltip { Text(${kt(v.text)}) }`,
+  }),
+  steps: () => (v) => {
+    const labels = list(v.labels);
+    return {
+      html: `<ol class="steps">${labels
+        .map(
+          (l, k) =>
+            `<li${k + 1 === v.current ? ' aria-current="step"' : ""}>${html(
+              l,
+            )}</li>`,
+        )
+        .join("")}</ol>`,
+      kt: `Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {\n${labels
+        .map(
+          (l, k) =>
+            `    Text(${kt(`${k + 1}. ${l}`)}, color = ${
+              k + 1 === v.current
+                ? "MaterialTheme.colorScheme.primary"
+                : "MaterialTheme.colorScheme.onSurfaceVariant"
+            })`,
+        )
+        .join("\n")}\n}`,
+    };
+  },
+  pagination: () => (v) => ({
+    html: `<nav class="row">${Array.from(
+      { length: v.pages },
+      (_, k) =>
+        `<button class="chip${k + 1 === v.current ? " is-active" : ""}">${
+          k + 1
+        }</button>`,
+    ).join("")}</nav>`,
+    kt: `Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {\n${Array.from(
+      { length: v.pages },
+      (_, k) =>
+        `    ${
+          k + 1 === v.current ? "Button" : "OutlinedButton"
+        }(onClick = { /* TODO */ }) { Text("${k + 1}") }`,
+    ).join("\n")}\n}`,
+  }),
+  stepper: () => (v) => ({
+    html: `<div class="row"><button class="icon-btn">−</button><span>${v.value}</span><button class="icon-btn">+</button></div>`,
+    kt: `var count by remember { mutableStateOf(${v.value}) }\nRow(verticalAlignment = Alignment.CenterVertically) {\n    IconButton(onClick = { count-- }) { Icon(Icons.Default.Info, contentDescription = "Less") }\n    Text("$count")\n    IconButton(onClick = { count++ }) { Icon(Icons.Default.Add, contentDescription = "More") }\n}`,
+  }),
+  rating: () => (v) => ({
+    html: `<span aria-label="${v.value} of ${v.max}">${"★".repeat(
+      v.value,
+    )}${"☆".repeat(Math.max(0, v.max - v.value))}</span>`,
+    kt: `Row {\n    repeat(${v.max}) { index ->\n        Icon(Icons.Default.Star, contentDescription = null, tint = if (index < ${v.value}) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)\n    }\n}`,
+  }),
+  table: () => (v) => {
+    const cols = list(v.cols);
+    return {
+      html: `<table class="list" style="width:${num(
+        v.width,
+      )}px"><thead><tr>${cols
+        .map((c) => `<th>${html(c)}</th>`)
+        .join("")}</tr></thead><tbody>${Array.from(
+        { length: v.rows },
+        () => `<tr>${cols.map(() => "<td>…</td>").join("")}</tr>`,
+      ).join("")}</tbody></table>`,
+      kt: `Column {\n    Row { ${cols
+        .map((c) => `Text(${kt(c)}, Modifier.weight(1f))`)
+        .join("; ")} }\n    repeat(${v.rows}) { Row { ${cols
+        .map(() => 'Text("…", Modifier.weight(1f))')
+        .join("; ")} } }\n}`,
+    };
+  },
+  sheet: () => (v) => {
+    const items = list(v.items);
+    return {
+      html: `<section class="dialog"><h2>${html(
+        v.title,
+      )}</h2><ul class="menu">${items
+        .map((i) => `<li>${html(i)}</li>`)
+        .join("")}</ul></section>`,
+      kt: `ModalBottomSheet(onDismissRequest = { /* TODO */ }) {\n    Text(${kt(
+        v.title,
+      )}, Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium)\n${items
+        .map((i) => `    ListItem(headlineContent = { Text(${kt(i)}) })`)
+        .join("\n")}\n}`,
+    };
+  },
+  drawer: () => (v) => {
+    const items = list(v.items).map((x) => x.split(":")[0].trim());
+    return {
+      html: `<nav class="menu" style="width:${num(v.width)}px"><h2>${html(
+        v.title,
+      )}</h2>${items.map((i) => `<a>${html(i)}</a>`).join("")}</nav>`,
+      kt: `ModalDrawerSheet {\n    Text(${kt(
+        v.title,
+      )}, Modifier.padding(16.dp))\n${items
+        .map(
+          (i, k) =>
+            `    NavigationDrawerItem(label = { Text(${kt(i)}) }, selected = ${
+              v.active === k + 1
+            }, onClick = { /* TODO */ })`,
+        )
+        .join("\n")}\n}`,
+    };
+  },
+  "search-view": () => (v) => ({
+    html: `<div class="searchbar"><input value="${html(v.query)}"></div>`,
+    kt: `SearchBar(\n    inputField = { SearchBarDefaults.InputField(query = ${kt(
+      v.query,
+    )}, onQueryChange = {}, onSearch = {}, expanded = true, onExpandedChange = {}) },\n    expanded = true, onExpandedChange = {},\n) { /* ${
+      v.results
+    } suggestions */ }`,
+  }),
+  scaffold: () => (v) => ({
+    html: `<!-- screen: ${html(v.title)} -->`,
+    kt: `Scaffold(topBar = { TopAppBar(title = { Text(${kt(v.title)}) }) }${
+      v.bottomBar ? ", bottomBar = { NavigationBar { /* items */ } }" : ""
+    }${
+      v.fab
+        ? ", floatingActionButton = { FloatingActionButton(onClick = { /* TODO */ }) { Icon(Icons.Default.Add, contentDescription = null) } }"
+        : ""
+    }) { padding -> /* content */ }`,
+  }),
+  // frames are drawing aids, not code
+  phone: () => () => ({ html: "", kt: "" }),
+  browser: () => () => ({ html: "", kt: "" }),
+};
+Object.assign(GENERATORS, MORE);
+
 const placeholder = (id: string, name: string): Out => ({
   html: `<!-- ${html(name)}: no HTML mapping yet -->\n<div class="todo">${html(
     name,
@@ -638,6 +845,7 @@ export const generateCode = (
       ? gen(values, it)
       : placeholder(it.component, def?.name ?? it.component);
   });
+  const shown = parts.filter((p) => p.html || p.kt);
   const indent = (s: string, n: number) =>
     s
       .split("\n")
@@ -652,7 +860,7 @@ export const generateCode = (
 ${cssFor(theme)}</style>
 <body>
 <div class="stack">
-${parts.map((p) => indent(p.html, 2)).join("\n")}
+${shown.map((p) => indent(p.html, 2)).join("\n")}
 </div>
 </body>
 </html>
@@ -679,12 +887,12 @@ fun Screen() {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-${parts.map((p) => indent(p.kt, 12)).join("\n")}
+${shown.map((p) => indent(p.kt, 12)).join("\n")}
         }
     }
 }
 `,
-    count: parts.length,
+    count: shown.length,
     unmapped: sorted
       .filter((it) => !GENERATORS[it.component])
       .map((it) => it.component),

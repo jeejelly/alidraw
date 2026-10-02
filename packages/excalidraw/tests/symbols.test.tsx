@@ -7,6 +7,7 @@ import { buildElements, boundsOf, themeUpdates } from "../symbols/build";
 import { collectCodeItems } from "../symbols/codeItems";
 import { generateCode } from "../symbols/codegen";
 import { COMPONENTS, defaultsOf } from "../symbols/components";
+import { buildTemplate, TEMPLATES, templateShapes } from "../symbols/templates";
 import { ICONS } from "../symbols/icons";
 import { parsePath, circle } from "../symbols/svgPath";
 import { ALL_THEMES, colorScheme, THEMES } from "../symbols/theme";
@@ -459,5 +460,100 @@ describe("code from symbols", () => {
     expect(
       (screen.getByTestId("symbols-code-text") as HTMLTextAreaElement).value,
     ).toContain("fun Screen()");
+  });
+});
+
+describe("screen templates and more code", () => {
+  it("every template builds from components that exist, in every theme", () => {
+    expect(TEMPLATES.length).toBeGreaterThanOrEqual(6);
+    for (const t of TEMPLATES) {
+      for (const p of t.parts) {
+        expect(COMPONENTS.some((c) => c.id === p.component)).toBe(true);
+      }
+      for (const theme of ALL_THEMES) {
+        const els = buildTemplate(t, theme);
+        expect(els.length).toBeGreaterThan(10);
+        expect(templateShapes(t, theme).length).toBeGreaterThan(10);
+      }
+    }
+  });
+
+  it("a template is one group per part, each remembering its component", () => {
+    const t = TEMPLATES.find((x) => x.id === "tpl-login")!;
+    const els = buildTemplate(t, THEMES[2]);
+    const groups = new Set(els.map((e) => e.groupIds[0]));
+    expect(groups.size).toBe(t.parts.length);
+    const items = collectCodeItems(els);
+    expect(items.map((i) => i.component)).toEqual(
+      expect.arrayContaining(["phone", "app-bar", "input", "button"]),
+    );
+  });
+
+  it("a screen becomes code, frames left out, nothing unmapped", () => {
+    for (const t of TEMPLATES) {
+      const code = generateCode(
+        collectCodeItems(buildTemplate(t, THEMES[2])),
+        THEMES[2],
+      );
+      expect(code.unmapped).toEqual([]);
+      expect(code.html).toContain("<body>");
+      expect(code.compose).toContain("fun Screen()");
+    }
+    const login = generateCode(
+      collectCodeItems(buildTemplate(TEMPLATES[0], THEMES[2])),
+      THEMES[2],
+    );
+    expect(login.html).toContain(
+      '<button class="btn btn--filled" style="width:328px">Sign in</button>',
+    );
+    expect(login.compose).toContain('Text("Sign in")');
+  });
+
+  it("maps pickers, carousel and grids", () => {
+    const code = generateCode(
+      [
+        ...[
+          "calendar",
+          "time-picker",
+          "carousel",
+          "grid-columns",
+          "date-picker",
+        ].flatMap((id) => {
+          const def = COMPONENTS.find((c) => c.id === id)!;
+          return collectCodeItems(
+            buildElements(
+              def.shapes(night, defaultsOf(def)),
+              night,
+              { x: 0, y: 0 },
+              id,
+              defaultsOf(def),
+            ),
+          );
+        }),
+      ].map((it, k) => ({ ...it, y: k * 100 })),
+      night,
+    );
+    expect(code.unmapped).toEqual([]);
+    expect(code.html).toContain('<input type="date"');
+    expect(code.html).toContain('<input type="time"');
+    expect(code.compose).toContain("rememberDatePickerState");
+    expect(code.compose).toContain("rememberTimePickerState");
+    expect(code.compose).toContain("LazyRow");
+    expect(code.compose).toContain("GridCells.Fixed(12)");
+  });
+
+  it("the panel inserts a screen as separate parts", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
+    fireEvent.click(screen.getByTestId("symbols-mode-templates"));
+    expect(screen.getAllByTestId("symbols-template").length).toBe(
+      TEMPLATES.length,
+    );
+    fireEvent.click(screen.getAllByTestId("symbols-template")[0]);
+    const live = h.elements.filter((e) => !e.isDeleted);
+    expect(new Set(live.map((e) => e.groupIds[0])).size).toBe(
+      TEMPLATES[0].parts.length,
+    );
   });
 });

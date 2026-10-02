@@ -10,6 +10,11 @@ import {
   type Values,
 } from "../../symbols/components";
 import { ICON_CATEGORIES, ICONS } from "../../symbols/icons";
+import {
+  buildTemplate,
+  TEMPLATES,
+  templateShapes,
+} from "../../symbols/templates";
 import { SymbolPreview } from "../../symbols/SymbolPreview";
 import {
   ALL_THEMES,
@@ -521,7 +526,9 @@ const CodeSection = ({ app }: { app: App }) => {
 /** UI components and icons in a theme: pick one, set its parameters, put it on the canvas */
 export const SymbolsPanel = ({ app }: { app: App }) => {
   const theme = useSymbolTheme();
-  const [mode, setMode] = useState<"components" | "icons">("components");
+  const [mode, setMode] = useState<"components" | "icons" | "templates">(
+    "components",
+  );
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
   const [picked, setPicked] = useState<string | null>(null);
@@ -663,7 +670,7 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
       </Section>
 
       <div className="symbols__modes" role="tablist">
-        {(["components", "icons"] as const).map((m) => (
+        {(["components", "icons", "templates"] as const).map((m) => (
           <button
             key={m}
             type="button"
@@ -677,7 +684,9 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
           >
             {m === "components"
               ? `Components (${COMPONENTS.length})`
-              : `Icons (${ICONS.length})`}
+              : m === "icons"
+              ? `Icons (${ICONS.length})`
+              : `Screens (${TEMPLATES.length})`}
           </button>
         ))}
       </div>
@@ -685,13 +694,17 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
         className="symbols__search"
         data-testid="symbols-search"
         placeholder={
-          mode === "components" ? "Search components…" : "Search icons…"
+          mode === "components"
+            ? "Search components…"
+            : mode === "icons"
+            ? "Search icons…"
+            : "Search screens…"
         }
         value={query}
         onKeyDown={(e) => e.stopPropagation()}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div className="symbols__cats">
+      <div className="symbols__cats" hidden={mode === "templates"}>
         {cats.map((c) => (
           <button
             key={c}
@@ -704,7 +717,33 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
         ))}
       </div>
 
-      {mode === "components" ? (
+      {mode === "templates" ? (
+        <div
+          className="symbols__grid symbols__grid--screens"
+          data-testid="symbols-templates"
+        >
+          {TEMPLATES.filter(
+            (t) => !q || `${t.name} ${t.tags}`.toLowerCase().includes(q),
+          ).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className="symbols__tile"
+              data-testid="symbols-template"
+              title={`${t.name}: ${t.parts.length} parts, each one editable`}
+              onClick={() => insert(buildTemplate(t, theme))}
+            >
+              <SymbolPreview
+                shapes={templateShapes(t, theme)}
+                theme={theme}
+                width={136}
+                height={190}
+              />
+              <span>{t.name}</span>
+            </button>
+          ))}
+        </div>
+      ) : mode === "components" ? (
         <>
           {pickedDef && (
             <div className="symbols__detail" data-testid="symbols-detail">
