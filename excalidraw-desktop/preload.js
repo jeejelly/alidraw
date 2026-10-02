@@ -12,6 +12,7 @@ const call = async (channel, payload) => {
 
 contextBridge.exposeInMainWorld("excalidrawDesktop", {
   version: 1,
+  exportPdf: (args) => call("pdf:export", args),
   workspace: {
     gitInfo: () => call("ws:gitInfo"),
     installGit: () => call("ws:installGit"),

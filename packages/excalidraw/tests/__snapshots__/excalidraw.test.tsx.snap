@@ -2,7 +2,7 @@
 
 exports[`<Excalidraw/> > <MainMenu/> > should render main menu with host menu items if passed from host 1`] = `
 <div
-  aria-labelledby="radix-:r6r:"
+  aria-labelledby="radix-:r79:"
   aria-orientation="vertical"
   class="dropdown-menu main-menu"
   data-align="start"
@@ -12,7 +12,7 @@ exports[`<Excalidraw/> > <MainMenu/> > should render main menu with host menu it
   data-state="open"
   data-testid="dropdown-menu"
   dir="ltr"
-  id="radix-:r6s:"
+  id="radix-:r7a:"
   role="menu"
   style="outline: none; --radix-dropdown-menu-content-transform-origin: var(--radix-popper-transform-origin); --radix-dropdown-menu-content-available-width: var(--radix-popper-available-width); --radix-dropdown-menu-content-available-height: var(--radix-popper-available-height); --radix-dropdown-menu-trigger-width: var(--radix-popper-anchor-width); --radix-dropdown-menu-trigger-height: var(--radix-popper-anchor-height); animation: none;"
   tabindex="-1"
@@ -200,6 +200,45 @@ exports[`<Excalidraw/> > Test UIOptions prop > Test canvasActions > should rende
         class="dropdown-menu-item__shortcut"
       >
         Ctrl+O
+      </div>
+    </button>
+    <button
+      aria-label="Import SVG and images"
+      class="radix-menu-item dropdown-menu-item dropdown-menu-item-base"
+      data-orientation="vertical"
+      data-radix-collection-item=""
+      data-testid="import-button"
+      role="menuitem"
+      tabindex="-1"
+      title="Import SVG and images"
+    >
+      <div
+        class="dropdown-menu-item__icon"
+      >
+        <svg
+          aria-hidden="true"
+          fill="none"
+          height="20"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+          viewBox="0 0 24 24"
+          width="20"
+        >
+          <path
+            d="M12 3v11M7.5 9.5L12 14l4.5-4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"
+          />
+        </svg>
+      </div>
+      <div
+        class="dropdown-menu-item__text"
+      >
+        <span
+          style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"
+        >
+          Import SVG and images…
+        </span>
       </div>
     </button>
     <button
@@ -619,7 +658,7 @@ exports[`<Excalidraw/> > Test UIOptions prop > Test canvasActions > should rende
             style="width: 1px; height: 1rem; margin: 0px auto;"
           />
           <button
-            aria-controls="radix-:r13:"
+            aria-controls="radix-:r14:"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Canvas background"

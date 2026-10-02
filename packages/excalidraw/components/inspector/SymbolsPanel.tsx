@@ -21,6 +21,8 @@ import {
 import { setSymbolTheme, useSymbolTheme } from "../../symbols/themeStore";
 
 import { getSymbolMeta } from "../../symbols/build";
+import { collectCodeItems } from "../../symbols/codeItems";
+import { generateCode } from "../../symbols/codegen";
 import {
   getLayout,
   getSelectedSymbol,
@@ -399,6 +401,123 @@ const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
   );
 };
 
+/** starting code for the symbols on the canvas: HTML and Jetpack Compose */
+const CodeSection = ({ app }: { app: App }) => {
+  const theme = useSymbolTheme();
+  const [kind, setKind] = useState<"html" | "compose">("html");
+  const [scope, setScope] = useState<"selection" | "all">("selection");
+  const [text, setText] = useState("");
+  const [info, setInfo] = useState<string | null>(null);
+  const make = (k: "html" | "compose") => {
+    const selected = app.scene.getSelectedElements(app.state);
+    const all = app.scene.getNonDeletedElements();
+    // a selected group stands for all of its members
+    const groups = new Set(selected.map((e) => e.groupIds[0]).filter(Boolean));
+    const members =
+      scope === "selection"
+        ? all.filter(
+            (e) =>
+              selected.includes(e) ||
+              (e.groupIds[0] && groups.has(e.groupIds[0])),
+          )
+        : all;
+    const items = collectCodeItems(members);
+    if (!items.length) {
+      setText("");
+      setInfo(
+        scope === "selection"
+          ? "Select symbols first."
+          : "No symbols on the canvas.",
+      );
+      return;
+    }
+    const out = generateCode(items, theme);
+    setKind(k);
+    setText(k === "html" ? out.html : out.compose);
+    setInfo(
+      `${out.count} component${out.count === 1 ? "" : "s"}${
+        out.unmapped.length
+          ? `; no code yet for: ${[...new Set(out.unmapped)].join(", ")}`
+          : ""
+      }.`,
+    );
+  };
+  return (
+    <Section title="Code" testId="symbols-code">
+      <div className="symbols__row">
+        <label className="symbols__param" style={{ flex: 1 }}>
+          <span>From</span>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as any)}
+            data-testid="symbols-code-scope"
+          >
+            <option value="selection">the selection</option>
+            <option value="all">every symbol</option>
+          </select>
+        </label>
+      </div>
+      <div className="symbols__row">
+        <button
+          type="button"
+          data-testid="symbols-code-html"
+          onClick={() => make("html")}
+        >
+          HTML + CSS
+        </button>
+        <button
+          type="button"
+          data-testid="symbols-code-compose"
+          onClick={() => make("compose")}
+        >
+          Jetpack Compose
+        </button>
+      </div>
+      {info && <p className="symbols__note">{info}</p>}
+      {text && (
+        <>
+          <textarea
+            className="symbols__code"
+            data-testid="symbols-code-text"
+            readOnly
+            value={text}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+          <div className="symbols__row">
+            <button
+              type="button"
+              data-testid="symbols-code-copy"
+              onClick={() =>
+                navigator.clipboard?.writeText(text).then(
+                  () => setInfo("Copied."),
+                  () => setInfo("Could not copy."),
+                )
+              }
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const url = URL.createObjectURL(
+                  new Blob([text], { type: "text/plain" }),
+                );
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = kind === "html" ? "screen.html" : "Screen.kt";
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+            >
+              Save file
+            </button>
+          </div>
+        </>
+      )}
+    </Section>
+  );
+};
+
 /** UI components and icons in a theme: pick one, set its parameters, put it on the canvas */
 export const SymbolsPanel = ({ app }: { app: App }) => {
   const theme = useSymbolTheme();
@@ -520,6 +639,7 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
   return (
     <div className="symbols" data-testid="symbols-panel">
       <SymbolLayoutSection app={app} />
+      <CodeSection app={app} />
       <Section title="Theme" testId="symbols-theme-section">
         <ThemeEditor theme={theme} />
         <ReferenceColors app={app} theme={theme} />

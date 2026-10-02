@@ -325,6 +325,18 @@ const ImageExportModal = ({
           >
             {t("imageExportDialog.button.exportToSvg")}
           </FilledButton>
+          <FilledButton
+            className="ImageExportModal__settings__buttons__button"
+            label="Export to PDF (vector)"
+            onClick={() =>
+              onExportImage(EXPORT_IMAGE_TYPES.pdf, exportedElements, {
+                exportingFrame,
+              })
+            }
+            icon={downloadIcon}
+          >
+            PDF
+          </FilledButton>
           {(probablySupportsClipboardBlob || isFirefox) && (
             <FilledButton
               className="ImageExportModal__settings__buttons__button"

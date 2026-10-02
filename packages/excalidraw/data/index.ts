@@ -31,6 +31,8 @@ import { t } from "../i18n";
 import { getSelectedElements, isSomeElementSelected } from "../scene";
 import { exportToCanvas, exportToSvg } from "../scene/export";
 
+import { exportSvgToPdf } from "./pdfExport";
+
 import { canvasToBlob } from "./blob";
 import { fileSave } from "./filesystem";
 import { serializeAsJSON } from "./json";
@@ -182,6 +184,22 @@ export const exportCanvas = async (
     viewBackgroundColor,
     exportingFrame,
   };
+  if (type === "pdf") {
+    const svg = await exportToSvg(
+      elements,
+      {
+        exportBackground,
+        exportWithDarkMode: appState.exportWithDarkMode,
+        viewBackgroundColor,
+        exportPadding,
+        exportScale: appState.exportScale,
+        exportEmbedScene: false,
+      },
+      files,
+      { exportingFrame },
+    );
+    return exportSvgToPdf(svg, name) as any;
+  }
   if (type === "svg" || type === "clipboard-svg") {
     if (type === "svg") {
       return fileSave(

@@ -954,3 +954,14 @@
   font-size: 0.6875rem;
   opacity: 0.95;
 }
+
+.symbols__code {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 12rem;
+  font-family: monospace;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  white-space: pre;
+  resize: vertical;
+}

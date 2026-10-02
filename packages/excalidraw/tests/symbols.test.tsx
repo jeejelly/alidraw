@@ -4,6 +4,8 @@ import { reseed } from "@excalidraw/common";
 
 import { Excalidraw } from "../index";
 import { buildElements, boundsOf, themeUpdates } from "../symbols/build";
+import { collectCodeItems } from "../symbols/codeItems";
+import { generateCode } from "../symbols/codegen";
 import { COMPONENTS, defaultsOf } from "../symbols/components";
 import { ICONS } from "../symbols/icons";
 import { parsePath, circle } from "../symbols/svgPath";
@@ -374,5 +376,88 @@ describe("modes, height, reference colours, grids", () => {
       .filter((s) => s.t === "rect");
     // the frame, plus one band per column
     expect(twelve).toHaveLength(13);
+  });
+});
+
+describe("code from symbols", () => {
+  const items = (id: string, values: any = {}) => {
+    const def = COMPONENTS.find((c) => c.id === id)!;
+    const els = buildElements(
+      def.shapes(night, { ...defaultsOf(def), ...values }),
+      night,
+      { x: 10, y: 20 },
+      id,
+      values,
+    );
+    return collectCodeItems(els);
+  };
+
+  it("remembers what a component is, its settings and its size", () => {
+    const [it] = items("button", { label: "Pay now", look: "tonal" });
+    expect(it).toMatchObject({
+      component: "button",
+      values: { label: "Pay now", look: "tonal" },
+      x: 10,
+      y: 20,
+    });
+    expect(it.width).toBe(140);
+  });
+
+  it("writes HTML and Jetpack Compose with the theme's colours and labels", () => {
+    const code = generateCode(
+      [
+        ...items("button", { label: "Pay now", width: 200 }),
+        ...items("toggle", { on: false, label: "Alerts" }),
+      ],
+      night,
+    );
+    expect(code.html).toContain(
+      '<button class="btn btn--filled" style="width:200px">Pay now</button>',
+    );
+    expect(code.html).toContain("--accent: #f472b6");
+    expect(code.html).toContain("--radius: 999px");
+    expect(code.compose).toContain('Text("Pay now")');
+    expect(code.compose).toContain("mutableStateOf(false)");
+    expect(code.compose).toContain("primary = Color(0xFFF472B6)");
+    expect(code.unmapped).toEqual([]);
+  });
+
+  it("escapes text and says what it has no mapping for", () => {
+    const code = generateCode(
+      [...items("button", { label: 'A <b> & "q" $x' }), ...items("knob")],
+      THEMES[0],
+    );
+    expect(code.html).toContain('A &lt;b&gt; &amp; "q" $x');
+    expect(code.compose).toContain('Text("A <b> & \\"q\\" \\$x")');
+    expect(code.unmapped).toEqual(["knob"]);
+    expect(code.compose).toContain("// TODO: Knob");
+  });
+
+  it("orders components top to bottom", () => {
+    const a = items("badge")[0];
+    const b = { ...items("progress")[0], y: a.y - 100 };
+    const code = generateCode([a, b], night);
+    expect(code.html.indexOf("<progress")).toBeLessThan(
+      code.html.indexOf("badge badge--"),
+    );
+  });
+
+  it("the panel turns a selection into code", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
+    fireEvent.change(screen.getByTestId("symbols-search"), {
+      target: { value: "switch" },
+    });
+    fireEvent.click(screen.getAllByTestId("symbols-tile")[0]);
+    fireEvent.click(screen.getByTestId("symbols-insert"));
+    fireEvent.click(screen.getByTestId("symbols-code-html"));
+    expect(
+      (screen.getByTestId("symbols-code-text") as HTMLTextAreaElement).value,
+    ).toContain('class="switch"');
+    fireEvent.click(screen.getByTestId("symbols-code-compose"));
+    expect(
+      (screen.getByTestId("symbols-code-text") as HTMLTextAreaElement).value,
+    ).toContain("fun Screen()");
   });
 });

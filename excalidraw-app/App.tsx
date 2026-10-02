@@ -3,6 +3,7 @@ import {
   CaptureUpdateAction,
   ExcalidrawAPIProvider,
   registerPaletteTab,
+  setPdfExportProvider,
   useExcalidrawAPI,
 } from "@excalidraw/excalidraw";
 import { trackEvent } from "@excalidraw/excalidraw/analytics";
@@ -177,6 +178,15 @@ const ExcalidrawWrapper = () => {
 
   // in the desktop app, saving a scene file goes to a workspace, with no file dialog
   useEffect(() => installWorkspaceSave(), []);
+  // the desktop app saves PDFs itself, with its own file dialog
+  useEffect(() => {
+    const desktop = (window as any).excalidrawDesktop;
+    if (!desktop?.exportPdf) {
+      return;
+    }
+    setPdfExportProvider((args) => desktop.exportPdf(args));
+    return () => setPdfExportProvider(null);
+  }, []);
   // the desktop app's project browser is a tab of the palette
   useEffect(
     () =>

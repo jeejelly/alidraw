@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const os = require("node:os");
 const { randomUUID } = require("node:crypto");
 const { execFile } = require("node:child_process");
 
@@ -371,6 +372,69 @@ const setupWorkspaces = () => {
     backup.queue(id);
     return result;
   });
+  // a vector PDF of the drawing: the browser engine lays the SVG out and embeds its fonts, so
+  // shapes stay shapes and text stays text for other editors
+  handle("pdf:export", async ({ svg, width, height, name }, event) => {
+    if (typeof svg !== "string" || svg.length > 200 * 1024 * 1024) {
+      throw new Error("nothing to export");
+    }
+    const w = Math.ceil(Number(width));
+    const h = Math.ceil(Number(height));
+    if (!(w > 0 && w < 20000 && h > 0 && h < 20000)) {
+      throw new Error("invalid size");
+    }
+    const safe =
+      String(name ?? "drawing")
+        .replace(/[^A-Za-z0-9._ -]+/g, "-")
+        .slice(0, 80) || "drawing";
+    const tmp = path.join(os.tmpdir(), `excalidraw-pdf-${randomUUID()}.html`);
+    fs.writeFileSync(
+      tmp,
+      `<!doctype html><meta charset="utf-8"><style>@page{size:${w}px ${h}px;margin:0}html,body{margin:0;padding:0}svg{display:block}</style>${svg}`,
+    );
+    // its own session: only local files, no network, no scripts
+    const ses = session.fromPartition("pdf-export");
+    ses.webRequest.onBeforeRequest((details, callback) =>
+      callback({
+        cancel: !(
+          details.url.startsWith("file:") || details.url.startsWith("data:")
+        ),
+      }),
+    );
+    const win = new BrowserWindow({
+      show: false,
+      width: Math.min(w, 4000),
+      height: Math.min(h, 4000),
+      webPreferences: {
+        session: ses,
+        sandbox: true,
+        javascript: false,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    try {
+      await win.loadFile(tmp);
+      const pdf = await win.webContents.printToPDF({
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+      const owner = BrowserWindow.fromWebContents(event.sender);
+      const picked = await dialog.showSaveDialog(owner, {
+        defaultPath: `${safe}.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (picked.canceled || !picked.filePath) {
+        return { saved: false };
+      }
+      fs.writeFileSync(picked.filePath, pdf);
+      return { saved: true };
+    } finally {
+      win.destroy();
+      fs.rmSync(tmp, { force: true });
+    }
+  });
+
   handle("ws:renameScene", ({ id, path: rel, name }) => {
     const next = workspaces.renameScene(id, rel, name);
     // the old name is a deletion and the new one an addition: both are committed

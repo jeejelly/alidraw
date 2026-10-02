@@ -158,6 +158,7 @@ export const buildElements = (
   theme: SymbolTheme,
   origin = { x: 0, y: 0 },
   name?: string,
+  values?: Record<string, any>,
 ): ExcalidrawElement[] => {
   const group = randomId();
   const color = (tk: Token | null | undefined) =>
@@ -175,7 +176,14 @@ export const buildElements = (
     opacity: 100,
     strokeStyle: extra.dash ? ("dashed" as const) : ("solid" as const),
     groupIds: [group],
-    customData: { symbol: { ...meta, group, ...(name ? { name } : {}) } },
+    customData: {
+      symbol: {
+        ...meta,
+        group,
+        ...(name ? { name, component: name } : {}),
+        ...(values ? { values } : {}),
+      },
+    },
   });
   for (const raw of shapes) {
     const s: Shape =
