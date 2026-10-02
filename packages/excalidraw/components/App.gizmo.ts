@@ -459,8 +459,23 @@ export class AppGizmo {
           : ""
       }`,
     );
+    // the page axis, and only the two nearest elements it lined up with
+    const near = (m: AlignCandidate) => Math.hypot(m.x - g.cx, m.y - g.cy);
+    const shown = [
+      ...matches.filter((m) => near(m) < 1e-6),
+      ...matches
+        .filter((m) => near(m) >= 1e-6)
+        .sort((a, b) => near(a) - near(b))
+        .slice(0, 2),
+    ];
     this.setGizmo({
-      align: matches.map((m) => ({ x: m.x, y: m.y, angle: m.angle })),
+      align: shown.map((m) => ({
+        x: m.x,
+        y: m.y,
+        angle: m.angle,
+        tx: g.cx,
+        ty: g.cy,
+      })),
     });
   };
 

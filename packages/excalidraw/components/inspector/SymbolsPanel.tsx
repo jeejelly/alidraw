@@ -13,18 +13,26 @@ import { ICON_CATEGORIES, ICONS } from "../../symbols/icons";
 import { SymbolPreview } from "../../symbols/SymbolPreview";
 import {
   ALL_THEMES,
+  colorScheme,
   TOKENS,
   MAX_RADIUS,
   type SymbolTheme,
 } from "../../symbols/theme";
 import { setSymbolTheme, useSymbolTheme } from "../../symbols/themeStore";
 
+import { getSymbolMeta } from "../../symbols/build";
 import {
   getLayout,
   getSelectedSymbol,
   type LayoutH,
   type LayoutV,
 } from "../../symbols/stretch";
+
+import {
+  actionChangeBackgroundColor,
+  actionChangeStrokeColor,
+} from "../../actions";
+import { addSwatches } from "../../palette";
 
 import { Section } from "./primitives";
 
@@ -167,40 +175,104 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
   </div>
 );
 
-const H_CHOICES: [LayoutH, string][] = [
-  ["auto", "Auto"],
-  ["left", "Left"],
-  ["center", "Center"],
-  ["right", "Right"],
-  ["scale", "Scale"],
+type LayoutKind = "auto" | "start" | "center" | "end" | "scale";
+
+/** a 16px icon: where the content sits when the component is stretched along an axis */
+const LayoutIcon = ({
+  kind,
+  vertical,
+}: {
+  kind: LayoutKind;
+  vertical?: boolean;
+}) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    transform={vertical ? "rotate(90)" : undefined}
+  >
+    {kind === "auto" && (
+      <>
+        <path d="M3 13L8 3L13 13" />
+        <path d="M5 9.5H11" />
+      </>
+    )}
+    {kind === "start" && (
+      <>
+        <path d="M2.5 2V14" />
+        <rect x="5.5" y="5" width="7" height="6" rx="1" />
+      </>
+    )}
+    {kind === "center" && (
+      <>
+        <path d="M8 2V14" strokeDasharray="1.5 2" />
+        <rect x="4.5" y="5" width="7" height="6" rx="1" />
+      </>
+    )}
+    {kind === "end" && (
+      <>
+        <path d="M13.5 2V14" />
+        <rect x="3.5" y="5" width="7" height="6" rx="1" />
+      </>
+    )}
+    {kind === "scale" && (
+      <>
+        <path d="M2.5 2V14M13.5 2V14" />
+        <path d="M5 8H11M5 8L7 6M5 8L7 10M11 8L9 6M11 8L9 10" />
+      </>
+    )}
+  </svg>
+);
+
+const H_CHOICES: [LayoutH, LayoutKind, string][] = [
+  [
+    "auto",
+    "auto",
+    "Automatic: what spans grows, the rest goes to the nearest end",
+  ],
+  ["left", "start", "Everything that does not span stays at the left"],
+  ["center", "center", "Everything that does not span stays centred"],
+  ["right", "end", "Everything that does not span stays at the right"],
+  ["scale", "scale", "Everything scales in proportion"],
 ];
-const V_CHOICES: [LayoutV, string][] = [
-  ["auto", "Auto"],
-  ["top", "Top"],
-  ["middle", "Middle"],
-  ["bottom", "Bottom"],
-  ["scale", "Scale"],
+const V_CHOICES: [LayoutV, LayoutKind, string][] = [
+  [
+    "auto",
+    "auto",
+    "Automatic: what spans grows, the rest goes to the nearest end",
+  ],
+  ["top", "start", "Everything that does not span stays at the top"],
+  ["middle", "center", "Everything that does not span stays in the middle"],
+  ["bottom", "end", "Everything that does not span stays at the bottom"],
+  ["scale", "scale", "Everything scales in proportion"],
 ];
 
 /** how the selected component re-lays out when it is stretched with Ctrl + drag */
 export const SymbolLayoutSection = ({ app }: { app: App }) => {
-  const symbol = getSelectedSymbol(
-    app.scene.getSelectedElements(app.state),
-    app.scene.getNonDeletedElements(),
-  );
-  if (!symbol) {
+  const selected = app.scene.getSelectedElements(app.state);
+  const symbol = getSelectedSymbol(selected, app.scene.getNonDeletedElements());
+  // one part of a component, picked inside its group
+  const part =
+    !symbol && selected.length === 1 && getSymbolMeta(selected[0])
+      ? selected[0]
+      : null;
+  if (!symbol && !part) {
     return null;
   }
-  const layout = getLayout(symbol.members);
-  const set = (patch: Partial<{ h: LayoutH; v: LayoutV }>) => {
-    const next = { ...layout, ...patch };
-    for (const el of symbol.members) {
+  const mutateMeta = (els: readonly any[], patch: Record<string, any>) => {
+    for (const el of els) {
       app.scene.mutateElement(
-        el as any,
+        el,
         {
           customData: {
             ...el.customData,
-            symbol: { ...el.customData?.symbol, layout: next },
+            symbol: { ...el.customData?.symbol, ...patch },
           },
         },
         { informMutation: false, isDragging: false },
@@ -209,31 +281,121 @@ export const SymbolLayoutSection = ({ app }: { app: App }) => {
     app.scene.triggerUpdate();
     app.store.scheduleCapture();
   };
-  const row = (label: string, key: "h" | "v", choices: [string, string][]) => (
+  if (part) {
+    const meta = getSymbolMeta(part)!;
+    return (
+      <Section title="Layout" testId="symbols-layout">
+        <label className="symbols__param">
+          <span>Cover</span>
+          <input
+            type="checkbox"
+            data-testid="symbols-cover"
+            checked={!!meta.cover}
+            onChange={(e) => mutateMeta([part], { cover: e.target.checked })}
+          />
+        </label>
+        <p className="symbols__note">
+          Locked to the clipping zone: this part always covers the whole
+          component, however it is stretched.
+        </p>
+      </Section>
+    );
+  }
+  const layout = getLayout(symbol!.members);
+  const set = (patch: Partial<{ h: LayoutH; v: LayoutV }>) =>
+    mutateMeta(symbol!.members, { layout: { ...layout, ...patch } });
+  const row = (
+    label: string,
+    key: "h" | "v",
+    choices: [string, LayoutKind, string][],
+  ) => (
     <div className="symbols__layout">
       <span>{label}</span>
-      {choices.map(([v, name]) => (
+      {choices.map(([v, kind, title]) => (
         <button
           key={v}
           type="button"
+          title={title}
+          aria-label={title}
           data-testid={`symbols-layout-${key}-${v}`}
           aria-pressed={layout[key] === v}
           onClick={() => set({ [key]: v } as any)}
         >
-          {name}
+          <LayoutIcon kind={kind} vertical={key === "v"} />
         </button>
       ))}
     </div>
   );
   return (
     <Section title="Layout" testId="symbols-layout">
-      {row("Across", "h", H_CHOICES)}
-      {row("Down", "v", V_CHOICES)}
+      {row("↔", "h", H_CHOICES)}
+      {row("↕", "v", V_CHOICES)}
       <p className="symbols__note">
-        Ctrl + drag a handle stretches it: what spans grows, the rest keeps its
-        place. The frame flashes when it lines up with another component.
+        Ctrl + drag an edge to stretch. The frame flashes when it lines up with
+        another component.
       </p>
     </Section>
+  );
+};
+
+/** the colours a theme is made of, as a list to pick from and keep in the swatches */
+const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
+  const [target, setTarget] = useState<"fill" | "stroke">("fill");
+  const [kept, setKept] = useState<string | null>(null);
+  const colors = colorScheme(theme);
+  const apply = (color: string) =>
+    app.actionManager.executeAction(
+      target === "fill" ? actionChangeBackgroundColor : actionChangeStrokeColor,
+      "ui",
+      {
+        currentItemBackgroundColor: color,
+        currentItemStrokeColor: color,
+        color,
+      } as any,
+    );
+  return (
+    <div className="symbols__scheme" data-testid="symbols-scheme">
+      <div className="symbols__row">
+        {(["fill", "stroke"] as const).map((k) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={target === k}
+            onClick={() => setTarget(k)}
+          >
+            {k === "fill" ? "Fill" : "Stroke"}
+          </button>
+        ))}
+        <button
+          type="button"
+          data-testid="symbols-scheme-keep"
+          onClick={() => {
+            const n = addSwatches(
+              colors.map((c) => ({
+                name: `${theme.name} ${c.name}`,
+                color: c.color,
+              })),
+            );
+            setKept(`${n} colours added to the swatches.`);
+          }}
+        >
+          Keep in swatches
+        </button>
+      </div>
+      <div className="symbols__chips">
+        {colors.map((c) => (
+          <button
+            key={c.name}
+            type="button"
+            title={`${c.name} ${c.color}`}
+            data-testid="symbols-scheme-color"
+            style={{ background: c.color }}
+            onClick={() => apply(c.color)}
+          />
+        ))}
+      </div>
+      {kept && <p className="symbols__note">{kept}</p>}
+    </div>
   );
 };
 
@@ -360,6 +522,7 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
       <SymbolLayoutSection app={app} />
       <Section title="Theme" testId="symbols-theme-section">
         <ThemeEditor theme={theme} />
+        <ReferenceColors app={app} theme={theme} />
         <div className="symbols__row">
           <button
             type="button"
@@ -452,6 +615,23 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
                 onClick={() => insertComponent(pickedDef)}
               >
                 Insert on canvas
+              </button>
+              <button
+                type="button"
+                className="symbols__replace"
+                data-testid="symbols-replace"
+                disabled={app.symbols.replaceable().length === 0}
+                title="Each selected shape becomes this component, keeping its text as the label and its links"
+                onClick={() => {
+                  const n = app.symbols.replace(
+                    pickedDef.id,
+                    values[pickedDef.id] ?? {},
+                    theme,
+                  );
+                  setNote(`${n} shape${n === 1 ? "" : "s"} replaced.`);
+                }}
+              >
+                Replace selected shapes
               </button>
             </div>
           )}

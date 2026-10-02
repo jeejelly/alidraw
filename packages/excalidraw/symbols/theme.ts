@@ -193,3 +193,39 @@ export const radiusOf = (theme: SymbolTheme, kind: "ctl" | "card", h = 40) => {
     ? 20
     : Math.min(theme.radius * 1.5, 28);
 };
+
+const mix = (a: string, b: string, t: number) => {
+  const pa = /^#?([0-9a-f]{6})$/i.exec(a)?.[1];
+  const pb = /^#?([0-9a-f]{6})$/i.exec(b)?.[1];
+  if (!pa || !pb) {
+    return a;
+  }
+  const ch = (h: string, i: number) => parseInt(h.slice(i, i + 2), 16);
+  const out = [0, 2, 4].map((i) =>
+    Math.round(ch(pa, i) * (1 - t) + ch(pb, i) * t)
+      .toString(16)
+      .padStart(2, "0"),
+  );
+  return `#${out.join("")}`;
+};
+
+/**
+ * The reference colours of a theme: its tokens, then a ramp of the accent from
+ * light to dark, so a design keeps to a short list of colours.
+ */
+export const colorScheme = (theme: SymbolTheme) => {
+  const a = theme.colors.accent;
+  const ramp = [0.85, 0.7, 0.5, 0.3, 0.15].map((t, k) => ({
+    name: `accent ${100 + k * 100}`,
+    color: mix(a, "#ffffff", t),
+  }));
+  const shades = [0.2, 0.4, 0.6].map((t, k) => ({
+    name: `accent ${600 + k * 100}`,
+    color: mix(a, "#000000", t),
+  }));
+  return [
+    ...TOKENS.map((tk) => ({ name: tk, color: theme.colors[tk] })),
+    ...ramp,
+    ...shades,
+  ];
+};

@@ -2045,7 +2045,193 @@ const offset = (shapes: Shape[], dx: number, dy: number): Shape[] =>
       : ({ ...s, x: (s as any).x + dx, y: (s as any).y + dy } as Shape),
   );
 
+const gridColumns = p(
+  "grid-columns",
+  "Column grid",
+  "Grids",
+  [
+    num("columns", "Columns", 12, 1, 24),
+    num("gutter", "Gutter", 16, 0, 64),
+    num("margin", "Margin", 24, 0, 200),
+    num("width", "Width", 720, 120, 2000),
+    num("height", "Height", 400, 40, 2000),
+    pick("look", "Look", "outline", ["outline", "tinted"]),
+  ],
+  (_t, v) => {
+    const inner = v.width - v.margin * 2 - v.gutter * (v.columns - 1);
+    const cw = Math.max(1, inner / v.columns);
+    const out: Shape[] = [
+      R(0, 0, v.width, v.height, { r: 0, f: null, s: "border", dash: true }),
+    ];
+    for (let k = 0; k < v.columns; k++) {
+      out.push(
+        R(v.margin + k * (cw + v.gutter), 0, cw, v.height, {
+          r: 0,
+          f: v.look === "tinted" ? "surfaceAlt" : null,
+          s: "accent",
+          sw: 1,
+          dash: true,
+        }),
+      );
+    }
+    return out;
+  },
+  "layout columns responsive",
+);
+
+const gridBaseline = p(
+  "grid-baseline",
+  "Baseline grid",
+  "Grids",
+  [
+    num("step", "Step", 8, 2, 100),
+    num("width", "Width", 360, 40, 2000),
+    num("height", "Height", 240, 40, 2000),
+    num("every", "Stronger every", 4, 0, 20),
+  ],
+  (_t, v) => {
+    const out: Shape[] = [
+      R(0, 0, v.width, v.height, { r: 0, f: null, s: "border", dash: true }),
+    ];
+    for (let y = v.step, k = 1; y < v.height; y += v.step, k++) {
+      out.push(
+        L(
+          [
+            [0, y],
+            [v.width, y],
+          ],
+          { s: v.every && k % v.every === 0 ? "accent" : "border", sw: 1 },
+        ),
+      );
+    }
+    return out;
+  },
+  "rows spacing 8pt",
+);
+
+const gridSquare = p(
+  "grid-square",
+  "Square grid",
+  "Grids",
+  [
+    num("step", "Cell", 20, 4, 200),
+    num("width", "Width", 360, 40, 2000),
+    num("height", "Height", 240, 40, 2000),
+  ],
+  (_t, v) => {
+    const out: Shape[] = [
+      R(0, 0, v.width, v.height, { r: 0, f: null, s: "border", dash: true }),
+    ];
+    for (let x = v.step; x < v.width; x += v.step) {
+      out.push(
+        L(
+          [
+            [x, 0],
+            [x, v.height],
+          ],
+          { s: "border", sw: 1 },
+        ),
+      );
+    }
+    for (let y = v.step; y < v.height; y += v.step) {
+      out.push(
+        L(
+          [
+            [0, y],
+            [v.width, y],
+          ],
+          { s: "border", sw: 1 },
+        ),
+      );
+    }
+    return out;
+  },
+  "cells checker",
+);
+
+const gridSafe = p(
+  "grid-safe-area",
+  "Safe areas",
+  "Grids",
+  [
+    num("width", "Width", 360, 200, 1000),
+    num("height", "Height", 720, 300, 2000),
+    num("top", "Top inset", 44, 0, 200),
+    num("bottom", "Bottom inset", 34, 0, 200),
+    num("side", "Side margin", 16, 0, 100),
+  ],
+  (_t, v) => [
+    R(0, 0, v.width, v.height, { r: 0, f: null, s: "border", dash: true }),
+    R(0, 0, v.width, v.top, { r: 0, f: "surfaceAlt", s: null }),
+    R(0, v.height - v.bottom, v.width, v.bottom, {
+      r: 0,
+      f: "surfaceAlt",
+      s: null,
+    }),
+    R(v.side, v.top, v.width - v.side * 2, v.height - v.top - v.bottom, {
+      r: 0,
+      f: null,
+      s: "accent",
+      dash: true,
+    }),
+    T("status bar", v.width / 2, v.top / 2, 11, "muted", "middle"),
+    T(
+      "home indicator",
+      v.width / 2,
+      v.height - v.bottom / 2,
+      11,
+      "muted",
+      "middle",
+    ),
+  ],
+  "phone device inset margins",
+);
+
+const gridThirds = p(
+  "grid-thirds",
+  "Thirds and golden ratio",
+  "Grids",
+  [
+    pick("kind", "Kind", "thirds", ["thirds", "golden", "halves"]),
+    num("width", "Width", 480, 60, 2000),
+    num("height", "Height", 300, 60, 2000),
+  ],
+  (_t, v) => {
+    const f = v.kind === "golden" ? 0.382 : v.kind === "halves" ? 0.5 : 1 / 3;
+    const xs =
+      v.kind === "golden" ? [f, 1 - f] : v.kind === "halves" ? [f] : [f, 1 - f];
+    const out: Shape[] = [
+      R(0, 0, v.width, v.height, { r: 0, f: null, s: "border", dash: true }),
+    ];
+    for (const k of xs) {
+      out.push(
+        L(
+          [
+            [v.width * k, 0],
+            [v.width * k, v.height],
+          ],
+          { s: "accent", sw: 1 },
+        ),
+        L(
+          [
+            [0, v.height * k],
+            [v.width, v.height * k],
+          ],
+          { s: "accent", sw: 1 },
+        ),
+      );
+    }
+    return out;
+  },
+  "composition proportion",
+);
+
 export const PARAMETRIC: readonly ComponentDef[] = [
+  gridColumns,
+  gridBaseline,
+  gridSquare,
+  gridSafe,
+  gridThirds,
   scaffold,
   fab,
   segmentedButtons,

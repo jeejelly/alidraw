@@ -1573,20 +1573,37 @@ const renderGizmo = (
 
   // axes of other elements this rotation is locked onto
   for (const line of appState.gizmo?.align ?? []) {
-    const len = 4000 / z;
+    // a short guide from the turning selection to what it lined up with,
+    // not a line across the whole canvas
+    const dx = line.x - line.tx;
+    const dy = line.y - line.ty;
+    const dist = Math.hypot(dx, dy);
+    const reach = Math.max(hw, hh) + (GIZMO_OUTER * 2) / z;
+    const ux = Math.cos(line.angle);
+    const uy = Math.sin(line.angle);
+    const pad = 40 / z;
+    const [ax, ay, bx, by] =
+      dist < 1e-6
+        ? [
+            line.tx - ux * reach,
+            line.ty - uy * reach,
+            line.tx + ux * reach,
+            line.ty + uy * reach,
+          ]
+        : [
+            line.tx - (dx / dist) * pad,
+            line.ty - (dy / dist) * pad,
+            line.x + (dx / dist) * pad,
+            line.y + (dy / dist) * pad,
+          ];
     context.save();
     context.strokeStyle = getThemedColor("#e0449b", appState.theme);
     context.lineWidth = 1 / z;
+    context.setLineDash([5 / z, 4 / z]);
     context.globalAlpha = 0.9;
     context.beginPath();
-    context.moveTo(
-      line.x - Math.cos(line.angle) * len,
-      line.y - Math.sin(line.angle) * len,
-    );
-    context.lineTo(
-      line.x + Math.cos(line.angle) * len,
-      line.y + Math.sin(line.angle) * len,
-    );
+    context.moveTo(ax, ay);
+    context.lineTo(bx, by);
     context.stroke();
     context.restore();
   }

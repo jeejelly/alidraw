@@ -17,6 +17,8 @@ export type PaletteState = Readonly<{
   layersPosition: { x: number; y: number };
   /** width of the panel in px (docked or floating as a column) */
   width: number;
+  /** height of the panel in px, or null to fit the content */
+  height: number | null;
   /** tools the user took off the Tools section (ids, see ToolsSection) */
   hiddenTools: readonly string[];
 }>;
@@ -31,6 +33,7 @@ export const DEFAULT_PALETTE_STATE: PaletteState = {
   layersDetached: false,
   layersPosition: { x: 120, y: 160 },
   width: 264,
+  height: null,
   hiddenTools: [],
 };
 
@@ -107,6 +110,12 @@ export const sanitizePaletteState = (raw: unknown): PaletteState => {
       value.width >= 240
         ? Math.min(720, Math.round(value.width))
         : DEFAULT_PALETTE_STATE.width,
+    height:
+      typeof value.height === "number" &&
+      Number.isFinite(value.height) &&
+      value.height >= 160
+        ? Math.min(4000, Math.round(value.height))
+        : null,
     hiddenTools: Array.isArray(value.hiddenTools)
       ? [
           ...new Set(
@@ -210,6 +219,18 @@ export const setPaletteWidth = (width: number) =>
       PALETTE_MAX_WIDTH,
       Math.max(PALETTE_MIN_WIDTH, Math.round(width)),
     ),
+  });
+
+export const PALETTE_MIN_HEIGHT = 160;
+
+/** the panel's height; null goes back to fitting its content */
+export const setPaletteHeight = (height: number | null) =>
+  commit({
+    ...getPaletteState(),
+    height:
+      height === null
+        ? null
+        : Math.min(4000, Math.max(PALETTE_MIN_HEIGHT, Math.round(height))),
   });
 
 export const setLayersPosition = (layersPosition: { x: number; y: number }) =>

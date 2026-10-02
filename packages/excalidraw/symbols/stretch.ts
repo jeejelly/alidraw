@@ -15,7 +15,7 @@ import { getSymbolMeta } from "./build";
  */
 export type PinX = "l" | "r" | "c" | "s" | "p";
 export type PinY = "t" | "b" | "m" | "s" | "p";
-export type Pin = { x: PinX; y: PinY };
+export type Pin = { x: PinX; y: PinY; cover?: boolean };
 
 export type LayoutH = "auto" | "left" | "center" | "right" | "scale";
 export type LayoutV = "auto" | "top" | "middle" | "bottom" | "scale";
@@ -126,7 +126,10 @@ export const inferPins = (
     if (layout.v === "scale") {
       y = "p";
     }
-    out.set(el.id, { x, y });
+    out.set(
+      el.id,
+      getSymbolMeta(el)?.cover ? { x: "s", y: "s", cover: true } : { x, y },
+    );
   }
   return out;
 };
@@ -161,6 +164,75 @@ const along = (
 
 export type Update = Record<string, any>;
 
+/** moves and sizes one element to a box; parts that do not span keep their shape */
+const boxUpdate = (
+  el: ExcalidrawElement,
+  pin: Pin,
+  nx: number,
+  ny: number,
+  nw: number,
+  nh: number,
+): Update => {
+  const resizable = el.angle === 0;
+  if (el.type === "text" || !resizable) {
+    return { x: nx, y: ny };
+  }
+  if (el.type === "path") {
+    const kx = el.width ? nw / el.width : 1;
+    const ky = el.height ? nh / el.height : 1;
+    if (kx === 1 && ky === 1) {
+      return { x: nx, y: ny };
+    }
+    const sc = (p: LocalPoint) => pointFrom<LocalPoint>(p[0] * kx, p[1] * ky);
+    const sh = (h: ExcalidrawPathElement["handles"][number]) => ({
+      ...h,
+      in: h.in && sc(h.in),
+      out: h.out && sc(h.out),
+    });
+    const geo = getPathUpdate(el, {
+      points: el.points.map(sc),
+      handles: el.handles.map(sh),
+      ...(el.contours
+        ? {
+            contours: el.contours.map((c) => ({
+              points: c.points.map(sc),
+              handles: c.handles.map(sh),
+            })),
+          }
+        : {}),
+    });
+    return { ...geo, x: nx + (geo.x - el.x), y: ny + (geo.y - el.y) };
+  }
+  if (el.type === "line" || el.type === "arrow") {
+    const kx = el.width ? nw / el.width : 1;
+    const ky = el.height ? nh / el.height : 1;
+    return {
+      x: nx,
+      y: ny,
+      width: nw,
+      height: nh,
+      points: (el as any).points.map(([px, py]: LocalPoint) =>
+        pointFrom<LocalPoint>(px * kx, py * ky),
+      ),
+    };
+  }
+  if (
+    el.type === "rectangle" ||
+    el.type === "diamond" ||
+    el.type === "ellipse"
+  ) {
+    // circles and dots keep their shape: only things that span grow
+    const grows =
+      pin.cover ||
+      pin.x === "s" ||
+      pin.y === "s" ||
+      pin.x === "p" ||
+      pin.y === "p";
+    return grows ? { x: nx, y: ny, width: nw, height: nh } : { x: nx, y: ny };
+  }
+  return { x: nx, y: ny };
+};
+
 /** the changes that take the component from one frame to another */
 export const stretchUpdates = (
   members: readonly ExcalidrawElement[],
@@ -171,6 +243,13 @@ export const stretchUpdates = (
   const out = new Map<string, Update>();
   for (const el of members) {
     const pin = pins.get(el.id) ?? { x: "l" as PinX, y: "t" as PinY };
+    if (pin.cover && el.angle === 0 && el.type !== "text") {
+      // locked to the clipping zone: always the whole frame
+      const w = to.x1 - to.x0;
+      const hh = to.y1 - to.y0;
+      out.set(el.id, boxUpdate(el, pin, to.x0, to.y0, w, hh));
+      continue;
+    }
     const [nx, nw] = along(
       pin.x,
       el.x,
@@ -185,67 +264,7 @@ export const stretchUpdates = (
       [from.y0, from.y1],
       [to.y0, to.y1],
     );
-    const resizable = el.angle === 0;
-    if (el.type === "text" || !resizable) {
-      out.set(el.id, { x: nx, y: ny });
-    } else if (el.type === "path") {
-      const kx = el.width ? nw / el.width : 1;
-      const ky = el.height ? nh / el.height : 1;
-      if (kx === 1 && ky === 1) {
-        out.set(el.id, { x: nx, y: ny });
-      } else {
-        const sc = (p: LocalPoint) =>
-          pointFrom<LocalPoint>(p[0] * kx, p[1] * ky);
-        const sh = (h: ExcalidrawPathElement["handles"][number]) => ({
-          ...h,
-          in: h.in && sc(h.in),
-          out: h.out && sc(h.out),
-        });
-        const geo = getPathUpdate(el, {
-          points: el.points.map(sc),
-          handles: el.handles.map(sh),
-          ...(el.contours
-            ? {
-                contours: el.contours.map((c) => ({
-                  points: c.points.map(sc),
-                  handles: c.handles.map(sh),
-                })),
-              }
-            : {}),
-        });
-        out.set(el.id, {
-          ...geo,
-          x: nx + (geo.x - el.x),
-          y: ny + (geo.y - el.y),
-        });
-      }
-    } else if (el.type === "line" || el.type === "arrow") {
-      const kx = el.width ? nw / el.width : 1;
-      const ky = el.height ? nh / el.height : 1;
-      out.set(el.id, {
-        x: nx,
-        y: ny,
-        width: nw,
-        height: nh,
-        points: (el as any).points.map(([px, py]: LocalPoint) =>
-          pointFrom<LocalPoint>(px * kx, py * ky),
-        ),
-      });
-    } else if (
-      el.type === "rectangle" ||
-      el.type === "diamond" ||
-      el.type === "ellipse"
-    ) {
-      // circles and dots keep their shape: only things that span grow
-      const grows =
-        pin.x === "s" || pin.y === "s" || pin.x === "p" || pin.y === "p";
-      out.set(
-        el.id,
-        grows ? { x: nx, y: ny, width: nw, height: nh } : { x: nx, y: ny },
-      );
-    } else {
-      out.set(el.id, { x: nx, y: ny });
-    }
+    out.set(el.id, boxUpdate(el, pin, nx, ny, nw, nh));
   }
   return out;
 };

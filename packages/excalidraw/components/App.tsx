@@ -427,6 +427,8 @@ import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
 import { AppStretch } from "./App.stretch";
+import { AppSymbols } from "./App.symbols";
+import { getSymbolTheme } from "../symbols/themeStore";
 import { StretchOverlay } from "./StretchOverlay";
 import { AppAnchors } from "./App.anchors";
 import { AppLayers } from "./App.layers";
@@ -756,6 +758,8 @@ class App extends React.Component<AppProps, AppState> {
   guides = new AppGuides(this);
   gizmo = new AppGizmo(this);
   stretch = new AppStretch(this);
+  symbols = new AppSymbols(this);
+  symbolTheme = () => getSymbolTheme();
   anchors = new AppAnchors(this);
   layers = new AppLayers(this);
   corners = new AppCorners(this);
@@ -3877,6 +3881,7 @@ class App extends React.Component<AppProps, AppState> {
     }
 
     this.scene.onUpdate(this.triggerRender);
+    this.symbols.start();
     this.scene.onUpdate(this.anchors.refresh);
     this.scene.onUpdate(this.layers.refresh);
     this.addEventListeners();
@@ -3972,6 +3977,7 @@ class App extends React.Component<AppProps, AppState> {
     this.guides.destroy();
     this.gizmo.destroy();
     this.stretch.destroy();
+    this.symbols.destroy();
     this.corners.destroy();
     this.anchors.destroy();
     this.knife.destroy();

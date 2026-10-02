@@ -642,7 +642,7 @@ export const CornersSection = ({ app }: { app: App }) => {
   const radiusTargets = selected.filter(
     (el) => el.type === "rectangle" || el.type === "diamond",
   );
-  const radiusOf = (el: (typeof radiusTargets)[number]) =>
+  const radiusOf = (el: typeof radiusTargets[number]) =>
     Math.round(getCornerRadius(Math.min(el.width, el.height), el));
   const radii = new Set(radiusTargets.map(radiusOf));
   const sharedRadius = radii.size === 1 ? [...radii][0] : null;
@@ -1071,7 +1071,7 @@ export const ImageStorageSection = ({ app }: { app: App }) => {
   if (!images.length) {
     return null;
   }
-  const valueOf = (el: (typeof images)[number]) =>
+  const valueOf = (el: typeof images[number]) =>
     (el.customData?.imageStorage as string | undefined) ?? "default";
   const values = new Set(images.map(valueOf));
   const current = values.size === 1 ? [...values][0] : null;

@@ -191,6 +191,8 @@
       "tab_layers": "Layers",
       "tab_flow": "Flow",
       "tab_symbols": "Symbols",
+      "resizeHeight": "Drag to change the height; double-click to fit the content",
+      "modes": "Modes",
       "collapse": "Collapse the palette",
       "expand": "Expand the palette",
       "resize": "Drag to resize, double click to reset",

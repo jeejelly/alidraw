@@ -75,6 +75,8 @@ export const importFromLocalStorage = () => {
   appState = {
     ...(appState ?? getDefaultAppState()),
     paletteOpen: appState?.paletteOpen ?? true,
+    // rulers and guides are part of designing: on from the first launch
+    rulersEnabled: appState?.rulersEnabled ?? true,
   };
   return { elements, appState };
 };

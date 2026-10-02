@@ -31,6 +31,7 @@ import {
   renameSwatch,
   setLayersDetached,
   setLayersPosition,
+  setPaletteHeight,
   setPaletteWidth,
   DEFAULT_PALETTE_STATE,
   setPaletteLayout,
@@ -41,6 +42,7 @@ import {
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";
 import { FlowPanel } from "./inspector/FlowPanel";
+import { ModesSection } from "./inspector/ModesSection";
 import { SymbolLayoutSection, SymbolsPanel } from "./inspector/SymbolsPanel";
 import { LayersTree } from "./inspector/LayersTree";
 import MultiAngle from "./Stats/MultiAngle";
@@ -869,6 +871,9 @@ export const PalettePanel = ({ app }: { app: App }) => {
         style={{
           ...(docked ? {} : { left: pos.x, top: pos.y }),
           ...(layout === "horizontal" ? {} : { width: palette.width }),
+          ...(palette.height && !collapsed
+            ? { height: palette.height, maxHeight: "none" }
+            : {}),
         }}
         onKeyDown={(e) => e.stopPropagation()}
       >
@@ -978,6 +983,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
           <div className="inspector__body">
             {/* the tools stay in reach whichever tab is open */}
             <ToolsSection app={app} />
+            <ModesSection app={app} />
             {tab === "flow" ? (
               <FlowPanel app={app} />
             ) : tab === "symbols" ? (
@@ -1004,6 +1010,29 @@ export const PalettePanel = ({ app }: { app: App }) => {
               layersBody
             )}
           </div>
+        )}
+        {!collapsed && (
+          <div
+            className="inspector__grip inspector__grip--bottom"
+            data-testid="palette-resize-height"
+            title={t("labels.palette.resizeHeight")}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const startY = e.clientY;
+              const startHeight =
+                rootRef.current?.getBoundingClientRect().height ?? 400;
+              const move = (ev: PointerEvent) =>
+                setPaletteHeight(startHeight + (ev.clientY - startY));
+              const up = () => {
+                window.removeEventListener("pointermove", move);
+                window.removeEventListener("pointerup", up);
+              };
+              window.addEventListener("pointermove", move);
+              window.addEventListener("pointerup", up);
+            }}
+            onDoubleClick={() => setPaletteHeight(null)}
+          />
         )}
       </div>
     </>

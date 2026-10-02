@@ -37,6 +37,14 @@ export type SymbolMeta = {
   r?: any;
   /** how the component re-lays out when it is stretched */
   layout?: { h: string; v: string };
+  /** always covers the whole component, whatever its size */
+  cover?: boolean;
+  /** the component this part belongs to, and its settings */
+  component?: string;
+  values?: Record<string, any>;
+  /** a shape of a diagram a symbol stands in for; `label` is its text as last drawn */
+  anchor?: boolean;
+  label?: string;
   group: string;
 };
 
@@ -302,4 +310,15 @@ export const themeUpdates = (
     result.push({ element: el, updates });
   }
   return result;
+};
+
+/** which text parameter of a component is its label */
+export const labelKeyOf = (id: string): string | null => {
+  const def = COMPONENTS.find((c) => c.id === id);
+  const keys = ["label", "title", "text", "message", "value", "placeholder"];
+  return (
+    keys.find((k) =>
+      def?.params?.some((p) => p.key === k && p.kind === "text"),
+    ) ?? null
+  );
 };

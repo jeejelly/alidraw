@@ -7,7 +7,8 @@ import { buildElements, boundsOf, themeUpdates } from "../symbols/build";
 import { COMPONENTS, defaultsOf } from "../symbols/components";
 import { ICONS } from "../symbols/icons";
 import { parsePath, circle } from "../symbols/svgPath";
-import { ALL_THEMES, THEMES } from "../symbols/theme";
+import { ALL_THEMES, colorScheme, THEMES } from "../symbols/theme";
+import { getPaletteState, setPaletteHeight } from "../palette";
 import { setSymbolTheme } from "../symbols/themeStore";
 
 import { act, fireEvent, render, screen, unmountComponent } from "./test-utils";
@@ -304,5 +305,74 @@ describe("the palette stays, and the theme is live", () => {
     expect(
       (screen.getByTestId("symbols-stroke") as HTMLInputElement).value,
     ).toBe("12");
+  });
+});
+
+describe("modes, height, reference colours, grids", () => {
+  it("has the switches of the preferences as icons, and they work", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    for (const id of [
+      "snap-objects",
+      "snap-guides",
+      "rulers",
+      "grid",
+      "arrow-binding",
+      "midpoints",
+      "zen",
+    ]) {
+      expect(screen.getByTestId(`mode-${id}`)).toBeTruthy();
+    }
+    const before = h.state.gridModeEnabled;
+    fireEvent.click(screen.getByTestId("mode-grid"));
+    expect(h.state.gridModeEnabled).toBe(!before);
+    expect(screen.getByTestId("mode-grid").getAttribute("aria-pressed")).toBe(
+      String(!before),
+    );
+    fireEvent.click(screen.getByTestId("mode-rulers"));
+    expect(h.state.rulersEnabled).toBe(true);
+  });
+
+  it("stretches down as well as sideways", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    expect(screen.getByTestId("palette-resize-height")).toBeTruthy();
+    act(() => setPaletteHeight(500));
+    expect(screen.getByTestId("palette-panel").style.height).toBe("500px");
+    act(() => setPaletteHeight(null));
+    expect(screen.getByTestId("palette-panel").style.height).toBe("");
+  });
+
+  it("lists the colours of a theme and keeps them in the swatches", async () => {
+    await render(<Excalidraw />);
+    act(() => h.setState({ paletteOpen: true } as any));
+    fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
+    expect(colorScheme(THEMES[2]).length).toBeGreaterThan(15);
+    expect(
+      screen.getAllByTestId("symbols-scheme-color").length,
+    ).toBeGreaterThan(15);
+    fireEvent.click(screen.getByTestId("symbols-scheme-keep"));
+    expect(getPaletteState().swatches.length).toBeGreaterThan(10);
+  });
+
+  it("ships layout grids", () => {
+    const grids = COMPONENTS.filter((c) => c.category === "Grids").map(
+      (c) => c.id,
+    );
+    expect(grids).toEqual(
+      expect.arrayContaining([
+        "grid-columns",
+        "grid-baseline",
+        "grid-square",
+        "grid-safe-area",
+        "grid-thirds",
+      ]),
+    );
+    const cols = COMPONENTS.find((c) => c.id === "grid-columns")!;
+    const twelve = cols
+      .shapes(night, defaultsOf(cols))
+      .filter((s) => s.t === "rect");
+    // the frame, plus one band per column
+    expect(twelve).toHaveLength(13);
   });
 });

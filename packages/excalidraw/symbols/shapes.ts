@@ -43,7 +43,8 @@ export type ComponentCategory =
   | "Lists"
   | "Navigation"
   | "Overlays"
-  | "Screens";
+  | "Screens"
+  | "Grids";
 
 export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   "Buttons",
@@ -54,6 +55,7 @@ export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   "Navigation",
   "Overlays",
   "Screens",
+  "Grids",
 ];
 
 export type Param = {

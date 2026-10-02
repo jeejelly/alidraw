@@ -197,3 +197,102 @@ describe("Ctrl + drag on the canvas", () => {
     act(() => undefined);
   });
 });
+
+describe("symbols standing in for shapes", () => {
+  const setup = async () => {
+    await render(<Excalidraw />);
+    const box = API.createElement({
+      type: "rectangle",
+      x: 100,
+      y: 100,
+      width: 220,
+      height: 56,
+      boundElements: null,
+    } as any);
+    const label = API.createElement({
+      type: "text",
+      text: "Add to cart",
+      containerId: box.id,
+      x: 110,
+      y: 110,
+    } as any);
+    API.setElements([
+      { ...box, boundElements: [{ type: "text", id: label.id }] } as any,
+      label,
+    ]);
+    API.setSelectedElements([box] as any);
+    return { box, label };
+  };
+
+  it("replaces a shape with a component that carries its text, and keeps the shape as an anchor", async () => {
+    const { box } = await setup();
+    const n = h.app.symbols.replace("button", { look: "primary" }, night);
+    expect(n).toBe(1);
+    const live = h.elements.filter((e) => !e.isDeleted);
+    const texts = live.filter(
+      (e: any) => e.type === "text" && e.text === "Add to cart",
+    );
+    // the symbol's own label, plus the anchor's hidden one
+    expect(texts.length).toBe(2);
+    const anchor = live.find((e) => e.id === box.id) as any;
+    expect(anchor.strokeColor).toBe("transparent");
+    expect(anchor.customData.symbol.anchor).toBe(true);
+    // the symbol fills the shape's box
+    const pill = live.find((e) => e.type === "path") as any;
+    expect(Math.round(pill.width)).toBe(220);
+    expect(Math.round(pill.height)).toBe(56);
+    expect(new Set(live.map((e) => e.groupIds[0])).size).toBe(1);
+  });
+
+  it("redraws the symbol when the text of the shape changes", async () => {
+    const { box, label } = await setup();
+    h.app.symbols.replace("button", {}, night);
+    act(() => {
+      h.app.scene.mutateElement(
+        h.elements.find((e) => e.id === label.id) as any,
+        { text: "Pay now", originalText: "Pay now" },
+      );
+    });
+    h.app.symbols.sync();
+    const live = h.elements.filter((e) => !e.isDeleted);
+    expect(
+      live.some(
+        (e: any) =>
+          e.type === "text" && e.text === "Pay now" && e.id !== label.id,
+      ),
+    ).toBe(true);
+    expect(
+      live.filter(
+        (e: any) =>
+          e.type === "text" && e.text === "Add to cart" && e.id !== label.id,
+      ),
+    ).toHaveLength(0);
+    expect(live.some((e) => e.id === box.id)).toBe(true);
+  });
+
+  it("locks a background to the clipping zone", () => {
+    const els = make("card").map((e) => e);
+    const inner = els.find((e) => e.type === "rectangle" && e.height === 80)!;
+    const marked = els.map((e) =>
+      e.id === inner.id
+        ? {
+            ...e,
+            customData: {
+              ...e.customData,
+              symbol: { ...e.customData!.symbol, cover: true },
+            },
+          }
+        : e,
+    );
+    const from = frameOf(marked);
+    const pins = inferPins(marked, from, getLayout(marked));
+    const to = { ...from, x1: from.x1 + 120, y1: from.y1 + 60 };
+    const up = stretchUpdates(marked, pins, from, to);
+    expect(up.get(inner.id)).toMatchObject({
+      x: to.x0,
+      y: to.y0,
+      width: to.x1 - to.x0,
+      height: to.y1 - to.y0,
+    });
+  });
+});

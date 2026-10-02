@@ -570,7 +570,14 @@ export interface AppState {
     hover: GizmoZone | null;
     readout: { x: number; y: number; text: string } | null;
     /** axes of other elements the rotation is locked onto, as lines */
-    align: { x: number; y: number; angle: number }[];
+    align: {
+      x: number;
+      y: number;
+      angle: number;
+      /** the turning selection's centre: the line runs between the two */
+      tx: number;
+      ty: number;
+    }[];
   } | null;
   viewModeEnabled: boolean;
 
