@@ -802,10 +802,15 @@
     }
   }
   &__modes {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.25rem;
     button {
-      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.75rem;
       padding: 0.3rem;
       border: 1px solid var(--default-border-color);
       border-radius: 0.4rem;

@@ -848,7 +848,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
       <div className="inspector__row">
         <span className="inspector__label">{t("labels.fontSize")}</span>
         <NumberPill
-          label={t("labels.fontSize")}
+          label="Exact"
           testId="inspector-font-size"
           value={textEl?.fontSize ?? app.state.currentItemFontSize}
           min={1}
@@ -898,7 +898,11 @@ export const PalettePanel = ({ app }: { app: App }) => {
             </button>
           </div>
         )}
-        {predicates.textAlign && actionManager.renderAction("changeTextAlign")}
+        {predicates.textAlign && (
+          <div className="selected-shape-actions">
+            {actionManager.renderAction("changeTextAlign")}
+          </div>
+        )}
       </div>
       {textEl && (
         <button
