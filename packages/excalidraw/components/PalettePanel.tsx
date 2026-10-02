@@ -57,6 +57,7 @@ import MultiPosition from "./Stats/MultiPosition";
 import Position from "./Stats/Position";
 import { getAtomicUnits } from "./Stats/utils";
 import "./inspector/Inspector.scss";
+import { PaletteScroll } from "./inspector/PaletteScroll";
 import {
   AlignSection,
   CornersSection,
@@ -1113,7 +1114,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
         </div>
 
         {!collapsed && (
-          <div className="inspector__body">
+          <PaletteScroll>
             {/* the tools stay in reach whichever tab is open */}
             <ToolsSection app={app} />
             <ModesSection app={app} />
@@ -1147,7 +1148,7 @@ export const PalettePanel = ({ app }: { app: App }) => {
             ) : (
               layersBody
             )}
-          </div>
+          </PaletteScroll>
         )}
         {!collapsed && (
           <div
@@ -1243,7 +1244,7 @@ const DetachedLayers = ({
           ⇤
         </button>
       </div>
-      <div className="inspector__body">{children}</div>
+      <PaletteScroll>{children}</PaletteScroll>
     </div>
   );
 };
