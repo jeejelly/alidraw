@@ -1038,7 +1038,13 @@ const table = p(
         out.push(
           T(
             k === 0
-              ? ["Pancakes", "Apple pie", "Tomato soup", "Rice bowl", "Fruit salad"][r % 5]
+              ? [
+                  "Pancakes",
+                  "Apple pie",
+                  "Tomato soup",
+                  "Rice bowl",
+                  "Fruit salad",
+                ][r % 5]
               : k === 1
               ? "Recipes"
               : `${3 + (r % 4)}:${10 + r * 5}`,
