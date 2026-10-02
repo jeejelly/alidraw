@@ -26,6 +26,17 @@ const { Registry } = require("./src/registry");
 const { Sync } = require("./src/sync");
 const { Workspaces } = require("./src/workspace");
 const { resolveInside } = require("./src/paths");
+const {
+  createLogger,
+  watchProcess,
+  watchWindow,
+} = require("./src/diagnostics");
+
+// every start says what it does, on the console and in <userData>/logs/excalidraw.log
+const log = createLogger(
+  path.join(app.getPath("userData"), "logs", "excalidraw.log"),
+);
+watchProcess(log);
 
 const SCHEME = "app";
 const ORIGIN = `${SCHEME}://excalidraw`;
@@ -152,6 +163,7 @@ const createWindow = () => {
       event.preventDefault();
     }
   });
+  watchWindow(log, window);
   window.loadURL(`${ORIGIN}/`);
   return window;
 };
@@ -598,6 +610,17 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on("second-instance", () => {
     const [window] = BrowserWindow.getAllWindows();
+    if (!window) {
+      // a running instance with no window (an earlier start went wrong): open one
+      log.warn("started again with no window open, opening one");
+      try {
+        createWindow();
+      } catch (error) {
+        log.error(`could not open a window: ${error && error.stack}`);
+        app.quit();
+      }
+      return;
+    }
     if (window) {
       if (window.isMinimized()) {
         window.restore();
@@ -606,10 +629,33 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
   app.whenReady().then(() => {
-    serveWebBuild();
-    refuseNetwork();
-    setupWorkspaces();
-    createWindow();
+    log.info(
+      `starting ${app.getName()} ${app.getVersion()} (electron ${
+        process.versions.electron
+      }), web build ${WEB_ROOT}, log ${log.file}`,
+    );
+    try {
+      if (!fs.existsSync(path.join(WEB_ROOT, "index.html"))) {
+        throw new Error(`no web build at ${WEB_ROOT} (run: yarn build:app)`);
+      }
+      serveWebBuild();
+      refuseNetwork();
+      setupWorkspaces();
+      createWindow();
+      log.info("window opened");
+    } catch (error) {
+      // a start that fails says so, instead of leaving nothing on the screen
+      log.error(
+        `could not start: ${error && error.stack ? error.stack : error}`,
+      );
+      dialog.showErrorBox(
+        "Excalidraw could not start",
+        `${error && error.message ? error.message : error}\n\nDetails: ${
+          log.file
+        }`,
+      );
+      app.quit();
+    }
   });
   app.on("window-all-closed", () => app.quit());
 }
