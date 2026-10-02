@@ -4,6 +4,7 @@ import {
   getBoundTextElement,
   newElementWith,
   newFrameElement,
+  refreshTextDimensions,
 } from "@excalidraw/element";
 
 import type { Scene } from "@excalidraw/element";
@@ -32,7 +33,17 @@ import {
 export type FlowMeta = {
   id: string;
   key: string;
-  kind: "node" | "screen" | "edge";
+  /**
+   * `label` and `handle` are the parts a flow element wears around what it
+   * wraps; `node` with `wrap` is its outline.
+   */
+  kind: "node" | "screen" | "edge" | "label" | "handle";
+  /** a flow element: this outline wraps a group of drawn objects */
+  wrap?: boolean;
+  /** the group that holds the wrapped objects, the outline, label and handle */
+  group?: string;
+  /** a box standing in for what is not drawn yet */
+  placeholder?: boolean;
 };
 
 export const getFlowMeta = (el: {
@@ -63,7 +74,7 @@ export const listFlows = (elements: readonly ExcalidrawElement[]) => {
   return ids;
 };
 
-const textOf = (
+export const textOf = (
   el: ExcalidrawElement,
   map: Map<string, ExcalidrawElement>,
 ): ExcalidrawTextElement | null =>
@@ -92,9 +103,19 @@ type Parts = {
   screens: Map<string, ExcalidrawFrameElement>;
   keyOfId: Map<string, string>;
   arrows: ExcalidrawArrowElement[];
+  /** flow elements that hold other flow elements: screens made of objects */
+  wrapScreens: Map<string, ExcalidrawElement>;
+  /** every outline of a flow element, by key */
+  wraps: Map<string, ExcalidrawElement>;
+  /** the flow element an outline sits in, by key */
+  wrapParent: Map<string, string>;
+  labels: Map<string, ExcalidrawTextElement>;
+  handles: Map<string, ExcalidrawElement>;
+  /** every step, container or not, by key */
+  byKey: Map<string, ExcalidrawElement>;
 };
 
-const partsOf = (
+export const partsOf = (
   elements: readonly ExcalidrawElement[],
   flowId: string,
 ): Parts => {
@@ -103,18 +124,54 @@ const partsOf = (
   const nodes = new Map<string, ExcalidrawElement>();
   const screens = new Map<string, ExcalidrawFrameElement>();
   const keyOfId = new Map<string, string>();
+  const wraps = new Map<string, ExcalidrawElement>();
+  const labels = new Map<string, ExcalidrawTextElement>();
+  const handles = new Map<string, ExcalidrawElement>();
   for (const el of live) {
     const m = getFlowMeta(el);
     if (!m || m.id !== flowId) {
       continue;
     }
-    if (m.kind === "node" && isNodeType(el.type)) {
+    if (m.kind === "label" && el.type === "text") {
+      labels.set(m.key, el as ExcalidrawTextElement);
+    } else if (m.kind === "handle") {
+      handles.set(m.key, el);
+    } else if (m.kind === "node" && isNodeType(el.type)) {
       nodes.set(m.key, el);
       keyOfId.set(el.id, m.key);
+      if (m.wrap) {
+        wraps.set(m.key, el);
+      }
     } else if (m.kind === "screen" && el.type === "frame") {
       screens.set(m.key, el as ExcalidrawFrameElement);
     }
   }
+  // a flow element in another one: the outer is a screen of objects
+  const keyOfGroup = new Map<string, string>();
+  for (const [key, el] of wraps) {
+    const g = getFlowMeta(el)!.group;
+    if (g) {
+      keyOfGroup.set(g, key);
+    }
+  }
+  const wrapParent = new Map<string, string>();
+  for (const [key, el] of wraps) {
+    const own = getFlowMeta(el)!.group;
+    const from = own ? el.groupIds.indexOf(own) + 1 : el.groupIds.length;
+    for (const g of el.groupIds.slice(from)) {
+      const outer = keyOfGroup.get(g);
+      if (outer && outer !== key) {
+        wrapParent.set(key, outer);
+        break;
+      }
+    }
+  }
+  const wrapScreens = new Map<string, ExcalidrawElement>();
+  for (const parent of new Set(wrapParent.values())) {
+    wrapScreens.set(parent, nodes.get(parent)!);
+    nodes.delete(parent);
+  }
+  const byKey = new Map([...nodes, ...wrapScreens]);
   const arrows = live.filter(
     (e): e is ExcalidrawArrowElement =>
       e.type === "arrow" &&
@@ -123,7 +180,20 @@ const partsOf = (
       keyOfId.has(e.startBinding.elementId) &&
       keyOfId.has(e.endBinding.elementId),
   );
-  return { live, map, nodes, screens, keyOfId, arrows };
+  return {
+    live,
+    map,
+    nodes,
+    screens,
+    keyOfId,
+    arrows,
+    wrapScreens,
+    wraps,
+    wrapParent,
+    labels,
+    handles,
+    byKey,
+  };
 };
 
 /** the flow as drawn: what the Source view shows */
@@ -131,20 +201,43 @@ export const readFlow = (
   elements: readonly ExcalidrawElement[],
   flowId: string,
 ): FlowGraph => {
-  const { map, nodes, screens, keyOfId, arrows } = partsOf(elements, flowId);
+  const {
+    map,
+    nodes,
+    screens,
+    keyOfId,
+    arrows,
+    wrapScreens,
+    wrapParent,
+    labels,
+    byKey,
+  } = partsOf(elements, flowId);
   const graph = emptyFlow();
   const screenKeyOfFrame = new Map(
     [...screens].map(([key, frame]) => [frame.id, key]),
   );
+  const labelOf = (key: string, el: ExcalidrawElement) =>
+    getFlowMeta(el)?.wrap
+      ? labels.get(key)?.text ?? ""
+      : textOf(el, map)?.text ?? "";
+  const frameKeyOf = (el: ExcalidrawElement) =>
+    el.frameId ? screenKeyOfFrame.get(el.frameId) : undefined;
   for (const [key, frame] of screens) {
     graph.screens.push({ key, label: frame.name || key });
+  }
+  for (const [key, el] of wrapScreens) {
+    graph.screens.push({
+      key,
+      label: labelOf(key, el) || key,
+      parent: wrapParent.get(key) ?? frameKeyOf(el),
+    });
   }
   for (const [key, el] of nodes) {
     graph.nodes.push({
       key,
-      label: textOf(el, map)?.text ?? "",
+      label: labelOf(key, el),
       shape: shapeOf(el),
-      screen: el.frameId ? screenKeyOfFrame.get(el.frameId) : undefined,
+      screen: wrapParent.get(key) ?? frameKeyOf(el),
     });
   }
   let dx = 0;
@@ -160,8 +253,8 @@ export const readFlow = (
       head: !!a.endArrowhead,
       tail: !!a.startArrowhead,
     });
-    const na = nodes.get(from)!;
-    const nb = nodes.get(to)!;
+    const na = byKey.get(from)!;
+    const nb = byKey.get(to)!;
     dx += Math.abs(nb.x + nb.width / 2 - (na.x + na.width / 2));
     dy += Math.abs(nb.y + nb.height / 2 - (na.y + na.height / 2));
   }
@@ -184,7 +277,7 @@ export const adoptIntoFlow = (
   const taken = new Set<string>();
   for (const el of all) {
     const m = !el.isDeleted ? getFlowMeta(el) : null;
-    if (m && m.id === flowId && m.kind !== "edge") {
+    if (m && m.id === flowId && (m.kind === "node" || m.kind === "screen")) {
       taken.add(m.key);
     }
   }
@@ -238,6 +331,21 @@ export const renameFlow = (scene: Scene, from: string, to: string) => {
   );
 };
 
+/** a free text with new words, sized to them */
+export const relabelText = (
+  t: ExcalidrawTextElement,
+  text: string,
+): ExcalidrawTextElement => {
+  const base = newElementWith(t, { text, originalText: text });
+  const dims = refreshTextDimensions(
+    base,
+    null,
+    new Map([[base.id, base]]) as any,
+    text,
+  );
+  return dims ? newElementWith(base, dims) : base;
+};
+
 const NODE_GAP = 70;
 const FRAME_PAD = 28;
 
@@ -271,9 +379,50 @@ export const applyFlow = (
     screens: oldScreens,
     keyOfId,
     arrows,
+    wrapScreens,
+    labels,
+    handles,
   } = partsOf(all, flowId);
 
   const gone = new Set<string>();
+  // what a flow element drops when its step leaves the text: the outline,
+  // label, handle and the placeholder box; real objects are only ungrouped
+  const ungroup = new Set<string>();
+  const dropWrap = (el: ExcalidrawElement, key: string) => {
+    const meta = getFlowMeta(el);
+    gone.add(el.id);
+    const l = labels.get(key);
+    const h = handles.get(key);
+    if (l) {
+      gone.add(l.id);
+    }
+    if (h) {
+      gone.add(h.id);
+    }
+    if (meta?.group) {
+      ungroup.add(meta.group);
+      for (const e of all) {
+        if (
+          !e.isDeleted &&
+          e.customData?.flowPlaceholder &&
+          e.groupIds.includes(meta.group)
+        ) {
+          gone.add(e.id);
+        }
+      }
+    }
+    for (const b of el.boundElements ?? []) {
+      if (b.type === "arrow") {
+        gone.add(b.id);
+        const arrow = map.get(b.id);
+        const at = arrow && textOf(arrow, map);
+        if (at) {
+          gone.add(at.id);
+        }
+      }
+    }
+  };
+  const relabel = new Map<string, string>();
   // links are redrawn: remember their look
   const carry = new Map<string, Record<string, any>[]>();
   for (const a of arrows) {
@@ -295,7 +444,24 @@ export const applyFlow = (
     carry.set(k, list);
   }
   const wanted = new Set(graph.nodes.map((n) => n.key));
+  const wantedScreens = new Set(graph.screens.map((s) => s.key));
+  for (const [key, el] of wrapScreens) {
+    if (!wantedScreens.has(key)) {
+      dropWrap(el, key);
+    }
+  }
+  for (const s of graph.screens) {
+    const el = wrapScreens.get(s.key);
+    const l = labels.get(s.key);
+    if (el && l && l.text !== s.label) {
+      relabel.set(l.id, s.label);
+    }
+  }
   for (const [key, el] of oldNodes) {
+    if (getFlowMeta(el)?.wrap && !wanted.has(key)) {
+      dropWrap(el, key);
+      continue;
+    }
     if (!wanted.has(key)) {
       gone.add(el.id);
       const t = textOf(el, map);
@@ -348,6 +514,16 @@ export const applyFlow = (
     const typeChanged =
       !!old && (old.type !== type || !!old.roundness !== !!roundness);
     const meta: FlowMeta = { id: flowId, key: n.key, kind: "node" };
+    if (old && getFlowMeta(old)?.wrap) {
+      // a flow element keeps what it wraps; only its label text follows
+      const l = labels.get(n.key);
+      if (l && l.text !== n.label) {
+        relabel.set(l.id, n.label);
+      }
+      idOf.set(n.key, old.id);
+      batch.push({ ...old, boundElements: [], frameId: null });
+      continue;
+    }
     if (old && !labelChanged && !typeChanged) {
       idOf.set(n.key, old.id);
       // only for binding the new arrows
@@ -386,6 +562,14 @@ export const applyFlow = (
     });
   }
 
+  // screens made of flow elements can be linked too
+  const containers = graph.screens.filter((s) => wrapScreens.has(s.key));
+  for (const s of containers) {
+    const el = wrapScreens.get(s.key)!;
+    idOf.set(s.key, el.id);
+    batch.push({ ...el, boundElements: [], frameId: null });
+  }
+
   // phase 1: the steps (labels may grow their boxes)
   const nodeOut = convertToExcalidrawElements(batch, { regenerateIds: false });
   const nodeOutById = new Map(nodeOut.map((e) => [e.id, e]));
@@ -405,6 +589,14 @@ export const applyFlow = (
   const seen = new Map<string, number>();
   for (const e of graph.edges) {
     if (!idOf.has(e.from) || !idOf.has(e.to)) {
+      const missing = idOf.has(e.from) ? e.to : e.from;
+      if (graph.screens.some((s) => s.key === missing)) {
+        issues.push({
+          line: 0,
+          message: `Link ${e.from} → ${e.to}: "${missing}" is a frame, only a flow element can be linked`,
+          warn: true,
+        });
+      }
       continue;
     }
     if (e.from === e.to) {
@@ -461,8 +653,11 @@ export const applyFlow = (
   const linkOut = convertToExcalidrawElements(
     [
       // the steps as they ended up, only to glue the links to
-      ...graph.nodes.map((n) => ({
-        ...nodeOutById.get(idOf.get(n.key)!)!,
+      ...[
+        ...graph.nodes.map((n) => n.key),
+        ...containers.map((s) => s.key),
+      ].map((key) => ({
+        ...nodeOutById.get(idOf.get(key)!)!,
         boundElements: [],
         frameId: null,
       })),
@@ -510,7 +705,12 @@ export const applyFlow = (
     );
     const node = newElementWith(base, {
       boundElements: unique,
-      customData: withFlow(base, { id: flowId, key: n.key, kind: "node" }),
+      customData: withFlow(base, {
+        ...(getFlowMeta(base)?.wrap ? getFlowMeta(base)! : {}),
+        id: flowId,
+        key: n.key,
+        kind: "node",
+      }),
     });
     finalNodes.set(n.key, node);
   }
@@ -527,6 +727,9 @@ export const applyFlow = (
   const screenKeys = new Set(graph.screens.map((s) => s.key));
   const frames = new Map<string, ExcalidrawFrameElement>();
   for (const s of graph.screens) {
+    if (wrapScreens.has(s.key)) {
+      continue;
+    }
     const members = graph.nodes
       .filter((n) => n.screen === s.key)
       .map((n) => finalNodes.get(n.key)!);
@@ -577,6 +780,16 @@ export const applyFlow = (
   const frameIdOfScreen = new Map([...frames].map(([k, f]) => [k, f.id]));
   for (const n of graph.nodes) {
     const node = finalNodes.get(n.key)!;
+    if (n.screen && wrapScreens.has(n.screen) && !oldNodes.get(n.key)) {
+      issues.push({
+        line: 0,
+        message: `"${n.key}" is drawn outside "${n.screen}": nest it on the canvas (convert both to flow elements)`,
+        warn: true,
+      });
+    }
+    if (getFlowMeta(oldNodes.get(n.key) ?? {})?.wrap) {
+      continue;
+    }
     finalNodes.set(
       n.key,
       newElementWith(node, {
@@ -600,6 +813,21 @@ export const applyFlow = (
   }
   for (const [, f] of frames) {
     replaced.set(f.id, f);
+  }
+  for (const s of containers) {
+    const el = wrapScreens.get(s.key)!;
+    const refs = [
+      ...(el.boundElements ?? []).filter((b) => !gone.has(b.id)),
+      ...(arrowRefs.get(el.id) ?? []),
+    ];
+    replaced.set(
+      el.id,
+      newElementWith(el, {
+        boundElements: refs.filter(
+          (b, i) => refs.findIndex((c) => c.id === b.id) === i,
+        ),
+      }),
+    );
   }
   const newFrames = [...frames.values()].filter(
     (f) => !all.some((e) => e.id === f.id),
@@ -626,12 +854,21 @@ export const applyFlow = (
       el.type === "text" && el.containerId
         ? nodeByIdFinal.get(el.containerId)
         : null;
-    next.push(
+    let cur: ExcalidrawElement =
       replaced.get(el.id) ??
-        (owner && owner.frameId !== el.frameId
-          ? newElementWith(el, { frameId: owner.frameId })
-          : el),
-    );
+      (owner && owner.frameId !== el.frameId
+        ? newElementWith(el, { frameId: owner.frameId })
+        : el);
+    if (ungroup.size && cur.groupIds.some((g) => ungroup.has(g))) {
+      cur = newElementWith(cur, {
+        groupIds: cur.groupIds.filter((g) => !ungroup.has(g)),
+      });
+    }
+    const text = relabel.get(el.id);
+    if (text !== undefined && cur.type === "text") {
+      cur = relabelText(cur as ExcalidrawTextElement, text);
+    }
+    next.push(cur);
   }
   const insertedNodeIds = new Set(next.map((e) => e.id));
   for (const n of finalNodes.values()) {
@@ -652,7 +889,7 @@ export const applyFlow = (
  * Both ends of a link: on the border of each step, on the line between their
  * centres, `shift` to the side so links between the same two steps don't overlap.
  */
-const linkEnds = (
+export const linkEnds = (
   a: { x: number; y: number; w: number; h: number; type: string },
   b: { x: number; y: number; w: number; h: number; type: string },
   shift: number,

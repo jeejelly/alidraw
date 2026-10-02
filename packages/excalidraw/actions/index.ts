@@ -81,6 +81,7 @@ export {
 
 export { actionImportFiles } from "./actionImport";
 export { actionReplaceFromLibrary } from "./actionReplaceFromLibrary";
+export { actionConvertToFlowElement } from "./actionConvertToFlowElement";
 export { actionToggleGridMode } from "./actionToggleGridMode";
 export { actionToggleZenMode } from "./actionToggleZenMode";
 export { actionToggleObjectsSnapMode } from "./actionToggleObjectsSnapMode";

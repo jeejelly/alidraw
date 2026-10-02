@@ -17,5 +17,14 @@ Text that cannot be read SHALL be reported by line and SHALL leave the canvas un
 ## Requirement: Adopt what is drawn
 Selected shapes and frames SHALL be added to a flow, becoming steps and screens with keys from their labels; arrows between them become its links.
 
+## Requirement: Flow elements wrap what is drawn
+"Convert to flow element" (Flow tab, context menu, action `convertToFlowElement`) SHALL wrap the selection (an object, a group, or other flow elements) in a dashed outline with a label above and a handle on its edge, all in one group with the wrapped objects, so they stay as editable as before. The outline is the step (`customData.flow` `{kind:"node", wrap:true, group}`), the label text its Mermaid label, and they SHALL read and write like any step. A flow element wrapped by another one SHALL read as a screen (nested `subgraph`) holding it; links SHALL be allowed to and from screens made this way.
+
+## Requirement: Link by dragging the handle
+Dragging a handle and releasing SHALL link to the flow element under the pointer (the smallest one around it, never the source or one holding it); on another object, SHALL wrap that object and link to it; on nothing, SHALL leave a placeholder flow element (a grey box) at that place, with its own handle, linked. Selecting a placeholder together with real objects and converting SHALL move the objects into its place and drop the box, keeping its label and links. A click on the handle SHALL do nothing. Links keep optional labels (double click the arrow).
+
+## Requirement: Text edits keep the drawing
+Editing the Mermaid text SHALL only relabel a flow element; dropping its step from the text SHALL remove the outline, label, handle, placeholder box and its links, and leave the wrapped objects, ungrouped. Steps typed in the text are still plain shapes; to put one in a screen made of flow elements, nest it on the canvas (the text reports it).
+
 ## Open
 Play mode (step through a flow, highlight the trigger, pan to the target); trigger kinds (click, hover, submit); links to screens (subgraph) and to non-shape elements; state, sequence and architecture diagram types; export as Markdown walkthrough.

@@ -276,6 +276,7 @@ import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 import {
   actionAddToLibrary,
   actionReplaceFromLibrary,
+  actionConvertToFlowElement,
   actionBringForward,
   actionBringToFront,
   actionCopy,
@@ -427,12 +428,14 @@ import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
+import { AppFlow } from "./App.flow";
 import { AppStretch } from "./App.stretch";
 import { AppSymbols } from "./App.symbols";
 import { fitIntoBox } from "../symbols/fit";
 import { frameOf } from "../symbols/stretch";
 import { AppImport } from "./App.import";
 import { getSymbolTheme } from "../symbols/themeStore";
+import { FlowLinkOverlay } from "./FlowLinkOverlay";
 import { StretchOverlay } from "./StretchOverlay";
 import { AppAnchors } from "./App.anchors";
 import { AppLayers } from "./App.layers";
@@ -763,6 +766,7 @@ class App extends React.Component<AppProps, AppState> {
   guides = new AppGuides(this);
   gizmo = new AppGizmo(this);
   stretch = new AppStretch(this);
+  flow = new AppFlow(this);
   symbols = new AppSymbols(this);
   imports = new AppImport(this);
   symbolTheme = () => getSymbolTheme();
@@ -2540,6 +2544,7 @@ class App extends React.Component<AppProps, AppState> {
                           {this.isDefaultUIEnabled() && <CursorHint />}
                           {this.state.rulersEnabled && <Rulers app={this} />}
                           <StretchOverlay app={this} />
+                          <FlowLinkOverlay app={this} />
                           {/* the palette never leaves the screen: it collapses to its title bar */}
                           {!this.state.viewModeEnabled && (
                             <PalettePanel app={this} />
@@ -3988,6 +3993,7 @@ class App extends React.Component<AppProps, AppState> {
     this.guides.destroy();
     this.gizmo.destroy();
     this.stretch.destroy();
+    this.flow.destroy();
     this.symbols.destroy();
     this.corners.destroy();
     this.anchors.destroy();
@@ -7829,6 +7835,11 @@ class App extends React.Component<AppProps, AppState> {
 
     // Ctrl + drag a handle stretches a component without distorting it
     if (this.stretch.handlePointerDown(event)) {
+      return;
+    }
+
+    // the handle of a flow element links it to another one
+    if (this.flow.handlePointerDown(event)) {
       return;
     }
 
@@ -12932,6 +12943,7 @@ class App extends React.Component<AppProps, AppState> {
       CONTEXT_MENU_SEPARATOR,
       actionAddToLibrary,
       actionReplaceFromLibrary,
+  actionConvertToFlowElement,
       ...zIndexActions,
       CONTEXT_MENU_SEPARATOR,
       actionFlipHorizontal,

@@ -15,7 +15,12 @@ export type FlowNode = {
   /** the screen (subgraph) it sits in */
   screen?: string;
 };
-export type FlowScreen = { key: string; label: string };
+export type FlowScreen = {
+  key: string;
+  label: string;
+  /** the screen it is nested in (a screen can hold screens) */
+  parent?: string;
+};
 export type FlowEdge = {
   from: string;
   to: string;
@@ -211,7 +216,10 @@ export const parseFlow = (
       const key = m ? m[1] : rest.replace(/\W+/g, "_");
       const label = m && m[2] !== undefined ? unquote(m[2]) : rest;
       if (!screens.has(key)) {
-        const screen = { key, label };
+        const screen: FlowScreen = { key, label };
+        if (stack.length) {
+          screen.parent = stack[stack.length - 1];
+        }
         screens.set(key, screen);
         graph.screens.push(screen);
       }
@@ -265,13 +273,6 @@ export const parseFlow = (
             rest = rest.slice(m[0].length);
             break;
           }
-        }
-        if (screens.has(key) && !(label !== undefined)) {
-          issues.push({
-            line: lineNo,
-            message: `"${key}" is a subgraph: link a step inside it instead`,
-          });
-          return;
         }
         touch(key, label, shape);
         group.push(key);
@@ -356,12 +357,22 @@ export const serializeFlow = (graph: FlowGraph): string => {
     const [a, b] = SHAPE_OPEN[n.shape];
     return `${n.key}${a}${quote(n.label)}${b}`;
   };
-  for (const s of graph.screens) {
-    out.push(`  subgraph ${s.key}[${quote(s.label)}]`);
-    for (const n of graph.nodes.filter((n) => n.screen === s.key)) {
-      out.push(`    ${nodeLine(n)}`);
+  const known = new Set(graph.screens.map((s) => s.key));
+  const emit = (s: FlowScreen, depth: number) => {
+    const pad = "  ".repeat(depth);
+    out.push(`${pad}subgraph ${s.key}[${quote(s.label)}]`);
+    for (const inner of graph.screens.filter((c) => c.parent === s.key)) {
+      emit(inner, depth + 1);
     }
-    out.push("  end");
+    for (const n of graph.nodes.filter((n) => n.screen === s.key)) {
+      out.push(`${pad}  ${nodeLine(n)}`);
+    }
+    out.push(`${pad}end`);
+  };
+  for (const s of graph.screens.filter(
+    (s) => !s.parent || !known.has(s.parent),
+  )) {
+    emit(s, 1);
   }
   for (const n of graph.nodes.filter((n) => !n.screen)) {
     out.push(`  ${nodeLine(n)}`);

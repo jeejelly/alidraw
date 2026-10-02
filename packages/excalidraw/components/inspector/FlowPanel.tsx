@@ -25,6 +25,25 @@ const STARTER = `flowchart TD
   buy -->|"click"| pay
 `;
 
+const FlowGraphIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="6" cy="6" r="2.5" />
+    <circle cx="18" cy="12" r="2.5" />
+    <circle cx="6" cy="18" r="2.5" />
+    <path d="M8.2 7.2 15.8 10.8M8.2 16.8l7.6-3.6" />
+  </svg>
+);
+
 const useSceneNonce = (app: App) => {
   const [, bump] = useState(0);
   useEffect(() => {
@@ -131,6 +150,15 @@ export const FlowPanel = ({ app }: { app: App }) => {
     }
   };
 
+  const convert = () => {
+    const key = app.flow.convertSelection(flowId ?? undefined);
+    if (key) {
+      setChosen(flowId ?? "Flow 1");
+      setDraft(null);
+      commit();
+    }
+  };
+
   const selectAll = () => {
     if (!flowId) {
       return;
@@ -225,6 +253,16 @@ export const FlowPanel = ({ app }: { app: App }) => {
           <div className="flow__actions">
             <button
               type="button"
+              className="flow__btn flow__btn--primary"
+              data-testid="flow-convert"
+              disabled={!selected.length}
+              title={t("labels.flow.convertHint")}
+              onClick={convert}
+            >
+              <FlowGraphIcon /> {t("labels.flow.convert")}
+            </button>
+            <button
+              type="button"
               className="flow__btn"
               data-testid="flow-adopt"
               disabled={!selected.length}
@@ -247,6 +285,16 @@ export const FlowPanel = ({ app }: { app: App }) => {
         <>
           <div className="inspector__hint">{t("labels.flow.empty")}</div>
           <div className="flow__actions">
+            <button
+              type="button"
+              className="flow__btn flow__btn--primary"
+              data-testid="flow-convert"
+              disabled={!selected.length}
+              title={t("labels.flow.convertHint")}
+              onClick={convert}
+            >
+              <FlowGraphIcon /> {t("labels.flow.convert")}
+            </button>
             <button
               type="button"
               className="flow__btn"

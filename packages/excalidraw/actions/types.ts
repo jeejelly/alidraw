@@ -135,6 +135,7 @@ export type ActionName =
   | "togglePalette"
   | "importFiles"
   | "replaceFromLibrary"
+  | "convertToFlowElement"
   | "toggleGuidesLock"
   | "fitToGrid"
   | "knifeCut"

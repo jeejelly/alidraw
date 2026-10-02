@@ -1258,6 +1258,7 @@ export type AppClassProperties = {
   canvas: HTMLCanvasElement;
   focusContainer(): void;
   library: Library;
+  flow: App["flow"];
   imageCache: Map<
     FileId,
     {

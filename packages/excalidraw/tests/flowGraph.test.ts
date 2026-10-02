@@ -81,7 +81,7 @@ describe("flow text", () => {
     const lines = r.issues.map((i) => i.line);
     expect(lines).toContain(2); // a link needs a target
     expect(lines).toContain(3); // unreadable link
-    expect(lines).toContain(5); // link to a subgraph
+    expect(lines).not.toContain(5); // a link to a subgraph is fine
     expect(lines).toContain(6); // ignored statement
     expect(r.issues.some((i) => /not closed/.test(i.message))).toBe(true);
   });

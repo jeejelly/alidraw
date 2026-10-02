@@ -208,6 +208,8 @@
       "adopt": "Add selection",
       "insertLinked": "Insert as linked flow",
       "adoptHint": "Shapes become steps, frames become screens",
+      "convert": "Convert to flow element",
+      "convertHint": "Wraps the selection (objects, a group or other flow elements: that makes a screen) in an outline with a label and a handle. Drag the handle to link it to another flow element, or to nothing for a placeholder. Select a placeholder with real objects to replace it.",
       "select": "Select the flow",
       "empty": "A flow tells what happens when you click here or there: screens, buttons and the links between them. Start from Mermaid text, or select shapes and add them."
     },

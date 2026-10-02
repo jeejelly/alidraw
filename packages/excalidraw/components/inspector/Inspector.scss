@@ -966,3 +966,26 @@
   white-space: pre;
   resize: vertical;
 }
+
+.flow-link-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  svg {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  &__box {
+    position: fixed;
+    box-sizing: border-box;
+    border: 2px solid #12b886;
+    background: rgba(18, 184, 134, 0.08);
+    &--ghost {
+      border: 2px dashed #868e96;
+      background: rgba(134, 142, 150, 0.1);
+    }
+  }
+}
