@@ -138,31 +138,6 @@ export const func = nodeDef({
   ],
 });
 
-export const loop = nodeDef({
-  id: "prog-loop",
-  name: "Loop",
-  category: "Programming",
-  tags: "for while iterate repeat loop-limit",
-  width: 180,
-  height: 60,
-  label: "for each item",
-  flow: { form: "loop-limit", shape: "rect" },
-  body: (width, height, ink) => [
-    closed(
-      [
-        [14, 0],
-        [width - 14, 0],
-        [width, 14],
-        [width, height],
-        [0, height],
-        [0, 14],
-      ],
-      ink,
-    ),
-  ],
-  place: (width, height) => [width / 2, height * 0.58, "middle"],
-});
-
 export const moduleBox = nodeDef({
   id: "prog-module",
   name: "Module / package",
@@ -264,7 +239,6 @@ export const PROGRAMMING_COMPONENTS = [
   umlClass,
   umlInterface,
   func,
-  loop,
   moduleBox,
   endpoint,
   dbTable,

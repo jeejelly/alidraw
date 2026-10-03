@@ -21,8 +21,19 @@ const FORK: FlowPort[] = [
 /** ready-made sets a step can be given */
 export const PORT_PRESETS = { decision: DECISION, fork: FORK };
 
+const LOOP: FlowPort[] = [
+  { name: "in", at: [0.5, 0] },
+  { name: "body", at: [0.5, 1] },
+  { name: "exit", at: [1, 0.5] },
+  { name: "back", at: [0, 0.5] },
+];
+
 /** forms that come with ports of their own */
-const FORM_PORTS: Partial<Record<FlowForm, FlowPort[]>> = { fork: FORK };
+const FORM_PORTS: Partial<Record<FlowForm, FlowPort[]>> = {
+  fork: FORK,
+  hexagon: LOOP,
+  "loop-limit": LOOP,
+};
 
 /** the ports a step has unless it lists its own: a diamond is a decision with outcomes */
 export const defaultPortsOf = (shape: FlowShape, form?: FlowForm) =>

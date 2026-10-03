@@ -12,6 +12,7 @@ import {
   DECISION_PORTS,
   ellipseArc,
   FORK_PORTS,
+  LOOP_PORTS,
   nodeDef,
   withFlow,
 } from "./diagramKit";
@@ -304,10 +305,62 @@ export const comment = nodeDef({
   place: (_width, height) => [24, height / 2, "start"],
 });
 
+/** Mermaid has no `for` or `while` element: a loop head is the hexagon (a counted loop) or the loop-limit shape (a condition), with the body and the way back as links. */
+export const forLoop = nodeDef({
+  id: "flow-for-loop",
+  name: "For loop",
+  category: "Flow",
+  tags: "for each iterate repeat counted loop hexagon prepare",
+  width: 200,
+  height: 64,
+  label: "for each item",
+  flow: { form: "hexagon", shape: "rect", ports: LOOP_PORTS },
+  body: (width, height, ink) => [
+    closed(
+      [
+        [18, 0],
+        [width - 18, 0],
+        [width, height / 2],
+        [width - 18, height],
+        [18, height],
+        [0, height / 2],
+      ],
+      ink,
+    ),
+  ],
+});
+
+export const whileLoop = nodeDef({
+  id: "flow-while-loop",
+  name: "While loop",
+  category: "Flow",
+  tags: "while until condition repeat loop-limit",
+  width: 200,
+  height: 64,
+  label: "while condition",
+  flow: { form: "loop-limit", shape: "rect", ports: LOOP_PORTS },
+  body: (width, height, ink) => [
+    closed(
+      [
+        [14, 0],
+        [width - 14, 0],
+        [width, 14],
+        [width, height],
+        [0, height],
+        [0, 14],
+      ],
+      ink,
+    ),
+  ],
+  place: (width, height) => [width / 2, height * 0.58, "middle"],
+});
+
 export const FLOW_COMPONENTS = [
   terminator,
   process,
   decision,
+  forLoop,
+  whileLoop,
   inputOutput,
   predefinedProcess,
   database,

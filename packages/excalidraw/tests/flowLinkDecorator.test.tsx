@@ -190,3 +190,33 @@ describe("ports: several outcomes leave one decision", () => {
     expect(near(right[0], box.x + box.width)).toBe(true);
   });
 });
+
+describe("a loop is a head with a body, an exit and the way back", () => {
+  const LOOP = `flowchart TD
+  start(["Start"])
+  each{{"for each item"}}
+  work["Process item"]
+  done(["Done"])
+  start --> each
+  each -- body --> work
+  each -- exit --> done
+  work --> each
+`;
+  const startOf = (arrow: any) => [
+    arrow.x + arrow.points[0][0],
+    arrow.y + arrow.points[0][1],
+  ];
+
+  it("the body and exit links leave the hexagon from their ports", async () => {
+    await render(<Excalidraw />);
+    draw(LOOP);
+    const head = liveElements().find(
+      (element: any) => element.customData?.flow?.key === "each",
+    )!;
+    const [, body, exit] = arrows().map(startOf);
+    expect(near(body[0], head.x + head.width / 2)).toBe(true);
+    expect(near(body[1], head.y + head.height)).toBe(true);
+    expect(near(exit[0], head.x + head.width)).toBe(true);
+    expect(near(exit[1], head.y + head.height / 2)).toBe(true);
+  });
+});

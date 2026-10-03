@@ -77,6 +77,29 @@ describe("flow symbols", () => {
     );
   });
 
+  it("inserts a for loop as the hexagon and a while loop as the loop-limit shape, both with loop ports", async () => {
+    await render(<Excalidraw />);
+    await insertFound("counted");
+    await insertFound("until");
+    const [forNode, whileNode] = flowNodes();
+    expect([forNode.form, forNode.label]).toEqual(["hexagon", "for each item"]);
+    expect([whileNode.form, whileNode.label]).toEqual([
+      "loop-limit",
+      "while condition",
+    ]);
+    for (const node of [forNode, whileNode]) {
+      expect(node.ports?.map((port) => port.name)).toEqual([
+        "in",
+        "body",
+        "exit",
+        "back",
+      ]);
+    }
+    const text = serializeFlow(readFlow(handle.elements, "Flow 1"));
+    expect(text).toContain('{{"for each item"}}');
+    expect(text).toContain('@{ shape: notch-pent, label: "while condition" }');
+  });
+
   it("inserts a database as a cylinder", async () => {
     await render(<Excalidraw />);
     await insertFound("storage data cylinder db flowchart");

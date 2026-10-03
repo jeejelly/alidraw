@@ -23,6 +23,14 @@ export const DECISION_PORTS: SymbolFlowPort[] = [
   { name: "other", at: [0, 0.5] },
 ];
 
+/** a loop head: in from above, the body below, out to the right, back in from the left */
+export const LOOP_PORTS: SymbolFlowPort[] = [
+  { name: "in", at: [0.5, 0] },
+  { name: "body", at: [0.5, 1] },
+  { name: "exit", at: [1, 0.5] },
+  { name: "back", at: [0, 0.5] },
+];
+
 export const FORK_PORTS: SymbolFlowPort[] = [
   { name: "in", at: [0.5, 0] },
   { name: "first", at: [0.2, 1] },
