@@ -10,19 +10,59 @@ import { appJotaiStore } from "../app-jotai";
 import { blobBase64, blobText } from "./blobText";
 import { getWorkspaceBridge } from "./desktopBridge";
 import { externalizeAssets } from "./linkedAssets";
+import { requireWorkspace, requestSceneTarget } from "./workspaceRequests";
 import { WorkspaceFileHandle } from "./WorkspaceFileHandle";
-import { activeWorkspaceAtom, openSceneDialogOpenAtom } from "./workspaceState";
+import {
+  activeWorkspaceAtom,
+  openSceneDialogOpenAtom,
+  type ActiveWorkspace,
+} from "./workspaceState";
 
-const abort = () => {
-  const e = new Error("The user aborted a request.");
-  e.name = "AbortError";
-  return e;
+type Bridge = NonNullable<ReturnType<typeof getWorkspaceBridge>>;
+
+const writeExport = async (
+  bridge: Bridge,
+  workspace: ActiveWorkspace,
+  filename: string,
+  blob: Blob,
+  notify: (message: string) => void,
+) => {
+  const { path } = await bridge.writeExport(
+    workspace.id,
+    filename,
+    await blobBase64(blob),
+  );
+  notify(`Saved to ${workspace.name}/${path}`);
+};
+
+const saveScene = async (bridge: Bridge, blob: Blob, defaultName: string) => {
+  const workspace = await requireWorkspace();
+  const target = await requestSceneTarget(defaultName);
+  const text = await externalizeAssets(
+    bridge,
+    workspace.id,
+    await blobText(blob),
+    (await bridge.meta(workspace.id)).assets === "linked"
+      ? "linked"
+      : "embedded",
+  );
+  const { path } = await bridge.saveNew(
+    workspace.id,
+    target.name,
+    text,
+    target.dir,
+  );
+  return new WorkspaceFileHandle(
+    bridge,
+    workspace.id,
+    path,
+  ) as unknown as FileSystemFileHandle;
 };
 
 /**
- * In the desktop app, saving a scene file never shows a file dialog: with an
- * active workspace the file goes straight into it; without one, the first
- * save asks only for a folder, and that folder becomes the workspace.
+ * In the desktop app a scene is saved into a project, named in the save dialog:
+ * with no active project the project dialog opens first. Exports (images,
+ * swatches…) go to the project's exports/ folder with no dialog at all.
  */
 export const installWorkspaceSave = (
   /** tells the user where something went (a toast) */
@@ -32,47 +72,23 @@ export const installWorkspaceSave = (
   if (!bridge) {
     return () => {};
   }
-  // images can be kept as linked files of the workspace
   setHostCapabilities({ linkedImages: true });
   setFileSaveProvider(async (blob, { name, extension }) => {
-    let active = appJotaiStore.get(activeWorkspaceAtom);
-    // an export (image, swatches…) goes to the workspace's exports/ folder, no dialog;
-    // without a workspace it is left to the usual file dialog
-    if (extension !== "excalidraw") {
-      if (!active) {
-        return undefined;
-      }
-      const { path } = await bridge.writeExport(
-        active.id,
-        `${name || "export"}.${extension}`,
-        await blobBase64(await blob),
-      );
-      notify(`Saved to ${active.name}/${path}`);
-      return null;
+    if (extension === "excalidraw") {
+      return saveScene(bridge, await blob, name || "Untitled");
     }
-    if (!active) {
-      const folder = await bridge.pickFolder();
-      if (!folder) {
-        throw abort();
-      }
-      const entry = await bridge.open({ token: folder.token });
-      active = { id: entry.id, name: entry.name };
-      appJotaiStore.set(activeWorkspaceAtom, active);
+    const workspace = appJotaiStore.get(activeWorkspaceAtom);
+    if (!workspace) {
+      return undefined;
     }
-    const text = await externalizeAssets(
+    await writeExport(
       bridge,
-      active.id,
-      await blobText(await blob),
-      (await bridge.meta(active.id)).assets === "linked"
-        ? "linked"
-        : "embedded",
+      workspace,
+      `${name || "export"}.${extension}`,
+      await blob,
+      notify,
     );
-    const { path } = await bridge.saveNew(active.id, name || "Untitled", text);
-    return new WorkspaceFileHandle(
-      bridge,
-      active.id,
-      path,
-    ) as unknown as FileSystemFileHandle;
+    return null;
   });
   // Open is the project's own (a list of its scenes), never a warning about losing the canvas
   setSceneOpenProvider(() => {

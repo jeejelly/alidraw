@@ -33,6 +33,7 @@ import {
   activeWorkspaceAtom,
   openSceneDialogOpenAtom,
   saveCopyDialogOpenAtom,
+  saveRequestAtom,
   workspaceDialogOpenAtom,
 } from "../workspace/workspaceState";
 
@@ -216,6 +217,8 @@ describe("workspace file handle", () => {
   });
 });
 
+const CopyDialogWithApi = () => <SaveCopyDialog api={useExcalidrawAPI()} />;
+
 describe("saving a scene in the desktop app", () => {
   const blob = () => new Blob(['{"type":"excalidraw"}']);
   const save = () =>
@@ -224,31 +227,70 @@ describe("saving a scene in the desktop app", () => {
       extension: "excalidraw",
       description: "x",
     });
-
-  it("first save asks for a folder only, and that folder becomes the workspace", async () => {
-    const { bridge, calls } = fakeBridge();
+  const mountDialogs = async (bridge: DesktopWorkspaceBridge) => {
     (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
     installWorkspaceSave();
-    const handle: any = await save();
-    expect(calls).toEqual(["pick", "open", "saveNew:w1:Idea"]);
+    await render(
+      <Provider store={appJotaiStore}>
+        <ExcalidrawAPIProvider>
+          <Excalidraw>
+            <WorkspaceDialog api={null} />
+            <CopyDialogWithApi />
+          </Excalidraw>
+        </ExcalidrawAPIProvider>
+      </Provider>,
+    );
+  };
+
+  it("with no project, the project dialog opens first, then the save dialog names the scene", async () => {
+    const { bridge, calls } = fakeBridge();
+    await mountDialogs(bridge);
+    let handle: any;
+    const saving = save().then((result) => (handle = result));
+    const projectName = await screen.findByTestId("workspace-name");
+    fireEvent.change(projectName, { target: { value: "Shop" } });
+    fireEvent.click(screen.getByTestId("workspace-create"));
+    const sceneName = await screen.findByTestId("savecopy-name");
+    expect(calls).toEqual(["pick", "create:Shop"]);
+    fireEvent.change(sceneName, { target: { value: "Idea" } });
+    fireEvent.click(screen.getByTestId("savecopy-save"));
+    await saving;
     expect(handle).toBeInstanceOf(WorkspaceFileHandle);
     expect(handle.path).toBe("Idea.excalidraw");
     expect(appJotaiStore.get(activeWorkspaceAtom)).toEqual({
       id: "w1",
-      name: "proj",
+      name: "Shop",
     });
-    // the next scene goes into the same workspace without asking again
-    calls.length = 0;
-    await save();
-    expect(calls).toEqual(["saveNew:w1:Idea"]);
   });
 
-  it("cancelling the folder choice is a normal abort", async () => {
-    const { bridge } = fakeBridge({ pickFolder: async () => null });
-    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
-    installWorkspaceSave();
-    await expect(save()).rejects.toMatchObject({ name: "AbortError" });
-    expect(appJotaiStore.get(activeWorkspaceAtom)).toBeNull();
+  it("with a project, only the name is asked", async () => {
+    const { bridge, calls } = fakeBridge();
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    await mountDialogs(bridge);
+    const saving = save();
+    const sceneName = (await screen.findByTestId(
+      "savecopy-name",
+    )) as HTMLInputElement;
+    expect(sceneName.value).toBe("Idea");
+    fireEvent.click(screen.getByTestId("savecopy-save"));
+    await saving;
+    expect(calls).toContain("saveNew:w1:Idea");
+    expect(calls).not.toContain("pick");
+  });
+
+  it("closing the project dialog or the save dialog is a normal abort", async () => {
+    const { bridge } = fakeBridge();
+    await mountDialogs(bridge);
+    const noProject = save();
+    await screen.findByTestId("workspace-name");
+    act(() => appJotaiStore.set(workspaceDialogOpenAtom, false));
+    await expect(noProject).rejects.toMatchObject({ name: "AbortError" });
+
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    const unnamed = save();
+    await screen.findByTestId("savecopy-name");
+    act(() => appJotaiStore.get(saveRequestAtom)?.cancel());
+    await expect(unnamed).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("does nothing in a browser", async () => {
@@ -911,11 +953,17 @@ describe("linked images", () => {
     meta.assets = "linked";
     (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
     installWorkspaceSave();
-    const handle: any = await fileSave(new Blob([scene()]), {
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "proj" });
+    const saving = fileSave(new Blob([scene()]), {
       name: "Idea",
       extension: "excalidraw",
       description: "x",
     });
+    await waitFor(() =>
+      expect(appJotaiStore.get(saveRequestAtom)).toBeTruthy(),
+    );
+    appJotaiStore.get(saveRequestAtom)!.resolve({ name: "Idea" });
+    const handle: any = await saving;
     expect(JSON.parse(files.get(handle.path)!).files.f1.link).toBeTruthy();
   });
 });
@@ -1051,8 +1099,6 @@ describe("the project tab of the palette", () => {
     off();
   });
 });
-
-const CopyDialogWithApi = () => <SaveCopyDialog api={useExcalidrawAPI()} />;
 
 describe("save a copy", () => {
   it("writes a new file of the workspace and stays on the current one, or opens the copy", async () => {

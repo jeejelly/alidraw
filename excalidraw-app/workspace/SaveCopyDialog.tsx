@@ -1,21 +1,31 @@
 import { Dialog } from "@excalidraw/excalidraw/components/Dialog";
 import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { useAtom } from "../app-jotai";
 
-import { getWorkspaceBridge, type SceneEntry } from "./desktopBridge";
+import { getWorkspaceBridge } from "./desktopBridge";
 import { externalizeAssets } from "./linkedAssets";
 import { openWorkspaceScene } from "./openWorkspaceScene";
-import { activeWorkspaceAtom, saveCopyDialogOpenAtom } from "./workspaceState";
+import { SceneTargetForm } from "./SceneTargetForm";
+import {
+  activeWorkspaceAtom,
+  saveCopyDialogOpenAtom,
+  saveRequestAtom,
+  workspaceDialogOpenAtom,
+  type ActiveWorkspace,
+  type SceneTarget,
+} from "./workspaceState";
 
 import "./Workspace.scss";
 
+const withoutExtension = (name: string) => name.replace(/\.excalidraw$/i, "");
+
 /**
- * Save as, or as a copy: the drawing goes to a new file of the workspace under a name
- * you choose. A copy leaves you on the file you were editing; Save as moves you to the new one.
+ * The one place a scene gets its name: the first save, a copy, or Save as.
+ * A copy leaves you on the file you were editing; Save as moves you to the new one.
  */
 export const SaveCopyDialog = ({
   api,
@@ -23,130 +33,110 @@ export const SaveCopyDialog = ({
   api: ExcalidrawImperativeAPI | null;
 }) => {
   const bridge = getWorkspaceBridge();
-  const [open, setOpen] = useAtom(saveCopyDialogOpenAtom);
-  const [active, setActive] = useAtom(activeWorkspaceAtom);
-  const [name, setName] = useState("");
-  const [dir, setDir] = useState("");
-  const [dirs, setDirs] = useState<string[]>([]);
+  const [copyOpen, setCopyOpen] = useAtom(saveCopyDialogOpenAtom);
+  const [request] = useAtom(saveRequestAtom);
+  const [workspace] = useAtom(activeWorkspaceAtom);
+  const [, setWorkspaceDialogOpen] = useAtom(workspaceDialogOpenAtom);
+  const [target, setTarget] = useState<SceneTarget>({ name: "" });
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open || !api) {
-      return;
-    }
-    const current = api.getName() || "Untitled";
-    setName(`${current.replace(/\.excalidraw$/i, "")} copy`);
-    setDone(null);
-    setError(null);
-    setDir("");
-    if (bridge && active) {
-      bridge
-        .scenes(active.id)
-        .then((scenes: SceneEntry[]) =>
-          setDirs(
-            [
-              ...new Set(
-                scenes
-                  .map((s) => s.path.split("/").slice(0, -1).join("/"))
-                  .filter(Boolean),
-              ),
-            ].sort(),
-          ),
-        )
-        .catch(() => setDirs([]));
-    } else {
-      setDirs([]);
-    }
-  }, [open, api, bridge, active]);
-
-  if (!bridge || !open || !api) {
+  if (!bridge || !api || !(copyOpen || request)) {
     return null;
   }
 
-  const save = async (openIt: boolean) => {
+  const close = () => {
+    if (request) {
+      request.cancel();
+    }
+    setCopyOpen(false);
+    setError(null);
+    setDone(null);
+  };
+
+  if (!workspace) {
+    return (
+      <Dialog
+        onCloseRequest={close}
+        title="Save"
+        size="small"
+        className="workspace-dialog"
+      >
+        <div className="savecopy">
+          <p className="workspace__note">
+            Scenes are saved in a project. Choose or create one first.
+          </p>
+          <button
+            type="button"
+            data-testid="savecopy-choose-project"
+            onClick={() => {
+              setCopyOpen(false);
+              setWorkspaceDialogOpen(true);
+            }}
+          >
+            Choose a project…
+          </button>
+        </div>
+      </Dialog>
+    );
+  }
+
+  const copyScene = async (active: ActiveWorkspace, openIt: boolean) => {
     try {
       setError(null);
-      let ws = active;
-      if (!ws) {
-        const folder = await bridge.pickFolder();
-        if (!folder) {
-          return;
-        }
-        const entry = await bridge.open({ token: folder.token });
-        ws = { id: entry.id, name: entry.name };
-        setActive(ws);
-      }
       const text = await externalizeAssets(
         bridge,
-        ws.id,
+        active.id,
         serializeAsJSON(
           api.getSceneElements(),
           api.getAppState(),
           api.getFiles(),
           "local",
         ),
-        (await bridge.meta(ws.id)).assets === "linked" ? "linked" : "embedded",
+        (await bridge.meta(active.id)).assets === "linked"
+          ? "linked"
+          : "embedded",
       );
       const { path } = await bridge.saveNew(
-        ws.id,
-        name.trim() || "Untitled",
+        active.id,
+        target.name || "Untitled",
         text,
-        dir || undefined,
+        target.dir,
       );
       if (openIt) {
-        await openWorkspaceScene(api, ws, path);
-        setOpen(false);
+        await openWorkspaceScene(api, active, path);
+        setCopyOpen(false);
       } else {
         setDone(`Saved a copy: ${path}`);
       }
-    } catch (e: any) {
-      if (e?.name !== "AbortError") {
-        setError(e?.message ?? String(e));
+    } catch (failure: any) {
+      if (failure?.name !== "AbortError") {
+        setError(failure?.message ?? String(failure));
       }
     }
   };
 
+  const initialName = request
+    ? request.defaultName
+    : `${withoutExtension(api.getName() || "Untitled")} copy`;
+  const ready = target.name.length > 0;
+
   return (
     <Dialog
-      onCloseRequest={() => setOpen(false)}
-      title="Save a copy"
+      onCloseRequest={close}
+      title={request ? "Save" : "Save a copy"}
       size="small"
       className="workspace-dialog"
     >
       <div className="savecopy">
-        <label>
-          Name
-          <input
-            data-testid="savecopy-name"
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Enter" && name.trim()) {
-                save(false);
-              }
-            }}
-          />
-        </label>
-        <label>
-          In
-          <select
-            data-testid="savecopy-dir"
-            value={dir}
-            onChange={(e) => setDir(e.target.value)}
-          >
-            <option value="">
-              {active ? `${active.name} (top folder)` : "A folder you choose"}
-            </option>
-            {dirs.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SceneTargetForm
+          workspace={workspace}
+          initialName={withoutExtension(initialName)}
+          onChange={setTarget}
+          onSubmit={() =>
+            request ? request.resolve(target) : copyScene(workspace, false)
+          }
+        />
         {error && (
           <div className="workspace__error" role="alert">
             {error}
@@ -157,28 +147,43 @@ export const SaveCopyDialog = ({
             {done}
           </div>
         )}
-        <div className="savecopy__buttons">
-          <button
-            type="button"
-            data-testid="savecopy-copy"
-            disabled={!name.trim()}
-            onClick={() => save(false)}
-          >
-            Save a copy
-          </button>
-          <button
-            type="button"
-            data-testid="savecopy-open"
-            disabled={!name.trim()}
-            onClick={() => save(true)}
-          >
-            Save as and open it
-          </button>
-        </div>
-        <p className="workspace__hint">
-          A copy keeps you on the file you are editing. Save as moves you to the
-          new file.
-        </p>
+        {request ? (
+          <div className="savecopy__buttons">
+            <button
+              type="button"
+              data-testid="savecopy-save"
+              disabled={!ready}
+              onClick={() => request.resolve(target)}
+            >
+              Save
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="savecopy__buttons">
+              <button
+                type="button"
+                data-testid="savecopy-copy"
+                disabled={!ready}
+                onClick={() => copyScene(workspace, false)}
+              >
+                Save a copy
+              </button>
+              <button
+                type="button"
+                data-testid="savecopy-open"
+                disabled={!ready}
+                onClick={() => copyScene(workspace, true)}
+              >
+                Save as and open it
+              </button>
+            </div>
+            <p className="workspace__hint">
+              A copy keeps you on the file you are editing. Save as moves you to
+              the new file.
+            </p>
+          </>
+        )}
       </div>
     </Dialog>
   );

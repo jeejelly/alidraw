@@ -674,9 +674,9 @@ export const CornersSection = ({ app }: { app: App }) => {
     app.actionManager.executeAction(actionChangeRoundness, "ui", value);
   return (
     <Section title={t("labels.edges")} testId="inspector-corners">
-      {(rounded.length > 0 || noSelection) && (
-        <div className="inspector__row" style={{ gap: 2 }}>
-          {(
+      <div className="inspector__row" style={{ gap: 2 }}>
+        {(rounded.length > 0 || noSelection) &&
+          (
             [
               ["sharp", EdgeSharpIcon, t("labels.sharp")],
               ["round", EdgeRoundIcon, t("labels.round")],
@@ -695,10 +695,7 @@ export const CornersSection = ({ app }: { app: App }) => {
               {icon}
             </button>
           ))}
-        </div>
-      )}
-      {(radiusTargets.length > 0 || single?.type === "path") && (
-        <div className="inspector__row" style={{ gap: 2 }}>
+        {(radiusTargets.length > 0 || single?.type === "path") && (
           <button
             type="button"
             className="inspector__iconbtn"
@@ -710,12 +707,12 @@ export const CornersSection = ({ app }: { app: App }) => {
           >
             <PathActionIcon kind="corner" />
           </button>
-          {app.state.cornerMode && (
-            <span className="inspector__hint" style={{ padding: 0 }}>
-              {t("labels.corners.hint")}
-            </span>
-          )}
-        </div>
+        )}
+      </div>
+      {app.state.cornerMode && (
+        <span className="inspector__hint" style={{ padding: 0 }}>
+          {t("labels.corners.hint")}
+        </span>
       )}
       {radiusTargets.length > 0 && (
         <SliderRow

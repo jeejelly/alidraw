@@ -72,7 +72,11 @@ const ParamField = ({
         onChange={(e) => onChange(e.target.checked)}
       />
     ) : param.kind === "choice" ? (
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <select
+        className="inspector__select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
         {param.options!.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -82,6 +86,7 @@ const ParamField = ({
     ) : param.kind === "number" ? (
       <input
         type="number"
+        className="inspector__text"
         min={param.min}
         max={param.max}
         value={value}
@@ -96,6 +101,7 @@ const ParamField = ({
     ) : (
       <input
         type="text"
+        className="inspector__text"
         value={value}
         onKeyDown={(e) => e.stopPropagation()}
         onChange={(e) => onChange(e.target.value)}
@@ -109,6 +115,7 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
     <label className="symbols__param">
       <span>Theme</span>
       <select
+        className="inspector__select"
         data-testid="symbols-theme-preset"
         value={ALL_THEMES.some((t) => t.name === theme.name) ? theme.name : ""}
         onChange={(e) => {
@@ -132,6 +139,8 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
       <span>Corners</span>
       <input
         type="range"
+        className="inspector__slider"
+        style={{ ["--p" as string]: theme.radius / MAX_RADIUS }}
         data-testid="symbols-radius-range"
         min={0}
         max={MAX_RADIUS}
@@ -142,7 +151,7 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
       />
       <input
         type="number"
-        className="symbols__num"
+        className="inspector__text symbols__num"
         data-testid="symbols-radius"
         min={0}
         value={theme.radius}
@@ -160,6 +169,7 @@ const ThemeEditor = ({ theme }: { theme: SymbolTheme }) => (
       <span>Stroke</span>
       <input
         type="number"
+        className="inspector__text"
         data-testid="symbols-stroke"
         min={0.5}
         step={0.5}
@@ -474,6 +484,7 @@ const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
         <button
           type="button"
           data-testid="symbols-scheme-keep"
+          title="Keep these colours in the swatches"
           onClick={() => {
             const n = addSwatches(
               colors.map((c) => ({
@@ -484,7 +495,7 @@ const ReferenceColors = ({ app, theme }: { app: App; theme: SymbolTheme }) => {
             setKept(`${n} colours added to the swatches.`);
           }}
         >
-          Keep in swatches
+          Keep
         </button>
       </div>
       <div className="symbols__chips">
@@ -773,256 +784,263 @@ export const SymbolsPanel = ({ app }: { app: App }) => {
         <ThemeEditor theme={theme} />
         <HarmonyTheme app={app} theme={theme} />
         <ReferenceColors app={app} theme={theme} />
+        <p className="symbols__note">Apply the theme to</p>
         <div className="symbols__row">
           <button
             type="button"
             data-testid="symbols-apply-selection"
+            title="Apply the theme to the selected symbols"
             onClick={() => retheme(false)}
           >
-            Apply to selection
+            Selection
           </button>
           <button
             type="button"
             data-testid="symbols-apply-all"
+            title="Apply the theme to every symbol of the canvas"
             onClick={() => retheme(true)}
           >
-            Apply to all symbols
+            All symbols
           </button>
         </div>
         {note && <p className="symbols__note">{note}</p>}
       </Section>
 
-      <div className="symbols__modes" role="tablist">
-        {(["components", "icons", "templates", "art"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="tab"
-            aria-selected={mode === m}
-            data-testid={`symbols-mode-${m}`}
-            onClick={() => {
-              setMode(m);
-              setCategory("All");
-            }}
-          >
-            {m === "components"
-              ? `Components (${COMPONENTS.length})`
-              : m === "icons"
-              ? `Icons (${ICONS.length})`
-              : m === "templates"
-              ? `Screens (${TEMPLATES.length})`
-              : `Art (${ILLUSTRATIONS.length})`}
-          </button>
-        ))}
-      </div>
-      <input
-        className="symbols__search"
-        data-testid="symbols-search"
-        placeholder={
-          mode === "components"
-            ? "Search components…"
-            : mode === "icons"
-            ? "Search icons…"
-            : mode === "art"
-            ? "Search illustrations…"
-            : "Search screens…"
-        }
-        value={query}
-        onKeyDown={(e) => e.stopPropagation()}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      <div
-        className="symbols__cats"
-        hidden={mode === "templates" || mode === "art"}
-      >
-        {cats.map((c) => (
-          <button
-            key={c}
-            type="button"
-            aria-pressed={category === c}
-            onClick={() => setCategory(c)}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
+      <div className="symbols__library">
+        <div className="symbols__modes" role="tablist">
+          {(["components", "icons", "templates", "art"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              data-testid={`symbols-mode-${m}`}
+              onClick={() => {
+                setMode(m);
+                setCategory("All");
+              }}
+            >
+              {m === "components"
+                ? `Components (${COMPONENTS.length})`
+                : m === "icons"
+                ? `Icons (${ICONS.length})`
+                : m === "templates"
+                ? `Screens (${TEMPLATES.length})`
+                : `Art (${ILLUSTRATIONS.length})`}
+            </button>
+          ))}
+        </div>
+        <input
+          className="inspector__text symbols__search"
+          data-testid="symbols-search"
+          placeholder={
+            mode === "components"
+              ? "Search components…"
+              : mode === "icons"
+              ? "Search icons…"
+              : mode === "art"
+              ? "Search illustrations…"
+              : "Search screens…"
+          }
+          value={query}
+          onKeyDown={(e) => e.stopPropagation()}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div
+          className="symbols__cats"
+          hidden={mode === "templates" || mode === "art"}
+        >
+          {cats.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-pressed={category === c}
+              onClick={() => setCategory(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
 
-      {mode === "art" ? (
-        <div
-          className="symbols__grid symbols__grid--screens"
-          data-testid="symbols-art"
-        >
-          {ILLUSTRATIONS.filter(
-            (il) => !q || `${il.name} ${il.tags}`.toLowerCase().includes(q),
-          ).map((il) => (
-            <button
-              key={il.id}
-              type="button"
-              className="symbols__tile"
-              data-testid="symbols-art-item"
-              title={`${il.name}: vector paths, every shape editable`}
-              onClick={() => insert(importSvg(il.svg, { x: 0, y: 0 }).elements)}
-            >
-              <img
-                alt={il.name}
-                width={136}
-                height={136}
-                src={`data:image/svg+xml;utf8,${encodeURIComponent(il.svg)}`}
-              />
-              <span>{il.name}</span>
-            </button>
-          ))}
-        </div>
-      ) : mode === "templates" ? (
-        <div
-          className="symbols__grid symbols__grid--screens"
-          data-testid="symbols-templates"
-        >
-          {TEMPLATES.filter(
-            (t) => !q || `${t.name} ${t.tags}`.toLowerCase().includes(q),
-          ).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className="symbols__tile"
-              data-testid="symbols-template"
-              title={`${t.name}: ${t.parts.length} parts, each one editable`}
-              onClick={() => insert(buildTemplate(t, theme))}
-            >
-              <SymbolPreview
-                shapes={templateShapes(t, theme)}
-                theme={theme}
-                width={136}
-                height={190}
-              />
-              <span>{t.name}</span>
-            </button>
-          ))}
-        </div>
-      ) : mode === "components" ? (
-        <>
-          {pickedDef && (
-            <div className="symbols__detail" data-testid="symbols-detail">
-              <strong>{pickedDef.name}</strong>
-              <SymbolPreview
-                shapes={pickedDef.shapes(theme, valuesOf(pickedDef))}
-                theme={theme}
-                width={300}
-                height={170}
-              />
-              {(pickedDef.params ?? []).map((p) => (
-                <ParamField
-                  key={p.key}
-                  param={p}
-                  value={valuesOf(pickedDef)[p.key]}
-                  onChange={(v) =>
-                    setValues((all) => ({
-                      ...all,
-                      [pickedDef.id]: { ...all[pickedDef.id], [p.key]: v },
-                    }))
-                  }
+        {mode === "art" ? (
+          <div
+            className="symbols__grid symbols__grid--screens"
+            data-testid="symbols-art"
+          >
+            {ILLUSTRATIONS.filter(
+              (il) => !q || `${il.name} ${il.tags}`.toLowerCase().includes(q),
+            ).map((il) => (
+              <button
+                key={il.id}
+                type="button"
+                className="symbols__tile"
+                data-testid="symbols-art-item"
+                title={`${il.name}: vector paths, every shape editable`}
+                onClick={() =>
+                  insert(importSvg(il.svg, { x: 0, y: 0 }).elements)
+                }
+              >
+                <img
+                  alt={il.name}
+                  width={136}
+                  height={136}
+                  src={`data:image/svg+xml;utf8,${encodeURIComponent(il.svg)}`}
                 />
-              ))}
-              <button
-                type="button"
-                className="symbols__insert"
-                data-testid="symbols-insert"
-                onClick={() => insertComponent(pickedDef)}
-              >
-                Insert on canvas
+                <span>{il.name}</span>
               </button>
+            ))}
+          </div>
+        ) : mode === "templates" ? (
+          <div
+            className="symbols__grid symbols__grid--screens"
+            data-testid="symbols-templates"
+          >
+            {TEMPLATES.filter(
+              (t) => !q || `${t.name} ${t.tags}`.toLowerCase().includes(q),
+            ).map((t) => (
               <button
+                key={t.id}
                 type="button"
-                className="symbols__replace"
-                data-testid="symbols-replace"
-                disabled={app.symbols.replaceable().length === 0}
-                title="Each selected shape becomes this component, keeping its text as the label and its links"
-                onClick={() => {
-                  const n = app.symbols.replace(
-                    pickedDef.id,
-                    values[pickedDef.id] ?? {},
-                    theme,
-                  );
-                  setNote(`${n} shape${n === 1 ? "" : "s"} replaced.`);
-                }}
-              >
-                Replace selected shapes
-              </button>
-            </div>
-          )}
-          <div className="symbols__grid" data-testid="symbols-grid">
-            {components.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`symbols__tile${
-                  picked === c.id ? " is-picked" : ""
-                }`}
-                data-testid="symbols-tile"
-                title={c.name}
-                onClick={() => setPicked(c.id)}
-                onDoubleClick={() => insertComponent(c)}
+                className="symbols__tile"
+                data-testid="symbols-template"
+                title={`${t.name}: ${t.parts.length} parts, each one editable`}
+                onClick={() => insert(buildTemplate(t, theme))}
               >
                 <SymbolPreview
-                  shapes={c.shapes(theme, valuesOf(c))}
+                  shapes={templateShapes(t, theme)}
                   theme={theme}
                   width={136}
-                  height={84}
+                  height={190}
                 />
-                <span>{c.name}</span>
+                <span>{t.name}</span>
               </button>
             ))}
-            {components.length === 0 && (
-              <p className="symbols__note">Nothing matches.</p>
-            )}
           </div>
-        </>
-      ) : (
-        <>
-          <label className="symbols__param">
-            <span>Size</span>
-            <input
-              type="number"
-              min={8}
-              max={256}
-              value={iconSize}
-              onKeyDown={(e) => e.stopPropagation()}
-              onChange={(e) =>
-                Number(e.target.value) > 0 &&
-                setIconSize(Number(e.target.value))
-              }
-            />
-          </label>
-          <div className="symbols__icons" data-testid="symbols-icons">
-            {icons.map((i) => (
-              <button
-                key={i.name}
-                type="button"
-                className="symbols__icon"
-                data-testid="symbols-icon"
-                title={i.name}
-                onClick={() => insertIcon(i.name)}
-              >
+        ) : mode === "components" ? (
+          <>
+            {pickedDef && (
+              <div className="symbols__detail" data-testid="symbols-detail">
+                <strong>{pickedDef.name}</strong>
                 <SymbolPreview
-                  shapes={[
-                    {
-                      t: "icon",
-                      name: i.name,
-                      x: 0,
-                      y: 0,
-                      size: 24,
-                      s: "text",
-                    },
-                  ]}
+                  shapes={pickedDef.shapes(theme, valuesOf(pickedDef))}
                   theme={theme}
-                  width={40}
-                  height={40}
+                  width={300}
+                  height={170}
                 />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+                {(pickedDef.params ?? []).map((p) => (
+                  <ParamField
+                    key={p.key}
+                    param={p}
+                    value={valuesOf(pickedDef)[p.key]}
+                    onChange={(v) =>
+                      setValues((all) => ({
+                        ...all,
+                        [pickedDef.id]: { ...all[pickedDef.id], [p.key]: v },
+                      }))
+                    }
+                  />
+                ))}
+                <button
+                  type="button"
+                  className="symbols__insert"
+                  data-testid="symbols-insert"
+                  onClick={() => insertComponent(pickedDef)}
+                >
+                  Insert on canvas
+                </button>
+                <button
+                  type="button"
+                  className="symbols__replace"
+                  data-testid="symbols-replace"
+                  disabled={app.symbols.replaceable().length === 0}
+                  title="Each selected shape becomes this component, keeping its text as the label and its links"
+                  onClick={() => {
+                    const n = app.symbols.replace(
+                      pickedDef.id,
+                      values[pickedDef.id] ?? {},
+                      theme,
+                    );
+                    setNote(`${n} shape${n === 1 ? "" : "s"} replaced.`);
+                  }}
+                >
+                  Replace selected shapes
+                </button>
+              </div>
+            )}
+            <div className="symbols__grid" data-testid="symbols-grid">
+              {components.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`symbols__tile${
+                    picked === c.id ? " is-picked" : ""
+                  }`}
+                  data-testid="symbols-tile"
+                  title={c.name}
+                  onClick={() => setPicked(c.id)}
+                  onDoubleClick={() => insertComponent(c)}
+                >
+                  <SymbolPreview
+                    shapes={c.shapes(theme, valuesOf(c))}
+                    theme={theme}
+                    width={136}
+                    height={84}
+                  />
+                  <span>{c.name}</span>
+                </button>
+              ))}
+              {components.length === 0 && (
+                <p className="symbols__note">Nothing matches.</p>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <label className="symbols__param">
+              <span>Size</span>
+              <input
+                type="number"
+                min={8}
+                max={256}
+                value={iconSize}
+                onKeyDown={(e) => e.stopPropagation()}
+                onChange={(e) =>
+                  Number(e.target.value) > 0 &&
+                  setIconSize(Number(e.target.value))
+                }
+              />
+            </label>
+            <div className="symbols__icons" data-testid="symbols-icons">
+              {icons.map((i) => (
+                <button
+                  key={i.name}
+                  type="button"
+                  className="symbols__icon"
+                  data-testid="symbols-icon"
+                  title={i.name}
+                  onClick={() => insertIcon(i.name)}
+                >
+                  <SymbolPreview
+                    shapes={[
+                      {
+                        t: "icon",
+                        name: i.name,
+                        x: 0,
+                        y: 0,
+                        size: 24,
+                        s: "text",
+                      },
+                    ]}
+                    theme={theme}
+                    width={40}
+                    height={40}
+                  />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };
