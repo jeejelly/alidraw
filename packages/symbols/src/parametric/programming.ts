@@ -6,7 +6,7 @@ import {
   type Shape,
 } from "../shapes";
 
-import { accentParam, closed, nodeDef, withFlow } from "./diagramKit";
+import { accentParam, nodeDef, withFlow } from "./diagramKit";
 import { list, num, pick, text } from "./helpers";
 
 import type { Token } from "../theme";
