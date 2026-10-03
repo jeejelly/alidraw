@@ -45,9 +45,12 @@ export const sizeParams = (width: number, height: number): Param[] => [
   num("height", "Height", height, 24, 600),
 ];
 
-/** an outline drawn as a closed polyline (lines cannot be filled) */
-export const closed = (points: [number, number][], ink: Token): Shape =>
-  lineShape([...points, points[0]], { s: ink });
+/** a closed outline, filled with the surface colour unless `fill` says otherwise */
+export const closed = (
+  points: [number, number][],
+  ink: Token,
+  fill: Token | null = "surface",
+): Shape => lineShape([...points, points[0]], { s: ink, f: fill });
 
 /** points along an elliptical arc, angles in radians */
 export const ellipseArc = (

@@ -1,8 +1,14 @@
 import React from "react";
 
 import { readFlow, serializeFlow } from "@excalidraw/flow";
-import { COMPONENTS, COMPONENT_CATEGORIES } from "@excalidraw/symbols";
-import { THEMES } from "@excalidraw/symbols";
+import { FONT_FAMILY } from "@excalidraw/common";
+import {
+  buildElements,
+  COMPONENTS,
+  COMPONENT_CATEGORIES,
+  THEMES,
+  themeUpdates,
+} from "@excalidraw/symbols";
 
 import { Excalidraw } from "../index";
 import { setSymbolTheme } from "../components/inspector/symbols/themeStore";
@@ -104,5 +110,49 @@ describe("flow symbols", () => {
     expect(handle.elements.some((element) => element.customData?.flow)).toBe(
       false,
     );
+  });
+});
+
+describe("filled shapes and code fonts", () => {
+  const buildComponent = (id: string) => {
+    const def = COMPONENTS.find((component) => component.id === id)!;
+    const values = Object.fromEntries(
+      (def.params ?? []).map((param) => [param.key, param.def]),
+    );
+    return buildElements(def.shapes(THEMES[2], values as any), THEMES[2], {
+      x: 0,
+      y: 0,
+    });
+  };
+
+  it("a decision, a parallelogram and a display are filled polygons", () => {
+    for (const id of ["flow-decision", "flow-input-output", "flow-display"]) {
+      const polygons = buildComponent(id).filter(
+        (element: any) => element.type === "line" && element.polygon,
+      );
+      expect(polygons.length).toBeGreaterThan(0);
+      for (const polygon of polygons) {
+        expect(polygon.backgroundColor).toBe(THEMES[2].colors.surface);
+      }
+    }
+  });
+
+  it("re-theming recolours the fill of a polygon", () => {
+    const [polygon] = buildComponent("flow-decision").filter(
+      (element: any) => element.type === "line" && element.polygon,
+    );
+    const dark = THEMES[THEMES.length - 1];
+    const [update] = themeUpdates([polygon], dark);
+    expect(update.updates.backgroundColor).toBe(dark.colors.surface);
+  });
+
+  it("code uses a monospace face, other text does not", () => {
+    const texts = buildComponent("prog-note").filter(
+      (element: any) => element.type === "text",
+    ) as any[];
+    const byText = (content: string) =>
+      texts.find((element) => element.text.includes(content))!;
+    expect(byText("run();").fontFamily).toBe(FONT_FAMILY.Cascadia);
+    expect(byText("Snippet").fontFamily).toBe(FONT_FAMILY.Nunito);
   });
 });

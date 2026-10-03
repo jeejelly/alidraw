@@ -233,10 +233,11 @@ export const buildElements = (
       out.push(
         newLinearElement({
           ...base(
-            { s: shape.s ?? "text", f: null },
+            { s: shape.s ?? "text", f: shape.f ?? null },
             { strokeWidth: sw, dash: shape.dash },
           ),
           type: "line",
+          polygon: !!shape.f,
           x: first[0],
           y: first[1],
           points: [
@@ -269,7 +270,7 @@ export const buildElements = (
         ...base({ s: shape.s, f: null }),
         text: shape.text,
         fontSize: shape.size,
-        fontFamily: FONT_FAMILY.Nunito,
+        fontFamily: shape.mono ? FONT_FAMILY.Cascadia : FONT_FAMILY.Nunito,
         x: shape.x,
         y: shape.y,
         strokeWidth: 1,

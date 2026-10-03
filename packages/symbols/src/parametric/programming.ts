@@ -37,7 +37,17 @@ const compartments = (
     bodies.push(divider(width, top));
     const height = Math.max(1, rows.length) * ROW + 10;
     rows.forEach((row, index) =>
-      bodies.push(textShape(row, 12, top + 5 + ROW / 2 + index * ROW, 12)),
+      bodies.push(
+        textShape(
+          row,
+          12,
+          top + 5 + ROW / 2 + index * ROW,
+          12,
+          "text",
+          "start",
+          true,
+        ),
+      ),
     );
     y += height;
   }
@@ -187,7 +197,7 @@ export const endpoint = withFlow(
         rectShape(0, 0, values.width, 40, { r: "ctl", f: "surface", s: ink }),
         rectShape(6, 6, 64, 28, { r: "ctl", f: ink, s: null }),
         textShape(values.method, 38, 20, 12, "onAccent", "middle"),
-        textShape(values.path, 82, 20, 14),
+        textShape(values.path, 82, 20, 14, "text", "start", true),
       ];
     },
     "rest http route url get post request",
@@ -241,7 +251,7 @@ export const codeNote = withFlow(
         textShape(values.title, 12, 16, 11, "muted"),
         divider(values.width, 30),
         ...lines.map((line, index) =>
-          textShape(line, 12, 46 + index * 20, 12, "text"),
+          textShape(line, 12, 46 + index * 20, 12, "text", "start", true),
         ),
       ];
     },

@@ -72,7 +72,7 @@ export const SymbolPreview = ({
             <polyline
               key={index}
               points={shape.pts.map((point) => point.join(",")).join(" ")}
-              fill="none"
+              fill={shape.f ? colors[shape.f] : "none"}
               stroke={colors[shape.s ?? "text"]}
               strokeWidth={shape.sw ?? theme.stroke}
               strokeLinecap="round"
@@ -105,7 +105,11 @@ export const SymbolPreview = ({
             fill={colors[shape.s]}
             textAnchor={shape.anchor ?? "start"}
             dominantBaseline="central"
-            fontFamily="Nunito, system-ui, sans-serif"
+            fontFamily={
+              shape.mono
+                ? "Cascadia, ui-monospace, monospace"
+                : "Nunito, system-ui, sans-serif"
+            }
           >
             {shape.text}
           </text>

@@ -30,6 +30,8 @@ export type Shape =
       size: number;
       s: Token;
       anchor?: "start" | "middle" | "end";
+      /** a monospace face, for code */
+      mono?: boolean;
     };
 
 export type ComponentCategory =
@@ -193,7 +195,17 @@ export const textShape = (
   size: number,
   stroke: Token = "text",
   anchor: "start" | "middle" | "end" = "start",
-): Shape => ({ t: "text", text, x, y, size, s: stroke, anchor });
+  mono = false,
+): Shape => ({
+  t: "text",
+  text,
+  x,
+  y,
+  size,
+  s: stroke,
+  anchor,
+  ...(mono ? { mono } : {}),
+});
 
 export const arcPts = (
   cx: number,

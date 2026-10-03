@@ -66,9 +66,10 @@ export const svgFor = (el: ExcalidrawElement): string | null => {
     el.type === "arrow" ||
     el.type === "freedraw"
   ) {
+    const filled = el.type === "line" && (el as any).polygon;
     inner = `<polyline points="${polylinePoints(
       (el as any).points,
-    )}" ${common} fill="none"/>`;
+    )}" ${common} ${filled ? "" : 'fill="none"'}/>`;
   } else {
     return null;
   }
