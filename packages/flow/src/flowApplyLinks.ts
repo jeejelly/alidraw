@@ -140,7 +140,7 @@ const shiftsOf = (graph: FlowGraph) => {
   return shifts;
 };
 
-const ARROWHEAD_OF: Record<FlowEnd, string> = {
+export const ARROWHEAD_OF: Record<FlowEnd, string> = {
   arrow: "arrow",
   cross: "bar",
   circle: "circle_outline",

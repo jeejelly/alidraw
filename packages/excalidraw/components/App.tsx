@@ -10729,6 +10729,7 @@ class App extends React.Component<AppProps, AppState> {
             this.setState({ selectedLinearElement: null });
           }
         } else if (this.state.selectedLinearElement.isDragging) {
+          const dragged = this.state.selectedLinearElement;
           this.setState({
             selectedLinearElement: {
               ...this.state.selectedLinearElement,
@@ -10740,6 +10741,13 @@ class App extends React.Component<AppProps, AppState> {
             sceneCoords,
             hitBoundText: pointerDownState.hit.arrowLabel,
           });
+          for (const pointIndex of dragged.selectedPointsIndices ?? []) {
+            this.flow.handleEndpointDrop(
+              dragged.elementId,
+              pointIndex,
+              sceneCoords,
+            );
+          }
         }
 
         if (

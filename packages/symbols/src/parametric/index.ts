@@ -46,6 +46,11 @@ import {
   gridThirds,
 } from "./grids";
 
+import { ARCHITECTURE_COMPONENTS } from "./architecture";
+import { FLOW_COMPONENTS } from "./flow";
+import { PROGRAMMING_COMPONENTS } from "./programming";
+import { STATE_COMPONENTS } from "./state";
+
 import type { ComponentDef, Values } from "../shapes";
 
 export const PARAMETRIC: readonly ComponentDef[] = [
@@ -93,6 +98,10 @@ export const PARAMETRIC: readonly ComponentDef[] = [
   sheet,
   calendar,
   timePicker,
+  ...FLOW_COMPONENTS,
+  ...STATE_COMPONENTS,
+  ...ARCHITECTURE_COMPONENTS,
+  ...PROGRAMMING_COMPONENTS,
 ];
 
 /** the fixed components these replace */

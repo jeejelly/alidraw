@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 
 import {
   COMPONENTS,
@@ -13,6 +14,8 @@ import {
   type SymbolTheme,
   type Values,
 } from "@excalidraw/symbols";
+
+import { targetFlowId } from "@excalidraw/flow";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
@@ -103,15 +106,35 @@ export const SymbolLibrary = ({
     });
   };
 
-  const insertComponent = (def: ComponentDef) =>
-    insert(
-      buildElements(
-        def.shapes(theme, valuesOf(def)),
-        theme,
-        { x: 0, y: 0 },
-        def.id,
+  const insertComponent = (def: ComponentDef) => {
+    const current = valuesOf(def);
+    // the flow of the selection, read before the insertion replaces it
+    const flowId = def.flow
+      ? targetFlowId(
+          app.scene.getElementsIncludingDeleted(),
+          app.scene.getSelectedElements(app.state),
+        )
+      : undefined;
+    // the selection must be committed before it is wrapped
+    flushSync(() =>
+      insert(
+        buildElements(
+          def.shapes(theme, current),
+          theme,
+          { x: 0, y: 0 },
+          def.id,
+        ),
       ),
     );
+    if (def.flow) {
+      const { labelParam, ...look } = def.flow;
+      app.flow.convertSelection(
+        flowId,
+        String(current[labelParam] ?? ""),
+        look,
+      );
+    }
+  };
 
   const insertIcon = (name: string) =>
     insert(

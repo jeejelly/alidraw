@@ -41,7 +41,11 @@ export type ComponentCategory =
   | "Navigation"
   | "Overlays"
   | "Screens"
-  | "Grids";
+  | "Grids"
+  | "Flow"
+  | "State"
+  | "Architecture"
+  | "Programming";
 
 export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   "Buttons",
@@ -53,6 +57,10 @@ export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   "Overlays",
   "Screens",
   "Grids",
+  "Flow",
+  "State",
+  "Architecture",
+  "Programming",
 ];
 
 export type Param = {
@@ -67,6 +75,40 @@ export type Param = {
 
 export type Values = Record<string, any>;
 
+/** Plain mirrors of the flow package's types: flow depends on symbols, so symbols cannot import them. */
+export type SymbolFlowForm =
+  | "stadium"
+  | "subroutine"
+  | "cylinder"
+  | "double-circle"
+  | "hexagon"
+  | "parallelogram"
+  | "document"
+  | "delay"
+  | "display"
+  | "manual-input"
+  | "card"
+  | "lined-process"
+  | "internal-storage"
+  | "loop-limit"
+  | "cloud"
+  | "start"
+  | "stop"
+  | "fork"
+  | "comment";
+export type SymbolFlowShape = "rect" | "round" | "diamond" | "ellipse";
+/** a place on the border where links attach, as shares of width and height */
+export type SymbolFlowPort = { name: string; at: [number, number] };
+
+/** how a component behaves as a flow element once inserted */
+export type ComponentFlow = {
+  form?: SymbolFlowForm;
+  shape?: SymbolFlowShape;
+  ports?: SymbolFlowPort[];
+  /** the text param that becomes the flow element's label */
+  labelParam: string;
+};
+
 export type ComponentDef = {
   id: string;
   name: string;
@@ -75,6 +117,7 @@ export type ComponentDef = {
   h: number;
   tags?: string;
   params?: readonly Param[];
+  flow?: ComponentFlow;
   shapes: (theme: SymbolTheme, values: Values) => Shape[];
 };
 

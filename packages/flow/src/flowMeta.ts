@@ -77,3 +77,12 @@ export const listFlows = (elements: readonly ExcalidrawElement[]) => {
   }
   return ids;
 };
+
+/** the flow a new element joins: the one of the selection, else the first, else "Flow 1" */
+export const targetFlowId = (
+  elements: readonly ExcalidrawElement[],
+  selected: readonly ExcalidrawElement[],
+) =>
+  selected.map(getFlowMeta).find(Boolean)?.id ??
+  listFlows(elements)[0] ??
+  "Flow 1";

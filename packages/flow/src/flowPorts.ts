@@ -18,6 +18,9 @@ const FORK: FlowPort[] = [
   { name: "third", at: [0.8, 1] },
 ];
 
+/** ready-made sets a step can be given */
+export const PORT_PRESETS = { decision: DECISION, fork: FORK };
+
 /** forms that come with ports of their own */
 const FORM_PORTS: Partial<Record<FlowForm, FlowPort[]>> = { fork: FORK };
 

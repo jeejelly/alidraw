@@ -531,6 +531,25 @@
         opacity: 0.7;
       }
     }
+    .flow__port {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.375rem;
+      margin: 0.375rem 0;
+      .flow__input {
+        flex: 1 1 5rem;
+      }
+      .inspector__action {
+        flex: 0 0 auto;
+      }
+    }
+    .flow__port-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      margin-top: 0.5rem;
+    }
     .flow__input:focus,
     .flow__select:focus,
     .flow__source:focus {

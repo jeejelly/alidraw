@@ -13,8 +13,10 @@ import type {
   ExcalidrawTextElement,
 } from "@excalidraw/element/types";
 
-import { slugKey } from "./flowGraph";
+import { FORMS, type FlowForm } from "./flowForms";
+import { slugKey, type FlowShape } from "./flowGraph";
 import { getFlowMeta, type FlowMeta } from "./flowMeta";
+
 import {
   ACCENT,
   HANDLE,
@@ -23,6 +25,8 @@ import {
   PAD,
   PLACEHOLDER,
 } from "./flowStyle";
+
+import type { FlowPort } from "./flowPorts";
 
 /**
  * Flow elements: any object or group wrapped (decorator style) in an outline
@@ -101,6 +105,24 @@ const labelFor = (targets: readonly ExcalidrawElement[]) => {
   return "";
 };
 
+/** How a new flow element is written in Mermaid and drawn: its form, outline shape and ports. */
+export type FlowLook = {
+  form?: FlowForm;
+  shape?: FlowShape;
+  ports?: FlowPort[];
+};
+
+/** the outline element a shape is read back from (see `shapeOf`) */
+const outlineStyle = (shape: FlowShape | undefined) => ({
+  type:
+    shape === "diamond"
+      ? "diamond"
+      : shape === "ellipse"
+      ? "ellipse"
+      : "rectangle",
+  roundness: shape === "round" ? { type: ROUNDNESS.ADAPTIVE_RADIUS } : null,
+});
+
 type Made = {
   key: string;
   /** the outline of the new flow element */
@@ -155,6 +177,7 @@ const buildWrapElements = ({
   bounds,
   frameId,
   meta,
+  shape,
 }: {
   flowId: string;
   key: string;
@@ -164,6 +187,7 @@ const buildWrapElements = ({
   bounds: readonly [number, number, number, number];
   frameId: string | null;
   meta: FlowMeta;
+  shape?: FlowShape;
 }) => {
   const [left, top, right, bottom] = bounds;
   const outlineX = left - PAD;
@@ -173,7 +197,7 @@ const buildWrapElements = ({
   return convertToExcalidrawElements(
     [
       {
-        type: "rectangle",
+        ...outlineStyle(shape),
         id: outline,
         x: outlineX,
         y: outlineY,
@@ -184,7 +208,6 @@ const buildWrapElements = ({
         strokeStyle: "dashed",
         strokeWidth: 1,
         roughness: 0,
-        roundness: null,
         groupIds: [group],
         frameId,
         customData: { flow: meta },
@@ -260,6 +283,7 @@ export const wrapAsFlowElement = (
   selected: readonly ExcalidrawElement[],
   flowId: string,
   options: { label?: string; placeholder?: boolean } = {},
+  look: FlowLook = {},
 ): Made | null => {
   const all = scene.getElementsIncludingDeleted();
   const targets = expandSelection(all, selected);
@@ -291,6 +315,8 @@ export const wrapAsFlowElement = (
     wrap: true,
     group,
     ...(options.placeholder ? { placeholder: true } : {}),
+    ...(look.form ? { form: look.form } : {}),
+    ...(look.ports?.length ? { ports: look.ports } : {}),
   };
   const made = buildWrapElements({
     flowId,
@@ -301,6 +327,7 @@ export const wrapAsFlowElement = (
     bounds: getCommonBounds(targets),
     frameId: frames.size === 1 ? [...frames][0] : null,
     meta,
+    shape: look.shape ?? (look.form ? FORMS[look.form].shape : undefined),
   });
   const targetIds = new Set(targets.map((element) => element.id));
   scene.replaceAllElements(insertWrap(all, targetIds, group, made));

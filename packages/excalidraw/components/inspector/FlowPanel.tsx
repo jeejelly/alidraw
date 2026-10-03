@@ -15,6 +15,7 @@ import { parseFlow, serializeFlow, type FlowIssue } from "@excalidraw/flow";
 import { t } from "../../i18n";
 
 import { FlowFiles } from "./FlowFiles";
+import { FlowSelection } from "./FlowSelection";
 
 import type App from "../App";
 
@@ -221,6 +222,8 @@ export const FlowPanel = ({ app }: { app: App }) => {
           setIssues([]);
         }}
       />
+
+      <FlowSelection app={app} />
 
       {flowId ? (
         <>
