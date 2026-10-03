@@ -85,6 +85,9 @@ export const readFlow = (
       ...(getFlowMeta(element)?.classes?.length
         ? { classes: getFlowMeta(element)!.classes }
         : {}),
+      ...(getFlowMeta(element)?.ports?.length
+        ? { ports: getFlowMeta(element)!.ports }
+        : {}),
       screen: wrapParent.get(key) ?? frameKeyOf(element),
       ...(options.layout ? { at: boxOf(element) } : {}),
     });
@@ -95,6 +98,8 @@ export const readFlow = (
     const from = keyOfId.get(arrow.startBinding!.elementId)!;
     const to = keyOfId.get(arrow.endBinding!.elementId)!;
     const link = getFlowMeta(arrow)?.link;
+    const fromPort = link?.fromPort;
+    const toPort = link?.toPort;
     const headEnd = link?.headEnd ?? endOf(arrow.endArrowhead);
     const tailEnd = link?.tailEnd ?? endOf(arrow.startArrowhead);
     graph.edges.push({
@@ -107,6 +112,8 @@ export const readFlow = (
       ...(headEnd ? { headEnd } : {}),
       ...(tailEnd ? { tailEnd } : {}),
       ...(link?.length ? { length: link.length } : {}),
+      ...(fromPort ? { fromPort } : {}),
+      ...(toPort ? { toPort } : {}),
     });
     const fromElement = byKey.get(from)!;
     const toElement = byKey.get(to)!;

@@ -14,7 +14,9 @@ import { buildFrames } from "./flowApplyFrames";
 import {
   buildLinkSkeletons,
   collectArrowRefs,
-  rememberLinkLooks,
+  planLinks,
+  refreshKeptLinks,
+  type LinkPlan,
   uniqueRefs,
 } from "./flowApplyLinks";
 import {
@@ -29,7 +31,7 @@ import { storeGraphMeta } from "./flowGraphMeta";
 import { layoutNewNodes } from "./flowLayout";
 import { getFlowMeta, withFlow } from "./flowMeta";
 import { partsOf, type FlowParts } from "./flowParts";
-import { relabelText } from "./flowText";
+import { relabelText, textOf } from "./flowText";
 
 import type { FlowGraph, FlowIssue } from "./flowGraph";
 
@@ -140,7 +142,7 @@ const drawStepsAndLinks = ({
   containers,
   placed,
   sizes,
-  carry,
+  plan,
   changes,
   issues,
 }: {
@@ -150,7 +152,7 @@ const drawStepsAndLinks = ({
   containers: FlowGraph["screens"];
   placed: Map<string, { x: number; y: number }>;
   sizes: Map<string, { w: number; h: number }>;
-  carry: ReturnType<typeof rememberLinkLooks>;
+  plan: LinkPlan;
   changes: Changes;
   issues: FlowIssue[];
 }) => {
@@ -189,8 +191,16 @@ const drawStepsAndLinks = ({
     flowId,
     idOf,
     rectOf,
-    carry,
+    plan,
     issues,
+  });
+  const keptLinks = refreshKeptLinks({
+    graph,
+    flowId,
+    idOf,
+    rectOf,
+    plan,
+    labelOf: (arrow) => textOf(arrow, parts.map),
   });
   const linkOut = convertToExcalidrawElements(
     [
@@ -211,7 +221,7 @@ const drawStepsAndLinks = ({
   const newArrowIds = new Set(
     arrowSkeletons.map((arrowSkeleton) => arrowSkeleton.id),
   );
-  return { idOf, recreated, out, newArrowIds };
+  return { idOf, recreated, out, newArrowIds, keptLinks };
 };
 
 /** The scene's elements after the change: deletions, replacements, additions. */
@@ -315,8 +325,7 @@ export const applyFlow = (
     ungroup: new Set(),
     relabel: new Map(),
   };
-  // links are redrawn: remember their look
-  const carry = rememberLinkLooks(parts, changes.gone);
+  const plan = planLinks(parts, graph, changes);
   planRemovals(all, parts, graph, changes);
 
   const { sizes, placed } = placeNewNodes(graph, oldNodes, origin);
@@ -324,14 +333,14 @@ export const applyFlow = (
   const containers = graph.screens.filter((flowScreen) =>
     wrapScreens.has(flowScreen.key),
   );
-  const { idOf, recreated, out, newArrowIds } = drawStepsAndLinks({
+  const { idOf, recreated, out, newArrowIds, keptLinks } = drawStepsAndLinks({
     graph,
     flowId,
     parts,
     containers,
     placed,
     sizes,
-    carry,
+    plan,
     changes,
     issues,
   });
@@ -379,6 +388,9 @@ export const applyFlow = (
     arrowRefs,
     gone: changes.gone,
   });
+  for (const link of keptLinks) {
+    replaced.set(link.id, link);
+  }
   scene.replaceAllElements(
     storeGraphMeta(
       rebuildElements({

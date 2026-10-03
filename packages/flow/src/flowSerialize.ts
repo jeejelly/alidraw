@@ -1,6 +1,8 @@
 import { BASIC_BRACKETS, FORMS } from "./flowForms";
 import { quote } from "./flowParseText";
 
+import type { FlowPort } from "./flowPorts";
+
 import type {
   FlowBox,
   FlowEdge,
@@ -56,6 +58,16 @@ const layoutLine = (key: string, box: FlowBox) =>
     .map((value) => Math.round(value * 10) / 10)
     .join(" ")}`;
 
+const portsLine = (key: string, ports: readonly FlowPort[]) =>
+  `%% @ports ${key} ${ports
+    .map(
+      (port) =>
+        `${port.name}:${Math.round(port.at[0] * 1000) / 1000}:${
+          Math.round(port.at[1] * 1000) / 1000
+        }`,
+    )
+    .join(" ")}`;
+
 export type SerializeOptions = {
   /** also write where each step sits, as `%% @layout` comments (valid Mermaid) */
   layout?: boolean;
@@ -106,6 +118,18 @@ export const serializeFlow = (
         out.push(layoutLine(item.key, item.at));
       }
     }
+    for (const node of graph.nodes) {
+      if (node.ports?.length) {
+        out.push(portsLine(node.key, node.ports));
+      }
+    }
+    graph.edges.forEach((edge, index) => {
+      if (edge.fromPort || edge.toPort) {
+        out.push(
+          `%% @link ${index} ${edge.fromPort ?? "-"} ${edge.toPort ?? "-"}`,
+        );
+      }
+    });
   }
   return `${out.join("\n")}\n`;
 };

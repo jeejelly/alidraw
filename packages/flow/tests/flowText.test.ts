@@ -228,3 +228,32 @@ describe("the layout comments", () => {
     ).toEqual([undefined, undefined]);
   });
 });
+
+describe("ports", () => {
+  const TEXT = `flowchart TD
+  d{"Paid?"}
+  a["A"]
+  b["B"]
+  d -- yes --> a
+  d --> b
+%% @ports d in:0.5:0 yes:0.5:1 maybe:1:0.5
+%% @link 1 maybe -
+`;
+  it("are kept in the layout comments of the own format only", () => {
+    const { graph, issues } = parseFlow(TEXT);
+    expect(issues).toEqual([]);
+    expect(graph.nodes[0].ports).toEqual([
+      { name: "in", at: [0.5, 0] },
+      { name: "yes", at: [0.5, 1] },
+      { name: "maybe", at: [1, 0.5] },
+    ]);
+    expect(graph.edges.map((edge) => edge.fromPort)).toEqual([
+      undefined,
+      "maybe",
+    ]);
+    expect(serializeFlow(graph)).not.toContain("@");
+    const written = serializeFlow(graph, { layout: true });
+    expect(written).toContain("%% @link 1 maybe -");
+    expect(parseFlow(written).graph).toEqual(graph);
+  });
+});

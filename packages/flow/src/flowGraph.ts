@@ -1,4 +1,5 @@
 import type { FlowForm } from "./flowForms";
+import type { FlowPort } from "./flowPorts";
 
 /**
  * A flow: screens, steps (hotspots) and the links between them, with a
@@ -24,6 +25,8 @@ export type FlowNode = {
   form?: FlowForm;
   /** `A:::name` */
   classes?: string[];
+  /** where links attach, when it is not the default for its shape */
+  ports?: FlowPort[];
   /** the screen (subgraph) it sits in */
   screen?: string;
   at?: FlowBox;
@@ -47,6 +50,9 @@ export type FlowEdge = {
   /** the kind of end, when it is not the plain arrow */
   headEnd?: FlowEnd;
   tailEnd?: FlowEnd;
+  /** the ports it leaves from and arrives at (outcomes of a decision) */
+  fromPort?: string;
+  toPort?: string;
   /** extra dashes of a longer link (`---->`): the link spans more ranks */
   length?: number;
 };

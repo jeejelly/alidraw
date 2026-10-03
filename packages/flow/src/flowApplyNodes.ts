@@ -122,7 +122,7 @@ export const buildNodeBatch = ({
 
 /** the parts of a step's meta that the text decides */
 const withoutLook = (meta: FlowMeta): FlowMeta => {
-  const { form: _form, classes: _classes, ...rest } = meta;
+  const { form: _form, classes: _classes, ports: _ports, ...rest } = meta;
   return rest;
 };
 
@@ -175,6 +175,7 @@ export const mergeNodes = ({
           kind: "node",
           ...(flowNode.form ? { form: flowNode.form } : {}),
           ...(flowNode.classes?.length ? { classes: flowNode.classes } : {}),
+          ...(flowNode.ports?.length ? { ports: flowNode.ports } : {}),
         }),
       }),
     );

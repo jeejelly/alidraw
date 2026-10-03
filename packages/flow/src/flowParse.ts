@@ -19,6 +19,7 @@ import type {
   FlowShape,
 } from "./flowGraph";
 import type { FlowForm } from "./flowForms";
+import type { FlowPort } from "./flowPorts";
 
 const ID = /^[A-Za-z_][A-Za-z0-9_]*/;
 
@@ -31,6 +32,8 @@ type ParseState = {
   stack: string[];
   mentioned: Set<string>;
   layout: Map<string, FlowBox>;
+  nodePorts: Map<string, FlowPort[]>;
+  linkPorts: Map<number, { from?: string; to?: string }>;
   sawHeader: boolean;
   /** inside `accDescr { … }`: the lines are kept as written */
   block: string[] | null;
@@ -199,12 +202,38 @@ const readStatement = (state: ParseState, line: string, lineNo: number) => {
   }
 };
 
+const PORTS_COMMENT =
+  /^%%\s*@ports\s+(\S+)((?:\s+[^\s:]+:-?[\d.]+:-?[\d.]+)+)\s*$/;
+const LINK_COMMENT = /^%%\s*@link\s+(\d+)\s+(\S+)\s+(\S+)\s*$/;
+
 /** a whole-line comment: layout of a node, a directive, or a plain comment kept as written */
 const readComment = (state: ParseState, line: string) => {
   const layout = LAYOUT_COMMENT.exec(line);
   if (layout) {
     const [, key, x, y, width, height] = layout;
     state.layout.set(key, { x: +x, y: +y, w: +width, h: +height });
+    return;
+  }
+  const ports = PORTS_COMMENT.exec(line);
+  if (ports) {
+    state.nodePorts.set(
+      ports[1],
+      ports[2]
+        .trim()
+        .split(/\s+/)
+        .map((spec) => {
+          const [name, x, y] = spec.split(":");
+          return { name, at: [+x, +y] as [number, number] };
+        }),
+    );
+    return;
+  }
+  const link = LINK_COMMENT.exec(line);
+  if (link) {
+    state.linkPorts.set(+link[1], {
+      from: link[2] === "-" ? undefined : link[2],
+      to: link[3] === "-" ? undefined : link[3],
+    });
   } else if (line.startsWith("%%{")) {
     state.graph.preamble.push(line);
   } else {
@@ -287,6 +316,23 @@ const readLine = (state: ParseState, raw: string, lineNo: number) => {
 };
 
 const applyLayout = (state: ParseState) => {
+  for (const [key, ports] of state.nodePorts) {
+    const node = state.nodes.get(key);
+    if (node) {
+      node.ports = ports;
+    }
+  }
+  for (const [index, ends] of state.linkPorts) {
+    const edge = state.graph.edges[index];
+    if (edge) {
+      if (ends.from) {
+        edge.fromPort = ends.from;
+      }
+      if (ends.to) {
+        edge.toPort = ends.to;
+      }
+    }
+  }
   for (const [key, box] of state.layout) {
     const target = state.nodes.get(key) ?? state.screens.get(key);
     if (target) {
@@ -306,6 +352,8 @@ export const parseFlow = (
     stack: [],
     mentioned: new Set(),
     layout: new Map(),
+    nodePorts: new Map(),
+    linkPorts: new Map(),
     sawHeader: false,
     block: null,
   };

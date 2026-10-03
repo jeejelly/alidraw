@@ -1,6 +1,7 @@
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import type { FlowForm } from "./flowForms";
+import type { FlowPort } from "./flowPorts";
 import type { FlowDirection, FlowEdge, FlowEnd } from "./flowGraph";
 
 /**
@@ -25,10 +26,17 @@ export type FlowMeta = {
   /** a node: how Mermaid writes it, and its `:::classes` */
   form?: FlowForm;
   classes?: string[];
+  ports?: FlowPort[];
   /** a screen: `direction LR` inside its subgraph */
   direction?: FlowDirection;
   /** a link: the ends and length that the drawn arrow cannot say */
-  link?: { headEnd?: FlowEnd; tailEnd?: FlowEnd; length?: number };
+  link?: {
+    headEnd?: FlowEnd;
+    tailEnd?: FlowEnd;
+    length?: number;
+    fromPort?: string;
+    toPort?: string;
+  };
   /** on one element per flow: what belongs to the whole diagram */
   graph?: FlowGraphMeta;
 };
