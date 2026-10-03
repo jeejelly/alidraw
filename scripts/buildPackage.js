@@ -78,6 +78,10 @@ const getConfig = (outdir) => ({
     "@excalidraw/common",
     "@excalidraw/element",
     "@excalidraw/math",
+    "@excalidraw/color",
+    "@excalidraw/vector",
+    "@excalidraw/symbols",
+    "@excalidraw/flow",
     "@excalidraw/fractional-indexing",
   ],
   loader: {

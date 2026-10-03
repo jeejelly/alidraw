@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { actionAddToLibrary } from "../../actions";
 import { actionConvertToSymbol } from "../../actions/actionConvertToSymbol";
-import { getSelectedSymbol } from "../../symbols/stretch";
+import { getSelectedSymbol } from "@excalidraw/symbols";
 import {
   customOf,
   isCustom,
@@ -10,13 +10,13 @@ import {
   membersOf,
   type CustomParam,
   type CustomProp,
-} from "../../symbols/custom";
+} from "@excalidraw/symbols";
 import {
   addCustomParam,
   removeCustomParam,
   renameCustomParam,
   setCustomParam,
-} from "../../symbols/customApply";
+} from "@excalidraw/symbols";
 
 import { ColorField } from "./ColorField";
 import { NumberPill, Section } from "./primitives";

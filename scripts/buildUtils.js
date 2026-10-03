@@ -18,6 +18,10 @@ const getConfig = (outdir) => ({
     "@excalidraw/element": path.resolve(__dirname, "../packages/element/src"),
     "@excalidraw/excalidraw": path.resolve(__dirname, "../packages/excalidraw"),
     "@excalidraw/math": path.resolve(__dirname, "../packages/math/src"),
+    "@excalidraw/color": path.resolve(__dirname, "../packages/color/src"),
+    "@excalidraw/vector": path.resolve(__dirname, "../packages/vector/src"),
+    "@excalidraw/symbols": path.resolve(__dirname, "../packages/symbols/src"),
+    "@excalidraw/flow": path.resolve(__dirname, "../packages/flow/src"),
     "@excalidraw/fractional-indexing": path.resolve(
       __dirname,
       "../packages/fractional-indexing/src",

@@ -4,11 +4,11 @@ import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import { actionConvertToSymbol } from "../actions";
 import { Excalidraw } from "../index";
-import { getSymbolMeta } from "../symbols/build";
-import { customOf, detectParams, isCustom } from "../symbols/custom";
-import { setCustomParam } from "../symbols/customApply";
-import { generateSceneCode } from "../symbols/sceneCode";
-import { DEFAULT_THEME } from "../symbols/theme";
+import { getSymbolMeta } from "@excalidraw/symbols";
+import { customOf, detectParams, isCustom } from "@excalidraw/symbols";
+import { setCustomParam } from "@excalidraw/symbols";
+import { generateSceneCode } from "@excalidraw/symbols";
+import { DEFAULT_THEME } from "@excalidraw/symbols";
 
 import { API } from "./helpers/api";
 import {

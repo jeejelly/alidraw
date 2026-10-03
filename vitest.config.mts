@@ -38,6 +38,38 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "./packages/math/src/$1"),
       },
       {
+        find: /^@excalidraw\/color$/,
+        replacement: path.resolve(__dirname, "./packages/color/src/index.ts"),
+      },
+      {
+        find: /^@excalidraw\/color\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/color/src/$1"),
+      },
+      {
+        find: /^@excalidraw\/vector$/,
+        replacement: path.resolve(__dirname, "./packages/vector/src/index.ts"),
+      },
+      {
+        find: /^@excalidraw\/vector\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/vector/src/$1"),
+      },
+      {
+        find: /^@excalidraw\/symbols$/,
+        replacement: path.resolve(__dirname, "./packages/symbols/src/index.ts"),
+      },
+      {
+        find: /^@excalidraw\/symbols\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/symbols/src/$1"),
+      },
+      {
+        find: /^@excalidraw\/flow$/,
+        replacement: path.resolve(__dirname, "./packages/flow/src/index.ts"),
+      },
+      {
+        find: /^@excalidraw\/flow\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/flow/src/$1"),
+      },
+      {
         find: /^@excalidraw\/utils$/,
         replacement: path.resolve(__dirname, "./packages/utils/src/index.ts"),
       },

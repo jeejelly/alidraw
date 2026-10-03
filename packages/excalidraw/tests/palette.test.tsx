@@ -15,7 +15,7 @@ import {
   sanitizePaletteState,
   setPaletteLayout,
   snapPanel,
-} from "../palette";
+} from "@excalidraw/color";
 import { Excalidraw } from "../index";
 
 import { API } from "./helpers/api";
@@ -553,7 +553,7 @@ describe("panel width", () => {
 describe("swatch files out and back", () => {
   it("writes .gpl and .ase that read back to the same colours", async () => {
     const { serializeGpl, serializeAse, parseGpl, parseAse } = await import(
-      "../palette"
+      "@excalidraw/color"
     );
     const colors = [
       { name: "Signal", color: "#c80404" },

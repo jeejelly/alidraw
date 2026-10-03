@@ -10,10 +10,10 @@ import {
   mostVivid,
   type HarmonyRule,
   type PalettePreset,
-} from "../../color/harmony";
-import { buildPalette } from "../../image/palette";
-import { loadPixels } from "../../image/loadPixels";
-import { rgbToHex } from "../../color/harmony";
+} from "@excalidraw/color";
+import { buildPalette } from "@excalidraw/color";
+import { loadPixels } from "@excalidraw/vector";
+import { rgbToHex } from "@excalidraw/color";
 
 import { ColorField } from "./ColorField";
 

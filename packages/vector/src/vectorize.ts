@@ -2,9 +2,9 @@ import { randomId } from "@excalidraw/common";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { importSvg } from "../svgImport";
+import { importSvg } from "./svgImport";
 
-import { buildPalette } from "./palette";
+import { buildPalette } from "@excalidraw/color";
 import { smoothClosedPath, subpathPoints } from "./smoothOutline";
 
 /**

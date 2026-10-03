@@ -31,6 +31,14 @@
       "@excalidraw/laser-pointer/*": ["./packages/laser-pointer/src/*"],
       "@excalidraw/math": ["./packages/math/src/index.ts"],
       "@excalidraw/math/*": ["./packages/math/src/*"],
+      "@excalidraw/color": ["./packages/color/src/index.ts"],
+      "@excalidraw/color/*": ["./packages/color/src/*"],
+      "@excalidraw/vector": ["./packages/vector/src/index.ts"],
+      "@excalidraw/vector/*": ["./packages/vector/src/*"],
+      "@excalidraw/symbols": ["./packages/symbols/src/index.ts"],
+      "@excalidraw/symbols/*": ["./packages/symbols/src/*"],
+      "@excalidraw/flow": ["./packages/flow/src/index.ts"],
+      "@excalidraw/flow/*": ["./packages/flow/src/*"],
       "@excalidraw/utils": ["./packages/utils/src/index.ts"],
       "@excalidraw/utils/*": ["./packages/utils/src/*"]
     }

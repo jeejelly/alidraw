@@ -1,4 +1,4 @@
-import { circle, dot, rrect, star, ticks } from "./svgPath";
+import { circle, dot, rrect, star, ticks } from "@excalidraw/vector";
 
 /**
  * Outline icons on a 24 x 24 grid, drawn here as plain path data: one stroke

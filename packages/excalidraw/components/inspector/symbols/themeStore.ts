@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import { ALL_THEMES, DEFAULT_THEME, type SymbolTheme } from "./theme";
+import { ALL_THEMES, DEFAULT_THEME, type SymbolTheme } from "@excalidraw/symbols";
 
 /** the theme symbols are inserted with: a preset plus the user's changes, kept on this machine */
 const KEY = "excalidraw-symbol-theme";

@@ -7,8 +7,8 @@ import {
   hslToHex,
   mostVivid,
   themeFromHarmony,
-} from "../color/harmony";
-import { TOKENS } from "../symbols/theme";
+} from "@excalidraw/color";
+import { TOKENS } from "@excalidraw/symbols";
 
 const hue = (hex: string) => hexToHsl(hex).h;
 const gap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);

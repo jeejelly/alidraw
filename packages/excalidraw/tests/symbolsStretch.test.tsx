@@ -5,10 +5,10 @@ import { getCommonBounds } from "@excalidraw/element";
 
 import { actionReplaceFromLibrary } from "../actions";
 import { Excalidraw } from "../index";
-import { fitIntoBox } from "../symbols/fit";
-import { buildElements } from "../symbols/build";
-import { collectCodeItems } from "../symbols/codeItems";
-import { COMPONENTS, defaultsOf } from "../symbols/components";
+import { fitIntoBox } from "@excalidraw/symbols";
+import { buildElements } from "@excalidraw/symbols";
+import { collectCodeItems } from "@excalidraw/symbols";
+import { COMPONENTS, defaultsOf } from "@excalidraw/symbols";
 import {
   frameOf,
   getLayout,
@@ -16,8 +16,8 @@ import {
   inferPins,
   snapFrame,
   stretchUpdates,
-} from "../symbols/stretch";
-import { THEMES } from "../symbols/theme";
+} from "@excalidraw/symbols";
+import { THEMES } from "@excalidraw/symbols";
 
 import { API } from "./helpers/api";
 import {

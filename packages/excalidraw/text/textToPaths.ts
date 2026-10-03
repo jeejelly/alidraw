@@ -15,7 +15,7 @@ import {
   loadFontCatalogue,
   pickLibraryStyle,
 } from "../fonts/library";
-import { importSvg } from "../svgImport";
+import { importSvg } from "@excalidraw/vector";
 
 import type * as OpenType from "opentype.js";
 

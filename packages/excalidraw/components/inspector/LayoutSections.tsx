@@ -79,7 +79,7 @@ import {
   getPaletteState,
   setToolHidden,
   subscribePalette,
-} from "../../palette";
+} from "@excalidraw/color";
 import { isToolButtonDisabled } from "../Tools";
 
 import { getHostCapabilities } from "../../data/filesystem";

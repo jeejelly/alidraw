@@ -16,7 +16,7 @@ import {
   type Frame,
   type Guide,
   type Pin,
-} from "../symbols/stretch";
+} from "@excalidraw/symbols";
 
 import type App from "./App";
 

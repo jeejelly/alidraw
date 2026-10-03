@@ -2,11 +2,11 @@ import { CaptureUpdateAction } from "@excalidraw/element";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { getFlowMeta } from "../flow/flowCanvas";
-import { expandSelection } from "../flow/flowElement";
+import { getFlowMeta } from "@excalidraw/flow";
+import { expandSelection } from "@excalidraw/flow";
 import { t } from "../i18n";
-import { getSymbolMeta } from "../symbols/build";
-import { makeCustomSymbol } from "../symbols/custom";
+import { getSymbolMeta } from "@excalidraw/symbols";
+import { makeCustomSymbol } from "@excalidraw/symbols";
 
 import { register } from "./register";
 

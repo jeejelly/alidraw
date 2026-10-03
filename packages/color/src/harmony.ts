@@ -3,6 +3,8 @@
  * palettes offer them), and a whole symbol theme built from one: a base colour
  * and a rule give a family of colours that go together.
  */
+import { rgbToHex } from "./swatches";
+
 export type HSL = { h: number; s: number; l: number };
 
 const clamp = (n: number, a: number, b: number) => Math.min(b, Math.max(a, n));
@@ -21,11 +23,6 @@ export const hexToRgb = (hex: string): [number, number, number] => {
     ? [(n >> 16) & 255, (n >> 8) & 255, n & 255]
     : [0, 0, 0];
 };
-
-export const rgbToHex = (r: number, g: number, b: number) =>
-  `#${[r, g, b]
-    .map((x) => clamp(Math.round(x), 0, 255).toString(16).padStart(2, "0"))
-    .join("")}`;
 
 export const hexToHsl = (hex: string): HSL => {
   const [r, g, b] = hexToRgb(hex).map((x) => x / 255);

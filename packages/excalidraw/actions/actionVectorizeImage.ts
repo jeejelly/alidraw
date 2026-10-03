@@ -6,8 +6,8 @@ import type {
 } from "@excalidraw/element/types";
 
 import { t } from "../i18n";
-import { loadPixels } from "../image/loadPixels";
-import { traceToElements, type TraceOptions } from "../image/vectorize";
+import { loadPixels } from "@excalidraw/vector";
+import { traceToElements, type TraceOptions } from "@excalidraw/vector";
 
 import { register } from "./register";
 

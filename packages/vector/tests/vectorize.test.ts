@@ -2,7 +2,7 @@ import {
   traceToElements,
   traceToSvg,
   type PixelData,
-} from "../image/vectorize";
+} from "@excalidraw/vector";
 
 /** a 60 x 60 picture: white background, a red disc, a blue square with a hole */
 const picture = (): PixelData => {

@@ -4,8 +4,8 @@ import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
 import { t } from "../../i18n";
 import { getLayerId, type Layer } from "../../layers";
-import { getSymbolMeta } from "../../symbols/build";
-import { COMPONENTS } from "../../symbols/components";
+import { getSymbolMeta } from "@excalidraw/symbols";
+import { COMPONENTS } from "@excalidraw/symbols";
 
 import type App from "../App";
 

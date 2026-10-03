@@ -16,9 +16,9 @@ import Trans from "../Trans";
 
 import { useUIAppState } from "../../context/ui-appState";
 
-import { applyFlow, listFlows } from "../../flow/flowCanvas";
+import { applyFlow, listFlows } from "@excalidraw/flow";
 
-import { parseFlow } from "../../flow/flowGraph";
+import { parseFlow } from "@excalidraw/flow";
 
 import { TTDDialogInput } from "./TTDDialogInput";
 import { TTDDialogOutput } from "./TTDDialogOutput";

@@ -11,19 +11,19 @@ import type { ExcalidrawElement } from "@excalidraw/element/types";
 import { Excalidraw } from "../../index";
 import { serializeAsJSON } from "../../data/json";
 import { exportToSvg } from "../../scene/export";
-import { getFlowMeta, readFlow } from "../../flow/flowCanvas";
-import { serializeFlow } from "../../flow/flowGraph";
+import { getFlowMeta, readFlow } from "@excalidraw/flow";
+import { serializeFlow } from "@excalidraw/flow";
 import {
   buildElements,
   getSymbolMeta,
   symbolGroupOf,
-} from "../../symbols/build";
-import { COMPONENTS, defaultsOf, type Values } from "../../symbols/components";
-import { ILLUSTRATIONS } from "../../illustrations";
-import { importSvg } from "../../svgImport";
-import { generateResponsiveSceneCode } from "../../symbols/sceneLayout";
-import { setSymbolTheme } from "../../symbols/themeStore";
-import { THEMES, type SymbolTheme } from "../../symbols/theme";
+} from "@excalidraw/symbols";
+import { COMPONENTS, defaultsOf, type Values } from "@excalidraw/symbols";
+import { ILLUSTRATIONS } from "@excalidraw/symbols";
+import { importSvg } from "@excalidraw/vector";
+import { generateResponsiveSceneCode } from "@excalidraw/symbols";
+import { setSymbolTheme } from "../../components/inspector/symbols/themeStore";
+import { THEMES, type SymbolTheme } from "@excalidraw/symbols";
 
 import { API } from "../helpers/api";
 import {

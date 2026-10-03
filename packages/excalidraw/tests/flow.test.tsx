@@ -8,8 +8,8 @@ import {
   applyFlow,
   listFlows,
   readFlow,
-} from "../flow/flowCanvas";
-import { parseFlow, serializeFlow } from "../flow/flowGraph";
+} from "@excalidraw/flow";
+import { parseFlow, serializeFlow } from "@excalidraw/flow";
 
 import { API } from "./helpers/api";
 import {

@@ -1,8 +1,8 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const os = require("node:os");
-const path = require("node:path");
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import { expect, it } from "vitest";
 
 const { createLogger, watchWindow } = require("./diagnostics");
 
@@ -18,21 +18,21 @@ const sink = () => {
   };
 };
 
-test("a logger writes to the console and to its file", () => {
+it("a logger writes to the console and to its file", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "log-"));
   const file = path.join(dir, "logs", "app.log");
   const { lines, out } = sink();
   const log = createLogger(file, out);
   log.info("started");
   log.error("boom");
-  assert.equal(lines.length, 2);
-  assert.match(lines[1], /ERROR boom/);
+  expect(lines.length).toBe(2);
+  expect(lines[1]).toMatch(/ERROR boom/);
   const text = fs.readFileSync(file, "utf8");
-  assert.match(text, /INFO started/);
-  assert.match(text, /ERROR boom/);
+  expect(text).toMatch(/INFO started/);
+  expect(text).toMatch(/ERROR boom/);
 });
 
-test("an unwritable log file does not stop the console", () => {
+it("an unwritable log file does not stop the console", () => {
   const { lines, out } = sink();
   // a folder that cannot exist: its parent is a file
   const blocker = path.join(
@@ -42,10 +42,10 @@ test("an unwritable log file does not stop the console", () => {
   fs.writeFileSync(blocker, "x");
   const log = createLogger(path.join(blocker, "x", "app.log"), out);
   log.warn("still here");
-  assert.equal(lines.length, 1);
+  expect(lines.length).toBe(1);
 });
 
-test("a window's page errors and failed loads are reported", () => {
+it("a window's page errors and failed loads are reported", () => {
   const { lines, out } = sink();
   const log = createLogger(null, out);
   const handlers = {};
@@ -71,9 +71,9 @@ test("a window's page errors and failed loads are reported", () => {
     true,
   );
   handlers["render-process-gone"]({}, { reason: "crashed" });
-  assert.equal(lines.length, 4);
-  assert.match(lines[0], /page: bad \(a\.js:3\)/);
-  assert.match(lines[1], /old style/);
-  assert.match(lines[2], /failed to load/);
-  assert.match(lines[3], /crashed/);
+  expect(lines.length).toBe(4);
+  expect(lines[0]).toMatch(/page: bad \(a\.js:3\)/);
+  expect(lines[1]).toMatch(/old style/);
+  expect(lines[2]).toMatch(/failed to load/);
+  expect(lines[3]).toMatch(/crashed/);
 });

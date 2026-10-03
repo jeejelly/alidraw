@@ -1,7 +1,7 @@
-import { getIcon } from "./icons";
-import { boundsOf, resolveRadius, type Shape } from "./shapes";
+import { getIcon } from "@excalidraw/symbols";
+import { boundsOf, resolveRadius, type Shape } from "@excalidraw/symbols";
 
-import type { SymbolTheme } from "./theme";
+import type { SymbolTheme } from "@excalidraw/symbols";
 
 /** a symbol drawn as SVG in the theme, for the panel */
 export const SymbolPreview = ({

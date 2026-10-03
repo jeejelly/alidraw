@@ -4,9 +4,9 @@ import { reseed } from "@excalidraw/common";
 
 import { Excalidraw } from "../index";
 import { nestGroups, groupLabel } from "../components/inspector/LayersTree";
-import { buildElements } from "../symbols/build";
-import { COMPONENTS, defaultsOf } from "../symbols/components";
-import { THEMES } from "../symbols/theme";
+import { buildElements } from "@excalidraw/symbols";
+import { COMPONENTS, defaultsOf } from "@excalidraw/symbols";
+import { THEMES } from "@excalidraw/symbols";
 
 import { API } from "./helpers/api";
 import {

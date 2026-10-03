@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ILLUSTRATIONS } from "../../illustrations";
-import { importSvg } from "../../svgImport";
+import { ILLUSTRATIONS } from "@excalidraw/symbols";
+import { importSvg } from "@excalidraw/vector";
 
-import { buildElements, shapesOf, themeUpdates } from "../../symbols/build";
+import { buildElements, shapesOf, themeUpdates } from "@excalidraw/symbols";
 import {
   COMPONENT_CATEGORIES,
   COMPONENTS,
@@ -11,43 +11,43 @@ import {
   type ComponentDef,
   type Param,
   type Values,
-} from "../../symbols/components";
-import { ICON_CATEGORIES, ICONS } from "../../symbols/icons";
+} from "@excalidraw/symbols";
+import { ICON_CATEGORIES, ICONS } from "@excalidraw/symbols";
 import {
   buildTemplate,
   TEMPLATES,
   templateShapes,
-} from "../../symbols/templates";
-import { SymbolPreview } from "../../symbols/SymbolPreview";
+} from "@excalidraw/symbols";
+import { SymbolPreview } from "./symbols/SymbolPreview";
 import {
   ALL_THEMES,
   colorScheme,
   TOKENS,
   MAX_RADIUS,
   type SymbolTheme,
-} from "../../symbols/theme";
-import { setSymbolTheme, useSymbolTheme } from "../../symbols/themeStore";
+} from "@excalidraw/symbols";
+import { setSymbolTheme, useSymbolTheme } from "./symbols/themeStore";
 
-import { getSymbolMeta } from "../../symbols/build";
-import { collectCodeItems } from "../../symbols/codeItems";
-import { generateCode } from "../../symbols/codegen";
-import { generateSceneCode } from "../../symbols/sceneCode";
-import { generateResponsiveSceneCode } from "../../symbols/sceneLayout";
+import { getSymbolMeta } from "@excalidraw/symbols";
+import { collectCodeItems } from "@excalidraw/symbols";
+import { generateCode } from "@excalidraw/symbols";
+import { generateSceneCode } from "@excalidraw/symbols";
+import { generateResponsiveSceneCode } from "@excalidraw/symbols";
 import {
   getLayout,
   getSelectedSymbol,
   type LayoutH,
   type LayoutV,
-} from "../../symbols/stretch";
+} from "@excalidraw/symbols";
 
 import {
   actionChangeBackgroundColor,
   actionChangeStrokeColor,
 } from "../../actions";
-import { addSwatches } from "../../palette";
+import { addSwatches } from "@excalidraw/color";
 
 import { ColorField } from "./ColorField";
-import { themeFromHarmony, type HarmonyRule } from "../../color/harmony";
+import { themeFromHarmony, type HarmonyRule } from "@excalidraw/color";
 import { ColorHarmony } from "./ColorHarmony";
 import { CustomSymbolSection } from "./CustomSymbolSection";
 import { Section } from "./primitives";

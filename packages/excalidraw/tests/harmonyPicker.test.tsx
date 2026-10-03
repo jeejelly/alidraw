@@ -1,9 +1,9 @@
 import React from "react";
 
-import { harmony, hexToHsl } from "../color/harmony";
+import { harmony, hexToHsl } from "@excalidraw/color";
 import { Excalidraw } from "../index";
-import { getPaletteState } from "../palette";
-import { getSymbolTheme } from "../symbols/themeStore";
+import { getPaletteState } from "@excalidraw/color";
+import { getSymbolTheme } from "../components/inspector/symbols/themeStore";
 
 import { API } from "./helpers/api";
 import {

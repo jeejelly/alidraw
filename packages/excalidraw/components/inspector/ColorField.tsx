@@ -1,4 +1,4 @@
-import { normalizeHex } from "../../palette";
+import { normalizeHex } from "@excalidraw/color";
 
 /**
  * The one way to edit a colour in the palette: a square that opens the system

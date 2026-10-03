@@ -1,4 +1,4 @@
-import { parseFlow, serializeFlow, slugKey } from "../flow/flowGraph";
+import { parseFlow, serializeFlow, slugKey } from "@excalidraw/flow";
 
 describe("flow text", () => {
   it("reads nodes, shapes, labelled links and styles", () => {

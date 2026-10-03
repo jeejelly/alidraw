@@ -1,5 +1,5 @@
-import { arcToCubics, parsePath } from "../symbols/svgPath";
-import { importSvg, parseColor, parseTransform } from "../svgImport";
+import { arcToCubics, parsePath } from "@excalidraw/vector";
+import { importSvg, parseColor, parseTransform } from "@excalidraw/vector";
 
 const svg = (
   body: string,

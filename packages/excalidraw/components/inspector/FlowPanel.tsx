@@ -9,8 +9,8 @@ import {
   listFlows,
   readFlow,
   renameFlow,
-} from "../../flow/flowCanvas";
-import { parseFlow, serializeFlow, type FlowIssue } from "../../flow/flowGraph";
+} from "@excalidraw/flow";
+import { parseFlow, serializeFlow, type FlowIssue } from "@excalidraw/flow";
 import { t } from "../../i18n";
 
 import type App from "../App";

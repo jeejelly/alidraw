@@ -13,7 +13,7 @@ import type {
   PathPointHandles,
 } from "@excalidraw/element/types";
 
-import { circle, parsePath, rrect, type SubPath } from "./symbols/svgPath";
+import { circle, parsePath, rrect, type SubPath } from "./svgPath";
 
 /**
  * SVG files as editable shapes: paths, rectangles, circles, lines, polygons

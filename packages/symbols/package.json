@@ -1,0 +1,61 @@
+{
+  "name": "@excalidraw/symbols",
+  "version": "0.18.0",
+  "type": "module",
+  "types": "./dist/types/symbols/src/index.d.ts",
+  "main": "./dist/prod/index.js",
+  "module": "./dist/prod/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/symbols/src/index.d.ts",
+      "development": "./dist/dev/index.js",
+      "production": "./dist/prod/index.js",
+      "default": "./dist/prod/index.js"
+    }
+  },
+  "files": [
+    "dist/*"
+  ],
+  "description": "Themable parametric symbols: components, icons, screens, illustrations and their code export",
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "keywords": [
+    "excalidraw",
+    "excalidraw-symbols",
+    "symbols",
+    "design-system"
+  ],
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not ie <= 11",
+      "not op_mini all",
+      "not safari < 12",
+      "not kaios <= 2.5",
+      "not edge < 79",
+      "not chrome < 70",
+      "not and_uc < 13",
+      "not samsung < 10"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "bugs": "https://github.com/excalidraw/excalidraw/issues",
+  "repository": "https://github.com/excalidraw/excalidraw",
+  "scripts": {
+    "gen:types": "rimraf types && tsc",
+    "build:esm": "rimraf dist && node ../../scripts/buildBase.js && yarn gen:types"
+  },
+  "dependencies": {
+    "@excalidraw/common": "0.18.0",
+    "@excalidraw/element": "0.18.0",
+    "@excalidraw/math": "0.18.0",
+    "@excalidraw/vector": "0.18.0"
+  }
+}

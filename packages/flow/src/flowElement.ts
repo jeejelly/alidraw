@@ -12,7 +12,7 @@ import type {
   ExcalidrawTextElement,
 } from "@excalidraw/element/types";
 
-import { getSymbolMeta } from "../symbols/build";
+import { getSymbolMeta } from "@excalidraw/symbols";
 
 import { getFlowMeta, linkEnds, partsOf, textOf } from "./flowCanvas";
 import { slugKey } from "./flowGraph";

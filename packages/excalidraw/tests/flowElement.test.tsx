@@ -4,17 +4,17 @@ import { reseed } from "@excalidraw/common";
 import { getCommonBounds } from "@excalidraw/element";
 
 import { Excalidraw } from "../index";
-import { applyFlow, getFlowMeta, readFlow } from "../flow/flowCanvas";
+import { applyFlow, getFlowMeta, readFlow } from "@excalidraw/flow";
 import {
   addLink,
   addPlaceholder,
   fillPlaceholder,
   wrapAsFlowElement,
-} from "../flow/flowElement";
-import { parseFlow, serializeFlow } from "../flow/flowGraph";
-import { buildElements } from "../symbols/build";
-import { COMPONENTS, defaultsOf } from "../symbols/components";
-import { DEFAULT_THEME } from "../symbols/theme";
+} from "@excalidraw/flow";
+import { parseFlow, serializeFlow } from "@excalidraw/flow";
+import { buildElements } from "@excalidraw/symbols";
+import { COMPONENTS, defaultsOf } from "@excalidraw/symbols";
+import { DEFAULT_THEME } from "@excalidraw/symbols";
 
 import { API } from "./helpers/api";
 import {

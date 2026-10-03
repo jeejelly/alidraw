@@ -47,7 +47,7 @@ import {
   setPaletteLayout,
   setPalettePosition,
   subscribePalette,
-} from "../palette";
+} from "@excalidraw/color";
 
 import Angle from "./Stats/Angle";
 import Dimension from "./Stats/Dimension";

@@ -6,7 +6,8 @@ import { Excalidraw } from "../index";
 import { API } from "./helpers/api";
 import { act, render, unmountComponent, waitFor } from "./test-utils";
 
-vi.mock("../image/loadPixels", () => {
+vi.mock("@excalidraw/vector", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@excalidraw/vector")>();
   const w = 50;
   const data = new Uint8ClampedArray(w * w * 4);
   for (let y = 0; y < w; y++) {
@@ -18,7 +19,7 @@ vi.mock("../image/loadPixels", () => {
       );
     }
   }
-  return { loadPixels: async () => ({ width: w, height: w, data }) };
+  return { ...actual, loadPixels: async () => ({ width: w, height: w, data }) };
 });
 
 unmountComponent();

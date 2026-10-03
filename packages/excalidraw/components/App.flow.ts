@@ -2,7 +2,7 @@ import { EVENT, viewportCoordsToSceneCoords } from "@excalidraw/common";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { getFlowMeta, listFlows, partsOf } from "../flow/flowCanvas";
+import { getFlowMeta, listFlows, partsOf } from "@excalidraw/flow";
 import {
   PLACEHOLDER,
   addLink,
@@ -11,7 +11,7 @@ import {
   flowKeyAt,
   selfAndAncestors,
   wrapAsFlowElement,
-} from "../flow/flowElement";
+} from "@excalidraw/flow";
 
 import type App from "./App";
 

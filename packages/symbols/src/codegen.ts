@@ -1,6 +1,6 @@
 import { defaultsOf, COMPONENTS, type Values } from "./components";
 import { getIcon } from "./icons";
-import { parsePath } from "./svgPath";
+import { parsePath } from "@excalidraw/vector";
 
 import type { SymbolTheme } from "./theme";
 

@@ -2,11 +2,11 @@ import { getBoundTextElement } from "@excalidraw/element";
 
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { getSymbolMeta, symbolGroupOf } from "../symbols/build";
-import { isReplaceable, labelOf, symbolInBox } from "../symbols/replace";
+import { getSymbolMeta, symbolGroupOf } from "@excalidraw/symbols";
+import { isReplaceable, labelOf, symbolInBox } from "@excalidraw/symbols";
 
-import type { Values } from "../symbols/components";
-import type { SymbolTheme } from "../symbols/theme";
+import type { Values } from "@excalidraw/symbols";
+import type { SymbolTheme } from "@excalidraw/symbols";
 
 import type App from "./App";
 

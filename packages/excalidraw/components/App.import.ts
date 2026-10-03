@@ -4,7 +4,7 @@ import {
 } from "@excalidraw/common";
 
 import { fileOpen } from "../data/filesystem";
-import { importSvg } from "../svgImport";
+import { importSvg } from "@excalidraw/vector";
 
 import type App from "./App";
 
