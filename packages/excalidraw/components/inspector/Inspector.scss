@@ -531,18 +531,38 @@
         opacity: 0.7;
       }
     }
+    // a port: name and remove on the first line, side and x/y on the second
     .flow__port {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
       align-items: center;
       gap: 0.375rem;
-      margin: 0.375rem 0;
+      margin: 0.5rem 0;
+      > * {
+        min-width: 0;
+        grid-row: 2;
+        grid-column: span 3;
+      }
       .flow__input {
-        flex: 1 1 5rem;
+        grid-row: 1;
+        grid-column: 1 / span 7;
       }
       .inspector__action {
-        flex: 0 0 auto;
+        grid-row: 1;
+        grid-column: 8 / span 3;
+        margin-top: 0;
       }
+      .inspector__select {
+        grid-column: 1 / span 4;
+      }
+    }
+    // the add row: the button takes its own line
+    .flow__port[data-testid="flow-port-add"] .inspector__action {
+      grid-row: 3;
+      grid-column: 1 / -1;
+    }
+    .flow__port[data-testid="flow-port-add"] .flow__input {
+      grid-column: 1 / -1;
     }
     .flow__port-presets {
       display: flex;
