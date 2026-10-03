@@ -3,8 +3,10 @@ import { randomId } from "@excalidraw/common";
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import { linkEnds, type LinkBox } from "./flowLinks";
-import type { FlowMeta } from "./flowMeta";
+
 import { textOf } from "./flowText";
+
+import type { FlowMeta } from "./flowMeta";
 
 import type { FlowEdge, FlowEnd, FlowGraph, FlowIssue } from "./flowGraph";
 import type { FlowParts } from "./flowParts";

@@ -224,7 +224,7 @@ describe("the layout comments", () => {
     expect(again.screens[0].at).toEqual({ x: 0, y: 0, w: 200, h: 140 });
     // the same graph without layout comments reads as before
     expect(
-      parseFlow(serializeFlow(again)).graph.nodes.map((n) => n.at),
+      parseFlow(serializeFlow(again)).graph.nodes.map((node) => node.at),
     ).toEqual([undefined, undefined]);
   });
 });

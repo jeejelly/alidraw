@@ -1,3 +1,5 @@
+import type { Scene } from "@excalidraw/element";
+
 import { applyFlow } from "./flowApply";
 import {
   flowsToMarkdown,
@@ -7,8 +9,6 @@ import {
 } from "./flowDocument";
 import { listFlows } from "./flowMeta";
 import { readFlow } from "./flowRead";
-
-import type { Scene } from "@excalidraw/element";
 
 import type { FlowIssue } from "./flowGraph";
 

@@ -51,7 +51,9 @@ flowchart TD
 
   it("names unnamed blocks and reads Mermaid files as one flow", () => {
     expect(
-      flowsFromMarkdown("```mermaid\ngraph TD\n a-->b\n```").map((f) => f.name),
+      flowsFromMarkdown("```mermaid\ngraph TD\n a-->b\n```").map(
+        (flow) => flow.name,
+      ),
     ).toEqual(["Flow 1"]);
     expect(flowsFromDocument(FLOW_B, "orders.mmd")).toEqual([
       { name: "orders", text: FLOW_B },
@@ -60,17 +62,17 @@ flowchart TD
   });
 
   it("round-trips several flows, layout included", () => {
-    const a = parseFlow(FLOW_A).graph;
-    const b = parseFlow(FLOW_B).graph;
-    a.nodes[0].at = { x: 5, y: 6, w: 100, h: 50 };
+    const shop = parseFlow(FLOW_A).graph;
+    const orders = parseFlow(FLOW_B).graph;
+    shop.nodes[0].at = { x: 5, y: 6, w: 100, h: 50 };
     const markdown = flowsToMarkdown([
-      { name: "Checkout", graph: a },
-      { name: "Orders", graph: b },
+      { name: "Checkout", graph: shop },
+      { name: "Orders", graph: orders },
     ]);
     const back = flowsFromMarkdown(markdown);
     expect(back.map((flow) => flow.name)).toEqual(["Checkout", "Orders"]);
-    expect(parseFlow(back[0].text).graph).toEqual(a);
-    expect(parseFlow(back[1].text).graph).toEqual(b);
-    expect(back[0].text).toBe(serializeFlow(a, { layout: true }));
+    expect(parseFlow(back[0].text).graph).toEqual(shop);
+    expect(parseFlow(back[1].text).graph).toEqual(orders);
+    expect(back[0].text).toBe(serializeFlow(shop, { layout: true }));
   });
 });

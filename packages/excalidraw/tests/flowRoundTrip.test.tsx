@@ -69,10 +69,16 @@ const read = (layout = false): FlowGraph =>
 /** same steps and links, whatever order the canvas lists them in */
 const normalized = (graph: FlowGraph) => ({
   ...graph,
-  nodes: [...graph.nodes].sort((a, b) => a.key.localeCompare(b.key)),
-  screens: [...graph.screens].sort((a, b) => a.key.localeCompare(b.key)),
-  edges: [...graph.edges].sort((a, b) =>
-    `${a.from}>${a.to}${a.style}`.localeCompare(`${b.from}>${b.to}${b.style}`),
+  nodes: [...graph.nodes].sort((first, second) =>
+    first.key.localeCompare(second.key),
+  ),
+  screens: [...graph.screens].sort((first, second) =>
+    first.key.localeCompare(second.key),
+  ),
+  edges: [...graph.edges].sort((first, second) =>
+    `${first.from}>${first.to}${first.style}`.localeCompare(
+      `${second.from}>${second.to}${second.style}`,
+    ),
   ),
 });
 

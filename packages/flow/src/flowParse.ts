@@ -203,8 +203,8 @@ const readStatement = (state: ParseState, line: string, lineNo: number) => {
 const readComment = (state: ParseState, line: string) => {
   const layout = LAYOUT_COMMENT.exec(line);
   if (layout) {
-    const [, key, x, y, w, h] = layout;
-    state.layout.set(key, { x: +x, y: +y, w: +w, h: +h });
+    const [, key, x, y, width, height] = layout;
+    state.layout.set(key, { x: +x, y: +y, w: +width, h: +height });
   } else if (line.startsWith("%%{")) {
     state.graph.preamble.push(line);
   } else {
