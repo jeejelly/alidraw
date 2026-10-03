@@ -25,8 +25,9 @@ import {
   nodeSize,
 } from "./flowApplyNodes";
 import { planRemovals, type Changes } from "./flowApplyRemovals";
+import { storeGraphMeta } from "./flowGraphMeta";
 import { layoutNewNodes } from "./flowLayout";
-import { getFlowMeta } from "./flowMeta";
+import { getFlowMeta, withFlow } from "./flowMeta";
 import { partsOf, type FlowParts } from "./flowParts";
 import { relabelText } from "./flowText";
 
@@ -51,10 +52,20 @@ const placeNewNodes = (
       fixed.set(node.key, { x: old.x, y: old.y, w: old.width, h: old.height });
     }
   }
-  return {
-    sizes,
-    placed: layoutNewNodes(graph, fixed, sizes, origin, NODE_GAP),
-  };
+  // a step that says where it sits (layout comments) is not laid out
+  for (const node of graph.nodes) {
+    if (node.at && !fixed.has(node.key)) {
+      fixed.set(node.key, node.at);
+      sizes.set(node.key, { w: node.at.w, h: node.at.h });
+    }
+  }
+  const placed = layoutNewNodes(graph, fixed, sizes, origin, NODE_GAP);
+  for (const node of graph.nodes) {
+    if (node.at && !oldNodes.has(node.key)) {
+      placed.set(node.key, { x: node.at.x, y: node.at.y });
+    }
+  }
+  return { sizes, placed };
 };
 
 /** bound texts of recreated nodes follow their container's frame */
@@ -103,9 +114,16 @@ const replacementsOf = ({
       ),
       ...(arrowRefs.get(element.id) ?? []),
     ];
+    const { direction: _previous, ...meta } = getFlowMeta(element)!;
     replaced.set(
       element.id,
-      newElementWith(element, { boundElements: uniqueRefs(refs) }),
+      newElementWith(element, {
+        boundElements: uniqueRefs(refs),
+        customData: withFlow(element, {
+          ...meta,
+          ...(flowScreen.direction ? { direction: flowScreen.direction } : {}),
+        }),
+      }),
     );
   }
   return replaced;
@@ -362,17 +380,21 @@ export const applyFlow = (
     gone: changes.gone,
   });
   scene.replaceAllElements(
-    rebuildElements({
-      all,
+    storeGraphMeta(
+      rebuildElements({
+        all,
+        flowId,
+        graph,
+        changes,
+        replaced,
+        nodeById,
+        finalNodes,
+        extraFinal,
+        frames,
+      }),
       flowId,
       graph,
-      changes,
-      replaced,
-      nodeById,
-      finalNodes,
-      extraFinal,
-      frames,
-    }),
+    ),
   );
   return issues;
 };

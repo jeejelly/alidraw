@@ -4,84 +4,23 @@
  * is reported and left out.
  */
 import { emptyFlow } from "./flowGraph";
+import { readLink, type Link } from "./flowParseLink";
+import { readNodeLook } from "./flowParseNode";
+import { unquote } from "./flowParseText";
 
 import type {
+  FlowBox,
   FlowDirection,
-  FlowEdgeStyle,
+  FlowEdge,
   FlowGraph,
   FlowIssue,
   FlowNode,
   FlowScreen,
   FlowShape,
 } from "./flowGraph";
-
-const unquote = (raw: string) => {
-  let text = raw.trim();
-  if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) {
-    text = text.slice(1, -1);
-  }
-  return text
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/#quot;/g, '"')
-    .replace(/&quot;/g, '"')
-    .trim();
-};
-
-const SHAPES: [RegExp, FlowShape][] = [
-  [/^\(\[(.*?)\]\)/s, "round"],
-  [/^\(\((.*?)\)\)/s, "ellipse"],
-  [/^\[\((.*?)\)\]/s, "rect"],
-  [/^\[\[(.*?)\]\]/s, "rect"],
-  [/^\{\{(.*?)\}\}/s, "diamond"],
-  [/^\{(.*?)\}/s, "diamond"],
-  [/^\[(.*?)\]/s, "rect"],
-  [/^\((.*?)\)/s, "round"],
-];
+import type { FlowForm } from "./flowForms";
 
 const ID = /^[A-Za-z_][A-Za-z0-9_]*/;
-
-type Link = {
-  len: number;
-  label: string;
-  style: FlowEdgeStyle;
-  head: boolean;
-  tail: boolean;
-};
-
-/** a link at the start of `text`: --> --- -.-> ==> -- text --> -->|text| ... */
-const readLink = (text: string): Link | null => {
-  let match = /^(<?)-\.(?:\s+(.+?)\s+\.)?-(>|x|o)?(?:\|([^|]*)\|)?/.exec(text);
-  if (match) {
-    return {
-      len: match[0].length,
-      label: unquote(match[2] ?? match[4] ?? ""),
-      style: "dashed",
-      head: !!match[3],
-      tail: !!match[1],
-    };
-  }
-  match = /^(<?)(--|==)\s+(.+?)\s+(-{2,}|={2,})(>|x|o)?/.exec(text);
-  if (match) {
-    return {
-      len: match[0].length,
-      label: unquote(match[3]),
-      style: match[2] === "==" ? "thick" : "solid",
-      head: !!match[5],
-      tail: !!match[1],
-    };
-  }
-  match = /^(<?)(-{2,}|={2,})(>|x|o)?(?:\|([^|]*)\|)?/.exec(text);
-  if (match) {
-    return {
-      len: match[0].length,
-      label: unquote(match[4] ?? ""),
-      style: match[2][0] === "=" ? "thick" : "solid",
-      head: !!match[3],
-      tail: !!match[1],
-    };
-  }
-  return null;
-};
 
 type ParseState = {
   graph: FlowGraph;
@@ -91,22 +30,34 @@ type ParseState = {
   /** the subgraphs being read, innermost last */
   stack: string[];
   mentioned: Set<string>;
+  layout: Map<string, FlowBox>;
   sawHeader: boolean;
+  /** inside `accDescr { … }`: the lines are kept as written */
+  block: string[] | null;
 };
 
-const UNUSED_STATEMENT =
-  /^(direction|classDef|class|style|linkStyle|click|accTitle|accDescr)\b/;
+/** statements the canvas does not draw; they are kept as written */
+const KEPT_STATEMENT =
+  /^(classDef|class|style|linkStyle|click|accTitle|accDescr)\b/;
+const LAYOUT_COMMENT =
+  /^%%\s*@layout\s+(\S+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s+([\d.]+)\s*$/;
 
 const cannotRead = (rest: string, lineNo: number): FlowIssue => ({
   line: lineNo,
   message: `Cannot read "${rest.slice(0, 24)}"`,
 });
 
+type NodeLook = {
+  label?: string;
+  shape?: FlowShape;
+  form?: FlowForm;
+  classes: string[];
+};
+
 const touch = (
   state: ParseState,
   key: string,
-  label?: string,
-  shape?: FlowShape,
+  look: NodeLook,
 ): FlowNode | null => {
   if (state.screens.has(key)) {
     return null;
@@ -117,11 +68,19 @@ const touch = (
     state.nodes.set(key, node);
     state.graph.nodes.push(node);
   }
-  if (label !== undefined) {
-    node.label = label;
+  if (look.label !== undefined) {
+    node.label = look.label;
   }
-  if (shape) {
-    node.shape = shape;
+  if (look.shape) {
+    node.shape = look.shape;
+    if (look.form) {
+      node.form = look.form;
+    } else {
+      delete node.form;
+    }
+  }
+  if (look.classes.length) {
+    node.classes = [...new Set([...(node.classes ?? []), ...look.classes])];
   }
   // a node belongs to the screen where it is first mentioned
   if (!state.mentioned.has(key)) {
@@ -162,6 +121,18 @@ const openSubgraph = (state: ParseState, declaration: string) => {
   state.stack.push(key);
 };
 
+const edgeOf = (from: string, to: string, link: Link): FlowEdge => ({
+  from,
+  to,
+  label: link.label,
+  style: link.style,
+  head: link.head,
+  tail: link.tail,
+  ...(link.headEnd ? { headEnd: link.headEnd } : {}),
+  ...(link.tailEnd ? { tailEnd: link.tailEnd } : {}),
+  ...(link.length ? { length: link.length } : {}),
+});
+
 /** `a & b [label]`: the nodes of one side of a link, and what is left of the line */
 const readNodeGroup = (
   state: ParseState,
@@ -178,18 +149,9 @@ const readNodeGroup = (
     }
     const key = id[0];
     rest = rest.slice(key.length);
-    let label: string | undefined;
-    let shape: FlowShape | undefined;
-    for (const [pattern, flowShape] of SHAPES) {
-      const match = pattern.exec(rest);
-      if (match) {
-        label = unquote(match[1]);
-        shape = flowShape;
-        rest = rest.slice(match[0].length);
-        break;
-      }
-    }
-    touch(state, key, label, shape);
+    const look = readNodeLook(rest);
+    rest = look.rest;
+    touch(state, key, look);
     keys.push(key);
     rest = rest.trimStart();
     if (!rest.startsWith("&")) {
@@ -214,14 +176,7 @@ const readStatement = (state: ParseState, line: string, lineNo: number) => {
     if (previous && pending) {
       for (const from of previous) {
         for (const to of keys) {
-          state.graph.edges.push({
-            from,
-            to,
-            label: pending.label,
-            style: pending.style,
-            head: pending.head,
-            tail: pending.tail,
-          });
+          state.graph.edges.push(edgeOf(from, to, pending));
         }
       }
     }
@@ -244,7 +199,51 @@ const readStatement = (state: ParseState, line: string, lineNo: number) => {
   }
 };
 
+/** a whole-line comment: layout of a node, a directive, or a plain comment kept as written */
+const readComment = (state: ParseState, line: string) => {
+  const layout = LAYOUT_COMMENT.exec(line);
+  if (layout) {
+    const [, key, x, y, w, h] = layout;
+    state.layout.set(key, { x: +x, y: +y, w: +w, h: +h });
+  } else if (line.startsWith("%%{")) {
+    state.graph.preamble.push(line);
+  } else {
+    state.graph.trailer.push(line);
+  }
+};
+
+/** `direction LR` inside a subgraph */
+const readDirection = (state: ParseState, line: string, lineNo: number) => {
+  const direction = /^direction\s+(TB|TD|BT|LR|RL)\s*$/i.exec(line);
+  const current = state.stack[state.stack.length - 1];
+  if (!direction || !current) {
+    state.issues.push({
+      line: lineNo,
+      message: '"direction" is used inside a subgraph only',
+      warn: true,
+    });
+    return;
+  }
+  const value = direction[1].toUpperCase();
+  state.screens.get(current)!.direction = (
+    value === "TB" ? "TD" : value
+  ) as FlowDirection;
+};
+
 const readLine = (state: ParseState, raw: string, lineNo: number) => {
+  if (state.block) {
+    state.block.push(raw.trim());
+    if (raw.trim() === "}") {
+      state.graph.trailer.push(state.block.join("\n"));
+      state.block = null;
+    }
+    return;
+  }
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("%%")) {
+    readComment(state, trimmed);
+    return;
+  }
   const line = raw.replace(/%%.*$/, "").trim();
   if (!line) {
     return;
@@ -272,15 +271,28 @@ const readLine = (state: ParseState, raw: string, lineNo: number) => {
     }
     return;
   }
-  if (UNUSED_STATEMENT.test(line)) {
-    state.issues.push({
-      line: lineNo,
-      message: `"${line.split(/\s/)[0]}" is not used here and was left out`,
-      warn: true,
-    });
+  if (/^direction\b/i.test(line)) {
+    readDirection(state, line, lineNo);
+    return;
+  }
+  if (KEPT_STATEMENT.test(line)) {
+    if (/^accDescr\s*\{\s*$/.test(line)) {
+      state.block = [line];
+    } else {
+      state.graph.trailer.push(line);
+    }
     return;
   }
   readStatement(state, line, lineNo);
+};
+
+const applyLayout = (state: ParseState) => {
+  for (const [key, box] of state.layout) {
+    const target = state.nodes.get(key) ?? state.screens.get(key);
+    if (target) {
+      target.at = box;
+    }
+  }
 };
 
 export const parseFlow = (
@@ -293,7 +305,9 @@ export const parseFlow = (
     screens: new Map(),
     stack: [],
     mentioned: new Set(),
+    layout: new Map(),
     sawHeader: false,
+    block: null,
   };
   const lines = text.split(/\r?\n/);
   lines.forEach((raw, index) => readLine(state, raw, index + 1));
@@ -303,5 +317,6 @@ export const parseFlow = (
       message: `${state.stack.length} subgraph(s) not closed with "end"`,
     });
   }
+  applyLayout(state);
   return { graph: state.graph, issues: state.issues };
 };

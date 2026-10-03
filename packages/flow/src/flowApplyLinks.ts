@@ -3,9 +3,10 @@ import { randomId } from "@excalidraw/common";
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import { linkEnds, type LinkBox } from "./flowLinks";
+import type { FlowMeta } from "./flowMeta";
 import { textOf } from "./flowText";
 
-import type { FlowEdge, FlowGraph, FlowIssue } from "./flowGraph";
+import type { FlowEdge, FlowEnd, FlowGraph, FlowIssue } from "./flowGraph";
 import type { FlowParts } from "./flowParts";
 
 export type BoundRef = NonNullable<ExcalidrawElement["boundElements"]>[number];
@@ -39,6 +40,21 @@ export const rememberLinkLooks = (parts: FlowParts, gone: Set<string>) => {
   return carry;
 };
 
+const ARROWHEAD_OF: Record<FlowEnd, string> = {
+  arrow: "arrow",
+  cross: "bar",
+  circle: "circle_outline",
+};
+
+const linkMetaOf = (edge: FlowEdge): FlowMeta["link"] | undefined =>
+  edge.headEnd || edge.tailEnd || edge.length
+    ? {
+        ...(edge.headEnd ? { headEnd: edge.headEnd } : {}),
+        ...(edge.tailEnd ? { tailEnd: edge.tailEnd } : {}),
+        ...(edge.length ? { length: edge.length } : {}),
+      }
+    : undefined;
+
 const pairKeyOf = (edge: FlowEdge) => [edge.from, edge.to].sort().join("|");
 
 const arrowSkeleton = (
@@ -61,8 +77,8 @@ const arrowSkeleton = (
   ],
   start: { id: ids.from },
   end: { id: ids.to },
-  startArrowhead: edge.tail ? "arrow" : null,
-  endArrowhead: edge.head ? "arrow" : null,
+  startArrowhead: edge.tail ? ARROWHEAD_OF[edge.tailEnd ?? "arrow"] : null,
+  endArrowhead: edge.head ? ARROWHEAD_OF[edge.headEnd ?? "arrow"] : null,
   strokeStyle: edge.style === "dashed" ? "dashed" : "solid",
   strokeWidth:
     edge.style === "thick"
@@ -73,7 +89,14 @@ const arrowSkeleton = (
   strokeColor: look.strokeColor ?? "#e0449b",
   ...(look.opacity !== undefined ? { opacity: look.opacity } : {}),
   ...(look.roughness !== undefined ? { roughness: look.roughness } : {}),
-  customData: { flow: { id: flowId, key: linkKey, kind: "edge" } },
+  customData: {
+    flow: {
+      id: flowId,
+      key: linkKey,
+      kind: "edge",
+      ...(linkMetaOf(edge) ? { link: linkMetaOf(edge) } : {}),
+    },
+  },
   ...(edge.label ? { label: { text: edge.label } } : {}),
 });
 
@@ -94,14 +117,15 @@ export const buildLinkSkeletons = ({
   issues: FlowIssue[];
 }) => {
   const pairCount = new Map<string, number>();
-  for (const edge of graph.edges) {
+  const drawn = graph.edges.filter((edge) => edge.style !== "invisible");
+  for (const edge of drawn) {
     const pairKey = pairKeyOf(edge);
     pairCount.set(pairKey, (pairCount.get(pairKey) ?? 0) + 1);
   }
   const pairSeen = new Map<string, number>();
   const skeletons: any[] = [];
   const seen = new Map<string, number>();
-  for (const edge of graph.edges) {
+  for (const edge of drawn) {
     if (!idOf.has(edge.from) || !idOf.has(edge.to)) {
       const missing = idOf.has(edge.from) ? edge.to : edge.from;
       if (graph.screens.some((flowScreen) => flowScreen.key === missing)) {

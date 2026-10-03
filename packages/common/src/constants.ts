@@ -338,6 +338,9 @@ export const STRING_MIME_TYPES = {
 
 export const MIME_TYPES = {
   ...STRING_MIME_TYPES,
+  // diagram text
+  md: "text/markdown",
+  mmd: "text/vnd.mermaid",
   // image-encoded excalidraw data
   "excalidraw.svg": "image/svg+xml",
   "excalidraw.png": "image/png",

@@ -59,7 +59,12 @@ export const buildFrames = ({
       .map((flowNode) => finalNodes.get(flowNode.key)!);
     const old = oldScreens.get(flowScreen.key);
     const rect = frameRectOf(members, origin);
-    const meta: FlowMeta = { id: flowId, key: flowScreen.key, kind: "screen" };
+    const meta: FlowMeta = {
+      id: flowId,
+      key: flowScreen.key,
+      kind: "screen",
+      ...(flowScreen.direction ? { direction: flowScreen.direction } : {}),
+    };
     if (old) {
       const left = Math.min(old.x, rect.x);
       const top = Math.min(old.y, rect.y);

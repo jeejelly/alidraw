@@ -82,15 +82,14 @@ describe("flow text", () => {
   it("reports what it cannot use, with the line", () => {
     const result = parseFlow(`flowchart TD
       a --> 
-      b ~~~ c
+      b ??? c
       subgraph s
       a --> s
-      classDef x fill:#f00`);
+      direction LR`);
     const lines = result.issues.map((issue) => issue.line);
     expect(lines).toContain(2); // a link needs a target
     expect(lines).toContain(3); // unreadable link
     expect(lines).not.toContain(5); // a link to a subgraph is fine
-    expect(lines).toContain(6); // ignored statement
     expect(
       result.issues.some((issue) => /not closed/.test(issue.message)),
     ).toBe(true);

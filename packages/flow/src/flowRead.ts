@@ -1,14 +1,35 @@
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
-import { emptyFlow, type FlowGraph } from "./flowGraph";
+import { emptyFlow, type FlowEnd, type FlowGraph } from "./flowGraph";
+import { readGraphMeta } from "./flowGraphMeta";
 import { getFlowMeta } from "./flowMeta";
 import { edgeStyleOf, partsOf, shapeOf } from "./flowParts";
 import { textOf } from "./flowText";
+
+const endOf = (arrowhead: string | null | undefined): FlowEnd | undefined =>
+  arrowhead === "bar"
+    ? "cross"
+    : arrowhead === "circle" || arrowhead === "circle_outline"
+    ? "circle"
+    : undefined;
+
+const boxOf = (element: ExcalidrawElement) => ({
+  x: element.x,
+  y: element.y,
+  w: element.width,
+  h: element.height,
+});
+
+export type ReadOptions = {
+  /** also read where each step and screen sits */
+  layout?: boolean;
+};
 
 /** the flow as drawn: what the Source view shows */
 export const readFlow = (
   elements: readonly ExcalidrawElement[],
   flowId: string,
+  options: ReadOptions = {},
 ): FlowGraph => {
   const {
     map,
@@ -31,14 +52,26 @@ export const readFlow = (
       : textOf(element, map)?.text ?? "";
   const frameKeyOf = (element: ExcalidrawElement) =>
     element.frameId ? screenKeyOfFrame.get(element.frameId) : undefined;
+  const stored = readGraphMeta(elements, flowId);
   for (const [key, frame] of screens) {
-    graph.screens.push({ key, label: frame.name || key });
+    graph.screens.push({
+      key,
+      label: frame.name || key,
+      ...(getFlowMeta(frame)?.direction
+        ? { direction: getFlowMeta(frame)!.direction }
+        : {}),
+      ...(options.layout ? { at: boxOf(frame) } : {}),
+    });
   }
   for (const [key, element] of wrapScreens) {
     graph.screens.push({
       key,
       label: labelOf(key, element) || key,
       parent: wrapParent.get(key) ?? frameKeyOf(element),
+      ...(getFlowMeta(element)?.direction
+        ? { direction: getFlowMeta(element)!.direction }
+        : {}),
+      ...(options.layout ? { at: boxOf(element) } : {}),
     });
   }
   for (const [key, element] of nodes) {
@@ -46,7 +79,14 @@ export const readFlow = (
       key,
       label: labelOf(key, element),
       shape: shapeOf(element),
+      ...(getFlowMeta(element)?.form
+        ? { form: getFlowMeta(element)!.form }
+        : {}),
+      ...(getFlowMeta(element)?.classes?.length
+        ? { classes: getFlowMeta(element)!.classes }
+        : {}),
       screen: wrapParent.get(key) ?? frameKeyOf(element),
+      ...(options.layout ? { at: boxOf(element) } : {}),
     });
   }
   let spreadX = 0;
@@ -54,6 +94,9 @@ export const readFlow = (
   for (const arrow of arrows) {
     const from = keyOfId.get(arrow.startBinding!.elementId)!;
     const to = keyOfId.get(arrow.endBinding!.elementId)!;
+    const link = getFlowMeta(arrow)?.link;
+    const headEnd = link?.headEnd ?? endOf(arrow.endArrowhead);
+    const tailEnd = link?.tailEnd ?? endOf(arrow.startArrowhead);
     graph.edges.push({
       from,
       to,
@@ -61,6 +104,9 @@ export const readFlow = (
       style: edgeStyleOf(arrow),
       head: !!arrow.endArrowhead,
       tail: !!arrow.startArrowhead,
+      ...(headEnd ? { headEnd } : {}),
+      ...(tailEnd ? { tailEnd } : {}),
+      ...(link?.length ? { length: link.length } : {}),
     });
     const fromElement = byKey.get(from)!;
     const toElement = byKey.get(to)!;
@@ -75,6 +121,9 @@ export const readFlow = (
         (fromElement.y + fromElement.height / 2),
     );
   }
-  graph.direction = spreadX > spreadY ? "LR" : "TD";
+  graph.direction = stored?.direction ?? (spreadX > spreadY ? "LR" : "TD");
+  graph.preamble = stored?.preamble ?? [];
+  graph.trailer = stored?.trailer ?? [];
+  graph.edges.push(...(stored?.invisible ?? []));
   return graph;
 };

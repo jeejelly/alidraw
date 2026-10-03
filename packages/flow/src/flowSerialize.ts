@@ -1,70 +1,111 @@
+import { BASIC_BRACKETS, FORMS } from "./flowForms";
+import { quote } from "./flowParseText";
+
 import type {
+  FlowBox,
   FlowEdge,
+  FlowEnd,
   FlowGraph,
   FlowNode,
   FlowScreen,
-  FlowShape,
 } from "./flowGraph";
 
-const quote = (label: string) =>
-  `"${label.replace(/"/g, "#quot;").replace(/\r?\n/g, "<br/>") || " "}"`;
-
-const SHAPE_OPEN: Record<FlowShape, [string, string]> = {
-  rect: ["[", "]"],
-  round: ["(", ")"],
-  diamond: ["{", "}"],
-  ellipse: ["((", "))"],
+const HEAD_CHAR: Record<FlowEnd, string> = {
+  arrow: ">",
+  cross: "x",
+  circle: "o",
+};
+const TAIL_CHAR: Record<FlowEnd, string> = {
+  arrow: "<",
+  cross: "x",
+  circle: "o",
 };
 
 const linkText = (edge: FlowEdge) => {
-  const left = edge.tail ? "<" : "";
-  const arrow =
-    edge.style === "dashed"
-      ? edge.head
-        ? "-.->"
-        : "-.-"
+  const extra = edge.length ?? 0;
+  const head = edge.head ? HEAD_CHAR[edge.headEnd ?? "arrow"] : "";
+  const tail = edge.tail ? TAIL_CHAR[edge.tailEnd ?? "arrow"] : "";
+  const body =
+    edge.style === "invisible"
+      ? "~".repeat(3 + extra)
+      : edge.style === "dashed"
+      ? `-${".".repeat(1 + extra)}-${head}`
       : edge.style === "thick"
-      ? edge.head
-        ? "==>"
-        : "==="
-      : edge.head
-      ? "-->"
-      : "---";
-  return `${left}${arrow}${edge.label ? `|${quote(edge.label)}|` : ""}`;
+      ? `${"=".repeat((head ? 2 : 3) + extra)}${head}`
+      : `${"-".repeat((head ? 2 : 3) + extra)}${head}`;
+  return `${tail}${body}${edge.label ? `|${quote(edge.label)}|` : ""}`;
 };
 
-export const serializeFlow = (graph: FlowGraph): string => {
-  const out = [`flowchart ${graph.direction}`];
-  const nodeLine = (node: FlowNode) => {
-    const [openToken, closeToken] = SHAPE_OPEN[node.shape];
-    return `${node.key}${openToken}${quote(node.label)}${closeToken}`;
-  };
-  const known = new Set(graph.screens.map((flowScreen) => flowScreen.key));
-  const emit = (flowScreen: FlowScreen, depth: number) => {
+const classesOf = (node: FlowNode) =>
+  (node.classes ?? []).map((name) => `:::${name}`).join("");
+
+const nodeLine = (node: FlowNode) => {
+  const info = node.form ? FORMS[node.form] : null;
+  const label = quote(node.label);
+  if (node.form && !info!.classic) {
+    return `${node.key}@{ shape: ${
+      info!.names[0]
+    }, label: ${label} }${classesOf(node)}`;
+  }
+  const [open, close] = info?.classic ?? BASIC_BRACKETS[node.shape];
+  return `${node.key}${open}${label}${close}${classesOf(node)}`;
+};
+
+const layoutLine = (key: string, box: FlowBox) =>
+  `%% @layout ${key} ${[box.x, box.y, box.w, box.h]
+    .map((value) => Math.round(value * 10) / 10)
+    .join(" ")}`;
+
+export type SerializeOptions = {
+  /** also write where each step sits, as `%% @layout` comments (valid Mermaid) */
+  layout?: boolean;
+};
+
+/** Mermaid text for a flow; anything Mermaid ignores (layout comments) comes last. */
+export const serializeFlow = (
+  graph: FlowGraph,
+  options: SerializeOptions = {},
+): string => {
+  const out = [...graph.preamble, `flowchart ${graph.direction}`];
+  const known = new Set(graph.screens.map((screen) => screen.key));
+  const emit = (screen: FlowScreen, depth: number) => {
     const pad = "  ".repeat(depth);
-    out.push(`${pad}subgraph ${flowScreen.key}[${quote(flowScreen.label)}]`);
+    out.push(`${pad}subgraph ${screen.key}[${quote(screen.label)}]`);
+    if (screen.direction) {
+      out.push(`${pad}  direction ${screen.direction}`);
+    }
     for (const inner of graph.screens.filter(
-      (child) => child.parent === flowScreen.key,
+      (child) => child.parent === screen.key,
     )) {
       emit(inner, depth + 1);
     }
     for (const node of graph.nodes.filter(
-      (candidate) => candidate.screen === flowScreen.key,
+      (candidate) => candidate.screen === screen.key,
     )) {
       out.push(`${pad}  ${nodeLine(node)}`);
     }
     out.push(`${pad}end`);
   };
-  for (const flowScreen of graph.screens.filter(
+  for (const screen of graph.screens.filter(
     (candidate) => !candidate.parent || !known.has(candidate.parent),
   )) {
-    emit(flowScreen, 1);
+    emit(screen, 1);
   }
   for (const node of graph.nodes.filter((candidate) => !candidate.screen)) {
     out.push(`  ${nodeLine(node)}`);
   }
   for (const edge of graph.edges) {
     out.push(`  ${edge.from} ${linkText(edge)} ${edge.to}`);
+  }
+  for (const statement of graph.trailer) {
+    out.push(...statement.split("\n").map((line) => `  ${line}`));
+  }
+  if (options.layout) {
+    for (const item of [...graph.screens, ...graph.nodes]) {
+      if (item.at) {
+        out.push(layoutLine(item.key, item.at));
+      }
+    }
   }
   return `${out.join("\n")}\n`;
 };

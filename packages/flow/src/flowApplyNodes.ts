@@ -120,6 +120,12 @@ export const buildNodeBatch = ({
   return { batch, idOf, recreated };
 };
 
+/** the parts of a step's meta that the text decides */
+const withoutLook = (meta: FlowMeta): FlowMeta => {
+  const { form: _form, classes: _classes, ...rest } = meta;
+  return rest;
+};
+
 /** The steps as they ended up, with the bindings of the new links. */
 export const mergeNodes = ({
   graph,
@@ -163,10 +169,12 @@ export const mergeNodes = ({
       newElementWith(base, {
         boundElements: uniqueRefs(refs),
         customData: withFlow(base, {
-          ...(getFlowMeta(base)?.wrap ? getFlowMeta(base)! : {}),
+          ...(getFlowMeta(base)?.wrap ? withoutLook(getFlowMeta(base)!) : {}),
           id: flowId,
           key: flowNode.key,
           kind: "node",
+          ...(flowNode.form ? { form: flowNode.form } : {}),
+          ...(flowNode.classes?.length ? { classes: flowNode.classes } : {}),
         }),
       }),
     );

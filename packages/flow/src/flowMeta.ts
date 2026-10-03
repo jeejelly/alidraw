@@ -1,5 +1,8 @@
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
+import type { FlowForm } from "./flowForms";
+import type { FlowDirection, FlowEdge, FlowEnd } from "./flowGraph";
+
 /**
  * How a diagram on the canvas belongs to a flow: `customData.flow` on the
  * element. Nodes are rectangles, diamonds and ellipses (a screen's buttons and
@@ -19,6 +22,24 @@ export type FlowMeta = {
   group?: string;
   /** a box standing in for what is not drawn yet */
   placeholder?: boolean;
+  /** a node: how Mermaid writes it, and its `:::classes` */
+  form?: FlowForm;
+  classes?: string[];
+  /** a screen: `direction LR` inside its subgraph */
+  direction?: FlowDirection;
+  /** a link: the ends and length that the drawn arrow cannot say */
+  link?: { headEnd?: FlowEnd; tailEnd?: FlowEnd; length?: number };
+  /** on one element per flow: what belongs to the whole diagram */
+  graph?: FlowGraphMeta;
+};
+
+/** the parts of a flowchart the drawing itself does not hold */
+export type FlowGraphMeta = {
+  direction: FlowDirection;
+  preamble: string[];
+  trailer: string[];
+  /** `a ~~~ b`: layout hints, not drawn */
+  invisible: FlowEdge[];
 };
 
 export const getFlowMeta = (element: {

@@ -14,6 +14,8 @@ import { parseFlow, serializeFlow, type FlowIssue } from "@excalidraw/flow";
 
 import { t } from "../../i18n";
 
+import { FlowFiles } from "./FlowFiles";
+
 import type App from "../App";
 
 const STARTER = `flowchart TD
@@ -208,6 +210,17 @@ export const FlowPanel = ({ app }: { app: App }) => {
           ＋ {t("labels.flow.new")}
         </button>
       </div>
+
+      <FlowFiles
+        app={app}
+        flowId={flowId}
+        allFlows={flows}
+        onImported={(id) => {
+          setChosen(id);
+          setDraft(null);
+          setIssues([]);
+        }}
+      />
 
       {flowId ? (
         <>
