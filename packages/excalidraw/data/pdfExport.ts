@@ -37,20 +37,20 @@ export const PDF_PAGES: Record<
 const KEY = "excalidraw-pdf-options";
 
 export const sanitizePdfOptions = (raw: unknown): PdfOptions => {
-  const r = (raw ?? {}) as Partial<PdfOptions>;
+  const partial = (raw ?? {}) as Partial<PdfOptions>;
   return {
     page:
-      r.page === "content" || (r.page && r.page in PDF_PAGES)
-        ? r.page
+      partial.page === "content" || (partial.page && partial.page in PDF_PAGES)
+        ? partial.page
         : DEFAULT_PDF_OPTIONS.page,
     orientation:
-      r.orientation === "portrait" || r.orientation === "landscape"
-        ? r.orientation
+      partial.orientation === "portrait" || partial.orientation === "landscape"
+        ? partial.orientation
         : "auto",
-    margin: Number.isFinite(r.margin)
-      ? Math.max(0, Math.min(100, Number(r.margin)))
+    margin: Number.isFinite(partial.margin)
+      ? Math.max(0, Math.min(100, Number(partial.margin)))
       : 0,
-    scale: r.scale === "actual" ? "actual" : "fit",
+    scale: partial.scale === "actual" ? "actual" : "fit",
   };
 };
 
@@ -82,19 +82,19 @@ export const pdfLayout = (
 ) => {
   const margin = options.margin;
   if (options.page === "content") {
-    const k = Math.min(
+    const scale = Math.min(
       1,
       MAX_PX / (width + 2 * margin * MM),
       MAX_PX / (height + 2 * margin * MM),
     );
-    const w = Math.round(width * k);
-    const h = Math.round(height * k);
+    const scaledWidth = Math.round(width * scale);
+    const scaledHeight = Math.round(height * scale);
     return {
-      pageCss: `@page{size:${w + Math.round(2 * margin * MM)}px ${
-        h + Math.round(2 * margin * MM)
+      pageCss: `@page{size:${scaledWidth + Math.round(2 * margin * MM)}px ${
+        scaledHeight + Math.round(2 * margin * MM)
       }px;margin:${margin}mm}`,
-      box: `width:${w}px;height:${h}px`,
-      scaled: k < 1,
+      box: `width:${scaledWidth}px;height:${scaledHeight}px`,
+      scaled: scale < 1,
       pages: 1,
     };
   }

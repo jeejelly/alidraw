@@ -44,12 +44,14 @@ export const OpenSceneDialog = ({
     bridge
       .scenes(active.id)
       .then(setScenes)
-      .catch((e) => setError(e?.message ?? String(e)));
+      .catch((failure) => setError(failure?.message ?? String(failure)));
   }, [open, bridge, active]);
 
   const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? scenes.filter((s) => s.path.toLowerCase().includes(q)) : scenes;
+    const needle = query.trim().toLowerCase();
+    return needle
+      ? scenes.filter((scene) => scene.path.toLowerCase().includes(needle))
+      : scenes;
   }, [scenes, query]);
 
   if (!bridge || !open || !api || !active) {
@@ -63,8 +65,8 @@ export const OpenSceneDialog = ({
     try {
       await openWorkspaceScene(api, active, path);
       setOpen(false);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+    } catch (failure: any) {
+      setError(failure?.message ?? String(failure));
     }
   };
 
@@ -98,15 +100,17 @@ export const OpenSceneDialog = ({
           placeholder="Find a scene"
           autoFocus
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()}
+          onChange={(inputEvent) => setQuery(inputEvent.target.value)}
+          onKeyDown={(inputEvent) => inputEvent.stopPropagation()}
         />
         {shown.length ? (
           <ul className="workspace__tree" data-testid="open-list">
             <SceneTreeView
               scenes={shown}
               closed={query ? {} : closed}
-              onToggle={(p) => setClosed((c) => ({ ...c, [p]: !c[p] }))}
+              onToggle={(path) =>
+                setClosed((current) => ({ ...current, [path]: !current[path] }))
+              }
               leaf={(scene, depth, name) => (
                 <button
                   type="button"

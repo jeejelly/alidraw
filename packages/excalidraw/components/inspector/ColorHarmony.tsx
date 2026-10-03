@@ -32,38 +32,38 @@ const WHEEL = 156;
 /** a tiny wheel showing where the colours of a rule sit */
 const RuleIcon = ({ rule }: { rule: HarmonyRule }) => {
   const angles = harmonyAngles(rule);
-  const c = 14;
-  const r = 9;
+  const center = 14;
+  const radius = 9;
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
       <circle
-        cx={c}
-        cy={c}
-        r={r + 2}
+        cx={center}
+        cy={center}
+        r={radius + 2}
         fill="none"
         stroke="currentColor"
         strokeOpacity="0.25"
         strokeWidth="3"
       />
       {rule === "shades" || rule === "monochromatic"
-        ? [-6, -3, 0, 3, 6].map((d, i) => (
+        ? [-6, -3, 0, 3, 6].map((offset, dotIndex) => (
             <circle
-              key={i}
-              cx={c + d * 1.6}
-              cy={c}
-              r={i === 2 ? 2.6 : 2}
+              key={dotIndex}
+              cx={center + offset * 1.6}
+              cy={center}
+              r={dotIndex === 2 ? 2.6 : 2}
               fill="currentColor"
-              fillOpacity={0.35 + i * 0.15}
+              fillOpacity={0.35 + dotIndex * 0.15}
             />
           ))
-        : angles.map((a, i) => {
-            const rad = ((a - 90) * Math.PI) / 180;
+        : angles.map((angle, angleIndex) => {
+            const rad = ((angle - 90) * Math.PI) / 180;
             return (
               <circle
-                key={i}
-                cx={c + Math.cos(rad) * r}
-                cy={c + Math.sin(rad) * r}
-                r={i === 0 || a === 0 ? 2.6 : 2}
+                key={angleIndex}
+                cx={center + Math.cos(rad) * radius}
+                cy={center + Math.sin(rad) * radius}
+                r={angleIndex === 0 || angle === 0 ? 2.6 : 2}
                 fill="currentColor"
               />
             );
@@ -107,10 +107,10 @@ export const ColorHarmony = ({
     setVal(hsv.v);
   };
 
-  const pointAt = (e: { clientX: number; clientY: number }) => {
+  const pointAt = (pointer: { clientX: number; clientY: number }) => {
     const box = wheel.current!.getBoundingClientRect();
-    const dx = e.clientX - (box.left + box.width / 2);
-    const dy = e.clientY - (box.top + box.height / 2);
+    const dx = pointer.clientX - (box.left + box.width / 2);
+    const dy = pointer.clientY - (box.top + box.height / 2);
     const radius = Math.min(1, Math.hypot(dx, dy) / (box.width / 2));
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
     setHue((angle + 360) % 360);
@@ -120,10 +120,10 @@ export const ColorHarmony = ({
   const handle = (hex: string) => {
     const hsv = hexToHsv(hex);
     const rad = ((hsv.h - 90) * Math.PI) / 180;
-    const r = (hsv.s / 100) * (WHEEL / 2);
+    const radius = (hsv.s / 100) * (WHEEL / 2);
     return {
-      x: WHEEL / 2 + Math.cos(rad) * r,
-      y: WHEEL / 2 + Math.sin(rad) * r,
+      x: WHEEL / 2 + Math.cos(rad) * radius,
+      y: WHEEL / 2 + Math.sin(rad) * radius,
     };
   };
 
@@ -137,7 +137,7 @@ export const ColorHarmony = ({
   const extract = async () => {
     const image = app.scene
       .getSelectedElements(app.state)
-      .find((e) => e.type === "image") as any;
+      .find((element) => element.type === "image") as any;
     const file = image && app.files[image.fileId];
     if (!file) {
       setNote("Select a picture on the canvas first.");
@@ -145,13 +145,13 @@ export const ColorHarmony = ({
     }
     try {
       const pixels = await loadPixels(file.dataURL, 200);
-      const palette = buildPalette(pixels.data, 6).map((c) =>
-        rgbToHex(c.r, c.g, c.b),
+      const palette = buildPalette(pixels.data, 6).map((swatch) =>
+        rgbToHex(swatch.r, swatch.g, swatch.b),
       );
       setFromImage(palette);
       setNote(null);
-    } catch (e: any) {
-      setNote(e?.message ?? "The picture could not be read.");
+    } catch (error: any) {
+      setNote(error?.message ?? "The picture could not be read.");
     }
   };
 
@@ -191,11 +191,11 @@ export const ColorHarmony = ({
                 height: WHEEL,
                 filter: `brightness(${0.35 + (val / 100) * 0.65})`,
               }}
-              onPointerDown={(e) => {
-                e.currentTarget.setPointerCapture(e.pointerId);
-                pointAt(e);
+              onPointerDown={(element) => {
+                element.currentTarget.setPointerCapture(element.pointerId);
+                pointAt(element);
               }}
-              onPointerMove={(e) => e.buttons && pointAt(e)}
+              onPointerMove={(element) => element.buttons && pointAt(element)}
             />
             <svg
               className="harmony__lines"
@@ -203,54 +203,54 @@ export const ColorHarmony = ({
               height={WHEEL}
               aria-hidden="true"
             >
-              {colors.map((c, i) => {
-                const p = handle(c);
+              {colors.map((color, colorIndex) => {
+                const point = handle(color);
                 return (
                   <line
-                    key={i}
+                    key={colorIndex}
                     x1={WHEEL / 2}
                     y1={WHEEL / 2}
-                    x2={p.x}
-                    y2={p.y}
+                    x2={point.x}
+                    y2={point.y}
                     stroke="#fff"
                     strokeOpacity=".8"
                     strokeWidth="1.5"
                   />
                 );
               })}
-              {colors.map((c, i) => {
-                const p = handle(c);
+              {colors.map((color, colorIndex) => {
+                const point = handle(color);
                 return (
                   <circle
-                    key={i}
-                    cx={p.x}
-                    cy={p.y}
-                    r={i === index ? 8 : 6}
-                    fill={c}
-                    stroke={i === index ? "#14142b" : "#fff"}
-                    strokeWidth={i === index ? 2.5 : 2}
+                    key={colorIndex}
+                    cx={point.x}
+                    cy={point.y}
+                    r={colorIndex === index ? 8 : 6}
+                    fill={color}
+                    stroke={colorIndex === index ? "#14142b" : "#fff"}
+                    strokeWidth={colorIndex === index ? 2.5 : 2}
                   />
                 );
               })}
             </svg>
           </div>
           <div className="harmony__rules" role="group" aria-label="Harmony">
-            {HARMONIES.map((h) => (
+            {HARMONIES.map((harmonyRule) => (
               <button
-                key={h.id}
+                key={harmonyRule.id}
                 type="button"
-                title={`${h.label}: ${h.hint}`}
-                aria-label={h.label}
-                aria-pressed={rule === h.id}
-                data-testid={`harmony-rule-${h.id}`}
-                onClick={() => setRule(h.id)}
+                title={`${harmonyRule.label}: ${harmonyRule.hint}`}
+                aria-label={harmonyRule.label}
+                aria-pressed={rule === harmonyRule.id}
+                data-testid={`harmony-rule-${harmonyRule.id}`}
+                onClick={() => setRule(harmonyRule.id)}
               >
-                <RuleIcon rule={h.id} />
+                <RuleIcon rule={harmonyRule.id} />
               </button>
             ))}
           </div>
           <div className="harmony__name">
-            {HARMONIES.find((h) => h.id === rule)!.label}
+            {HARMONIES.find((harmonyRule) => harmonyRule.id === rule)!.label}
           </div>
           <label className="harmony__brightness">
             <span>Brightness</span>
@@ -260,7 +260,7 @@ export const ColorHarmony = ({
               max={100}
               value={val}
               data-testid="harmony-brightness"
-              onChange={(e) => setVal(Number(e.target.value))}
+              onChange={(element) => setVal(Number(element.target.value))}
             />
           </label>
           <ColorField
@@ -276,22 +276,22 @@ export const ColorHarmony = ({
       {tab === "presets" && (
         <div className="harmony__presets" data-testid="harmony-presets">
           <div className="harmony__cards">
-            {PALETTE_PRESETS.map((p) => (
+            {PALETTE_PRESETS.map((option) => (
               <button
-                key={p.id}
+                key={option.id}
                 type="button"
                 className="harmony__card"
-                aria-pressed={p.id === preset.id}
+                aria-pressed={option.id === preset.id}
                 data-testid="harmony-preset"
-                title={p.name}
-                onClick={() => setPreset(p)}
+                title={option.name}
+                onClick={() => setPreset(option)}
               >
                 <span className="harmony__strip">
-                  {p.colors.slice(0, 8).map((c) => (
-                    <i key={c} style={{ background: c }} />
+                  {option.colors.slice(0, 8).map((color) => (
+                    <i key={color} style={{ background: color }} />
                   ))}
                 </span>
-                <span className="harmony__cardname">{p.name}</span>
+                <span className="harmony__cardname">{option.name}</span>
               </button>
             ))}
           </div>
@@ -314,19 +314,19 @@ export const ColorHarmony = ({
 
       {shown.length > 0 && (
         <div className="harmony__result" data-testid="harmony-result">
-          {shown.map((c, i) => (
+          {shown.map((color, colorIndex) => (
             <button
-              key={`${c}${i}`}
+              key={`${color}${colorIndex}`}
               type="button"
               className={`harmony__chip${
-                tab === "wheel" && i === index ? " is-base" : ""
+                tab === "wheel" && colorIndex === index ? " is-base" : ""
               }`}
-              style={{ background: c }}
-              title={`${c}: use as the base`}
-              aria-label={c}
+              style={{ background: color }}
+              title={`${color}: use as the base`}
+              aria-label={color}
               data-testid="harmony-chip"
               onClick={() => {
-                setBase(c);
+                setBase(color);
                 setTab("wheel");
               }}
             />
@@ -335,19 +335,19 @@ export const ColorHarmony = ({
       )}
 
       <div className="harmony__actions">
-        {actions.map((a) => (
+        {actions.map((action) => (
           <button
-            key={a.id}
+            key={action.id}
             type="button"
             className="inspector__action"
-            data-testid={`harmony-action-${a.id}`}
-            title={a.title}
+            data-testid={`harmony-action-${action.id}`}
+            title={action.title}
             disabled={!shown.length}
             onClick={() =>
-              a.run(shown, tab === "wheel" ? base : mostVivid(shown), rule)
+              action.run(shown, tab === "wheel" ? base : mostVivid(shown), rule)
             }
           >
-            {a.label}
+            {action.label}
           </button>
         ))}
       </div>

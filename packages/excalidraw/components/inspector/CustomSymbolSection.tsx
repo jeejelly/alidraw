@@ -1,7 +1,5 @@
 import { useState } from "react";
 
-import { actionAddToLibrary } from "../../actions";
-import { actionConvertToSymbol } from "../../actions/actionConvertToSymbol";
 import { getSelectedSymbol } from "@excalidraw/symbols";
 import {
   customOf,
@@ -17,6 +15,9 @@ import {
   renameCustomParam,
   setCustomParam,
 } from "@excalidraw/symbols";
+
+import { actionConvertToSymbol } from "../../actions/actionConvertToSymbol";
+import { actionAddToLibrary } from "../../actions";
 
 import { ColorField } from "./ColorField";
 import { NumberPill, Section } from "./primitives";
@@ -54,7 +55,7 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
   const done = () => {
     app.scene.triggerUpdate();
     app.store.scheduleCapture();
-    bump((n) => n + 1);
+    bump((count) => count + 1);
   };
 
   if (!whole && !part) {
@@ -90,11 +91,13 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
           <select
             data-testid="symbols-expose-prop"
             value={current}
-            onChange={(e) => setProp(e.target.value as CustomProp)}
+            onChange={(changeEvent) =>
+              setProp(changeEvent.target.value as CustomProp)
+            }
           >
-            {choices.map((p) => (
-              <option key={p} value={p}>
-                {labelFor(p)}
+            {choices.map((option) => (
+              <option key={option} value={option}>
+                {labelFor(option)}
               </option>
             ))}
           </select>
@@ -105,8 +108,8 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
             data-testid="symbols-expose-label"
             value={label}
             placeholder={labelFor(current)}
-            onChange={(e) => setLabel(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(changeEvent) => setLabel(changeEvent.target.value)}
+            onKeyDown={(keyEvent) => keyEvent.stopPropagation()}
           />
         </label>
         <button
@@ -136,56 +139,59 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
 
   const members = whole!.members;
   const { params, name } = customOf(members);
-  const editor = (p: CustomParam) => {
-    const set = (v: string | number | boolean) => {
-      setCustomParam(app.scene, members, p.key, v);
+  const editor = (param: CustomParam) => {
+    const set = (value: string | number | boolean) => {
+      setCustomParam(app.scene, members, param.key, value);
       done();
     };
-    if (p.kind === "color") {
+    if (param.kind === "color") {
       return (
         <ColorField
           compact
-          label={p.label}
-          testId={`symbols-param-${p.key}`}
-          value={String(p.value)}
+          label={param.label}
+          testId={`symbols-param-${param.key}`}
+          value={String(param.value)}
           onChange={set}
         />
       );
     }
-    if (p.kind === "text") {
+    if (param.kind === "text") {
       return (
         <input
           className="inspector__text"
-          data-testid={`symbols-param-${p.key}`}
-          defaultValue={String(p.value)}
-          key={String(p.value)}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Enter") {
-              (e.target as HTMLInputElement).blur();
+          data-testid={`symbols-param-${param.key}`}
+          defaultValue={String(param.value)}
+          key={String(param.value)}
+          onKeyDown={(keyEvent) => {
+            keyEvent.stopPropagation();
+            if (keyEvent.key === "Enter") {
+              (keyEvent.target as HTMLInputElement).blur();
             }
           }}
-          onBlur={(e) => e.target.value !== p.value && set(e.target.value)}
+          onBlur={(blurEvent) =>
+            blurEvent.target.value !== param.value &&
+            set(blurEvent.target.value)
+          }
         />
       );
     }
-    if (p.kind === "toggle") {
+    if (param.kind === "toggle") {
       return (
         <input
           type="checkbox"
-          data-testid={`symbols-param-${p.key}`}
-          checked={!!p.value}
-          onChange={(e) => set(e.target.checked)}
+          data-testid={`symbols-param-${param.key}`}
+          checked={!!param.value}
+          onChange={(changeEvent) => set(changeEvent.target.checked)}
         />
       );
     }
     return (
       <NumberPill
-        label={p.label}
-        testId={`symbols-param-${p.key}`}
-        value={Number(p.value)}
-        min={p.min ?? 0}
-        max={p.max ?? 100}
+        label={param.label}
+        testId={`symbols-param-${param.key}`}
+        value={Number(param.value)}
+        min={param.min ?? 0}
+        max={param.max ?? 100}
         onCommit={set}
       />
     );
@@ -199,37 +205,45 @@ export const CustomSymbolSection = ({ app }: { app: App }) => {
           make one of its properties a parameter.
         </p>
       )}
-      {params.map((p) => (
+      {params.map((param) => (
         <div
           className="symbols__param"
-          key={p.key}
+          key={param.key}
           data-testid="symbols-custom-param"
         >
           <input
             className="symbols__param-name"
             aria-label="Parameter name"
-            defaultValue={p.label}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Enter") {
-                (e.target as HTMLInputElement).blur();
+            defaultValue={param.label}
+            onKeyDown={(keyEvent) => {
+              keyEvent.stopPropagation();
+              if (keyEvent.key === "Enter") {
+                (keyEvent.target as HTMLInputElement).blur();
               }
             }}
-            onBlur={(e) => {
-              if (e.target.value.trim() && e.target.value !== p.label) {
-                renameCustomParam(app.scene, members, p.key, e.target.value);
+            onBlur={(blurEvent) => {
+              if (
+                blurEvent.target.value.trim() &&
+                blurEvent.target.value !== param.label
+              ) {
+                renameCustomParam(
+                  app.scene,
+                  members,
+                  param.key,
+                  blurEvent.target.value,
+                );
                 done();
               }
             }}
           />
-          {editor(p)}
+          {editor(param)}
           <button
             type="button"
-            aria-label={`Remove ${p.label}`}
+            aria-label={`Remove ${param.label}`}
             title="Remove this parameter"
-            data-testid={`symbols-param-remove-${p.key}`}
+            data-testid={`symbols-param-remove-${param.key}`}
             onClick={() => {
-              removeCustomParam(app.scene, members, p.key);
+              removeCustomParam(app.scene, members, param.key);
               done();
             }}
           >

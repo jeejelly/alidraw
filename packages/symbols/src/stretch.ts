@@ -8,11 +8,7 @@ import type {
 
 import { getSymbolMeta, symbolGroupOf } from "./build";
 
-/**
- * Stretching a component without distorting it: what spans the stretched side
- * grows, what sits at an end keeps its distance from that end, what is in the
- * middle stays in the middle. A component can also choose its own layout.
- */
+/** Pins: what spans a stretched side grows, an end keeps its distance, the middle stays centred. */
 export type PinX = "l" | "r" | "c" | "s" | "p";
 export type PinY = "t" | "b" | "m" | "s" | "p";
 export type Pin = { x: PinX; y: PinY; cover?: boolean };
@@ -31,7 +27,9 @@ export const getSelectedSymbol = (
   if (!selected.length) {
     return null;
   }
-  const groups = new Set(selected.map((e) => symbolGroupOf(e) ?? ""));
+  const groups = new Set(
+    selected.map((element) => symbolGroupOf(element) ?? ""),
+  );
   if (groups.size !== 1) {
     return null;
   }
@@ -39,7 +37,9 @@ export const getSelectedSymbol = (
   if (!group) {
     return null;
   }
-  const members = all.filter((e) => !e.isDeleted && symbolGroupOf(e) === group);
+  const members = all.filter(
+    (element) => !element.isDeleted && symbolGroupOf(element) === group,
+  );
   return members.length === selected.length ? { group, members } : null;
 };
 
@@ -49,10 +49,12 @@ export const frameOf = (els: readonly ExcalidrawElement[]): Frame => {
 };
 
 export const getLayout = (members: readonly ExcalidrawElement[]): Layout => {
-  const l = members.map((e) => getSymbolMeta(e)?.layout).find(Boolean);
+  const layout = members
+    .map((element) => getSymbolMeta(element)?.layout)
+    .find(Boolean);
   return {
-    h: (l?.h as LayoutH) ?? "auto",
-    v: (l?.v as LayoutV) ?? "auto",
+    h: (layout?.h as LayoutH) ?? "auto",
+    v: (layout?.v as LayoutV) ?? "auto",
   };
 };
 
@@ -64,8 +66,8 @@ export const inferPins = (
   frame: Frame,
   layout: Layout,
 ): Map<string, Pin> => {
-  const W = frame.x1 - frame.x0 || 1;
-  const H = frame.y1 - frame.y0 || 1;
+  const width = frame.x1 - frame.x0 || 1;
+  const height = frame.y1 - frame.y0 || 1;
   const out = new Map<string, Pin>();
   for (const el of members) {
     const growable =
@@ -73,8 +75,8 @@ export const inferPins = (
       el.type === "path" ||
       el.type === "line" ||
       el.type === "diamond";
-    const spansX = growable && el.width >= W * SPAN;
-    const spansY = growable && el.height >= H * SPAN;
+    const spansX = growable && el.width >= width * SPAN;
+    const spansY = growable && el.height >= height * SPAN;
     // nearest end wins; only what is really in the middle is centred
     const gapL = el.x - frame.x0;
     const gapR = frame.x1 - (el.x + el.width);
@@ -82,14 +84,14 @@ export const inferPins = (
     const gapB = frame.y1 - (el.y + el.height);
     let x: PinX = spansX
       ? "s"
-      : Math.abs(gapL - gapR) < W * 0.12
+      : Math.abs(gapL - gapR) < width * 0.12
       ? "c"
       : gapL < gapR
       ? "l"
       : "r";
     let y: PinY = spansY
       ? "s"
-      : Math.abs(gapT - gapB) < H * 0.12
+      : Math.abs(gapT - gapB) < height * 0.12
       ? "m"
       : gapT < gapB
       ? "t"
@@ -152,8 +154,8 @@ const along = (
     case "s":
       return [pos + dL, Math.max(1, size + dR - dL)];
     case "p": {
-      const k = (to[1] - to[0]) / (from[1] - from[0] || 1);
-      return [to[0] + (pos - from[0]) * k, Math.max(1, size * k)];
+      const scale = (to[1] - to[0]) / (from[1] - from[0] || 1);
+      return [to[0] + (pos - from[0]) * scale, Math.max(1, size * scale)];
     }
     default:
       return [pos + (dL + dR) / 2, size];
@@ -181,20 +183,21 @@ const boxUpdate = (
     if (kx === 1 && ky === 1) {
       return { x: nx, y: ny };
     }
-    const sc = (p: LocalPoint) => pointFrom<LocalPoint>(p[0] * kx, p[1] * ky);
-    const sh = (h: ExcalidrawPathElement["handles"][number]) => ({
-      ...h,
-      in: h.in && sc(h.in),
-      out: h.out && sc(h.out),
+    const sc = (point: LocalPoint) =>
+      pointFrom<LocalPoint>(point[0] * kx, point[1] * ky);
+    const sh = (handle: ExcalidrawPathElement["handles"][number]) => ({
+      ...handle,
+      in: handle.in && sc(handle.in),
+      out: handle.out && sc(handle.out),
     });
     const geo = getPathUpdate(el, {
       points: el.points.map(sc),
       handles: el.handles.map(sh),
       ...(el.contours
         ? {
-            contours: el.contours.map((c) => ({
-              points: c.points.map(sc),
-              handles: c.handles.map(sh),
+            contours: el.contours.map((contour) => ({
+              points: contour.points.map(sc),
+              handles: contour.handles.map(sh),
             })),
           }
         : {}),
@@ -243,9 +246,9 @@ export const stretchUpdates = (
     const pin = pins.get(el.id) ?? { x: "l" as PinX, y: "t" as PinY };
     if (pin.cover && el.angle === 0 && el.type !== "text") {
       // locked to the clipping zone: always the whole frame
-      const w = to.x1 - to.x0;
+      const width = to.x1 - to.x0;
       const hh = to.y1 - to.y0;
-      out.set(el.id, boxUpdate(el, pin, to.x0, to.y0, w, hh));
+      out.set(el.id, boxUpdate(el, pin, to.x0, to.y0, width, hh));
       continue;
     }
     const [nx, nw] = along(
@@ -269,10 +272,7 @@ export const stretchUpdates = (
 
 export type Guide = { axis: "x" | "y"; pos: number; from: number; to: number };
 
-/**
- * Pulls the moving edges of a frame onto the edges and centres of other
- * components that are close, and says which lines lit up.
- */
+/** Snaps the moving edges of a frame to nearby components and reports the guide lines. */
 export const snapFrame = (
   next: Frame,
   moving: { l: boolean; r: boolean; t: boolean; b: boolean },
@@ -283,13 +283,13 @@ export const snapFrame = (
   const guides: Guide[] = [];
   const xs: { v: number; y0: number; y1: number }[] = [];
   const ys: { v: number; x0: number; x1: number }[] = [];
-  for (const o of others) {
-    const [x0, y0, x1, y1] = getCommonBounds([o]);
-    for (const v of [x0, (x0 + x1) / 2, x1]) {
-      xs.push({ v, y0, y1 });
+  for (const other of others) {
+    const [x0, y0, x1, y1] = getCommonBounds([other]);
+    for (const value of [x0, (x0 + x1) / 2, x1]) {
+      xs.push({ v: value, y0, y1 });
     }
-    for (const v of [y0, (y0 + y1) / 2, y1]) {
-      ys.push({ v, x0, x1 });
+    for (const value of [y0, (y0 + y1) / 2, y1]) {
+      ys.push({ v: value, x0, x1 });
     }
   }
   const pull = (
@@ -298,10 +298,10 @@ export const snapFrame = (
     axis: "x" | "y",
   ) => {
     let best: any = null;
-    for (const c of list) {
-      const d = Math.abs(c.v - frame[edge]);
-      if (d <= threshold && (!best || d < best.d)) {
-        best = { d, c };
+    for (const candidate of list) {
+      const distance = Math.abs(candidate.v - frame[edge]);
+      if (distance <= threshold && (!best || distance < best.d)) {
+        best = { d: distance, c: candidate };
       }
     }
     if (best) {

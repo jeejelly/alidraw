@@ -57,20 +57,23 @@ class Workspaces {
   }
 
   root(id) {
-    const w = this.registry.get(id);
-    if (!w) {
+    const workspace = this.registry.get(id);
+    if (!workspace) {
       throw new Error("unknown workspace");
     }
-    if (!fs.existsSync(w.path)) {
-      throw new Error(`the folder of "${w.name}" is missing: ${w.path}`);
+    if (!fs.existsSync(workspace.path)) {
+      throw new Error(
+        `the folder of "${workspace.name}" is missing: ${workspace.path}`,
+      );
     }
-    return w.path;
+    return workspace.path;
   }
 
   list() {
-    return this.registry
-      .list()
-      .map((w) => ({ ...w, exists: fs.existsSync(w.path) }));
+    return this.registry.list().map((workspace) => ({
+      ...workspace,
+      exists: fs.existsSync(workspace.path),
+    }));
   }
 
   /** a new folder `<parent>/<name>`, with `git init` unless told otherwise */
@@ -195,7 +198,7 @@ class Workspaces {
       }
     };
     walk(root);
-    return out.sort((a, b) => b.mtime - a.mtime);
+    return out.sort((first, second) => second.mtime - first.mtime);
   }
 
   readScene(id, rel) {
@@ -227,11 +230,11 @@ class Workspaces {
     const base =
       slug(String(name ?? "").replace(/\.excalidraw$/i, "")) || "scene";
     const folder = dir ? resolveInside(root, dir) : root;
-    let n = 1;
+    let attempt = 1;
     let file = path.join(folder, `${base}${SCENE_EXT}`);
     while (fs.existsSync(file)) {
-      n++;
-      file = path.join(folder, `${base}-${n}${SCENE_EXT}`);
+      attempt++;
+      file = path.join(folder, `${base}-${attempt}${SCENE_EXT}`);
     }
     writeAtomic(file, emptyScene());
     return toRel(root, file);
@@ -276,11 +279,11 @@ class Workspaces {
       throw new Error("not a scene");
     }
     const stem = path.basename(from, SCENE_EXT);
-    let n = 1;
+    let attempt = 1;
     let to = path.join(path.dirname(from), `${stem}-copy${SCENE_EXT}`);
     while (fs.existsSync(to)) {
-      n++;
-      to = path.join(path.dirname(from), `${stem}-copy-${n}${SCENE_EXT}`);
+      attempt++;
+      to = path.join(path.dirname(from), `${stem}-copy-${attempt}${SCENE_EXT}`);
     }
     fs.copyFileSync(from, to);
     return toRel(root, to);
@@ -301,12 +304,16 @@ class Workspaces {
     try {
       return fs
         .readdirSync(dir)
-        .filter((n) => /^[0-9a-f]{64}\.[a-z0-9]{1,5}$/.test(n))
-        .map((n) => {
-          const st = fs.statSync(path.join(dir, n));
-          return { path: `assets/${n}`, bytes: st.size, mtime: st.mtimeMs };
+        .filter((fileName) => /^[0-9a-f]{64}\.[a-z0-9]{1,5}$/.test(fileName))
+        .map((fileName) => {
+          const st = fs.statSync(path.join(dir, fileName));
+          return {
+            path: `assets/${fileName}`,
+            bytes: st.size,
+            mtime: st.mtimeMs,
+          };
         })
-        .sort((a, b) => b.mtime - a.mtime);
+        .sort((first, second) => second.mtime - first.mtime);
     } catch {
       return [];
     }

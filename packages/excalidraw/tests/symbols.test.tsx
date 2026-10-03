@@ -2,7 +2,6 @@ import React from "react";
 
 import { reseed } from "@excalidraw/common";
 
-import { Excalidraw } from "../index";
 import { buildElements, boundsOf, themeUpdates } from "@excalidraw/symbols";
 import { collectCodeItems } from "@excalidraw/symbols";
 import { generateSceneCode, pathData } from "@excalidraw/symbols";
@@ -15,6 +14,8 @@ import { ICONS } from "@excalidraw/symbols";
 import { parsePath, circle } from "@excalidraw/vector";
 import { ALL_THEMES, colorScheme, THEMES } from "@excalidraw/symbols";
 import { getPaletteState, setPaletteHeight } from "@excalidraw/color";
+
+import { Excalidraw } from "../index";
 import { setSymbolTheme } from "../components/inspector/symbols/themeStore";
 
 import { API } from "./helpers/api";
@@ -22,7 +23,7 @@ import { act, fireEvent, render, screen, unmountComponent } from "./test-utils";
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
 beforeEach(() => {
   localStorage.clear();
@@ -36,16 +37,16 @@ describe("path data", () => {
   it("reads lines, curves and closing", () => {
     const [sub] = parsePath("M1 2 L5 2 l0 4 H1 Z");
     expect(sub.closed).toBe(true);
-    expect(sub.anchors.map((a) => [a.x, a.y])).toEqual([
+    expect(sub.anchors.map((anchor) => [anchor.x, anchor.y])).toEqual([
       [1, 2],
       [5, 2],
       [5, 6],
       [1, 6],
     ]);
-    const [c] = parsePath(circle(10, 10, 5));
-    expect(c.closed).toBe(true);
-    expect(c.anchors).toHaveLength(4);
-    expect(c.anchors[0].out).not.toBeNull();
+    const [subPath] = parsePath(circle(10, 10, 5));
+    expect(subPath.closed).toBe(true);
+    expect(subPath.anchors).toHaveLength(4);
+    expect(subPath.anchors[0].out).not.toBeNull();
   });
   it("splits sub-paths and refuses what it cannot draw", () => {
     expect(parsePath("M0 0L1 1M5 5L6 6")).toHaveLength(2);
@@ -57,10 +58,10 @@ describe("the library", () => {
   it("every icon is drawable", () => {
     expect(ICONS.length).toBeGreaterThan(100);
     const names = new Set<string>();
-    for (const i of ICONS) {
-      expect(names.has(i.name)).toBe(false);
-      names.add(i.name);
-      expect(parsePath(i.d).length).toBeGreaterThan(0);
+    for (const icon of ICONS) {
+      expect(names.has(icon.name)).toBe(false);
+      names.add(icon.name);
+      expect(parsePath(icon.d).length).toBeGreaterThan(0);
     }
   });
 
@@ -71,28 +72,30 @@ describe("the library", () => {
       ids.add(def.id);
       const base = defaultsOf(def);
       const variants = [base];
-      for (const p of def.params ?? []) {
-        if (p.kind === "choice") {
-          p.options!.forEach((o) => variants.push({ ...base, [p.key]: o }));
-        } else if (p.kind === "bool") {
-          variants.push({ ...base, [p.key]: !p.def });
-        } else if (p.kind === "number") {
+      for (const param of def.params ?? []) {
+        if (param.kind === "choice") {
+          param.options!.forEach((option) =>
+            variants.push({ ...base, [param.key]: option }),
+          );
+        } else if (param.kind === "bool") {
+          variants.push({ ...base, [param.key]: !param.def });
+        } else if (param.kind === "number") {
           variants.push(
-            { ...base, [p.key]: p.min },
-            { ...base, [p.key]: p.max },
+            { ...base, [param.key]: param.min },
+            { ...base, [param.key]: param.max },
           );
         }
       }
       for (const theme of ALL_THEMES) {
-        for (const v of variants) {
-          const shapes = def.shapes(theme, v);
-          const b = boundsOf(shapes);
+        for (const variant of variants) {
+          const shapes = def.shapes(theme, variant);
+          const bounds = boundsOf(shapes);
           expect(shapes.length).toBeGreaterThan(0);
-          expect(b.w).toBeGreaterThan(0);
-          expect(Number.isFinite(b.h)).toBe(true);
-          for (const s of shapes) {
-            if (s.t === "icon") {
-              expect(ICONS.some((i) => i.name === s.name)).toBe(true);
+          expect(bounds.w).toBeGreaterThan(0);
+          expect(Number.isFinite(bounds.h)).toBe(true);
+          for (const shape of shapes) {
+            if (shape.t === "icon") {
+              expect(ICONS.some((icon) => icon.name === shape.name)).toBe(true);
             }
           }
         }
@@ -102,7 +105,7 @@ describe("the library", () => {
   });
 
   it("has the screen kit: toggles, pills, tabs, collapsible bars, knobs, date and time", () => {
-    const ids = COMPONENTS.map((c) => c.id);
+    const ids = COMPONENTS.map((component) => component.id);
     for (const id of [
       "toggle",
       "pills",
@@ -125,12 +128,17 @@ describe("the library", () => {
 
 describe("collapsible bars are parametric", () => {
   const bars = (open: string, children: number) =>
-    COMPONENTS.find((c) => c.id === "collapsible-bars")!.shapes(night, {
-      ...defaultsOf(COMPONENTS.find((c) => c.id === "collapsible-bars")!),
-      open,
-      children,
-    });
-  const heightOf = (s: ReturnType<typeof bars>) => boundsOf(s).h;
+    COMPONENTS.find((component) => component.id === "collapsible-bars")!.shapes(
+      night,
+      {
+        ...defaultsOf(
+          COMPONENTS.find((component) => component.id === "collapsible-bars")!,
+        ),
+        open,
+        children,
+      },
+    );
+  const heightOf = (shapes: ReturnType<typeof bars>) => boundsOf(shapes).h;
   it("grows with the open bars and their nested bars", () => {
     const closed = heightOf(bars("", 2));
     const one = heightOf(bars("1", 2));
@@ -143,46 +151,46 @@ describe("collapsible bars are parametric", () => {
 
 describe("on the canvas", () => {
   it("builds one group of editable shapes, with paths for pills and icons", () => {
-    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const def = COMPONENTS.find((component) => component.id === "button")!;
     const els = buildElements(def.shapes(night, defaultsOf(def)), night, {
       x: 10,
       y: 20,
     });
     expect(els.length).toBeGreaterThanOrEqual(2);
-    expect(new Set(els.map((e) => e.groupIds[0])).size).toBe(1);
+    expect(new Set(els.map((element) => element.groupIds[0])).size).toBe(1);
     // a pill is a path with a full bevel, still editable with the corner gizmo
-    const pill = els.find((e) => e.type === "path") as any;
+    const pill = els.find((element) => element.type === "path") as any;
     expect(pill.closed).toBe(true);
     expect(pill.handles[0].radius).toBe(20);
     expect(pill.width).toBe(140);
     expect(pill.height).toBe(40);
-    expect(els.some((e) => e.type === "text")).toBe(true);
-    expect(els.every((e) => !!e.customData?.symbol)).toBe(true);
+    expect(els.some((element) => element.type === "text")).toBe(true);
+    expect(els.every((element) => !!element.customData?.symbol)).toBe(true);
   });
 
   it("a soft theme keeps real rectangles", () => {
-    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const def = COMPONENTS.find((component) => component.id === "button")!;
     const els = buildElements(
       def.shapes(THEMES[0], defaultsOf(def)),
       THEMES[0],
     );
-    expect(els.some((e) => e.type === "rectangle")).toBe(true);
+    expect(els.some((element) => element.type === "rectangle")).toBe(true);
   });
 
   it("re-themes colours and corners", () => {
-    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const def = COMPONENTS.find((component) => component.id === "button")!;
     const els = buildElements(def.shapes(night, defaultsOf(def)), night);
     const light = THEMES[0];
     const ups = themeUpdates(els, light);
     expect(ups.length).toBe(els.length);
-    const bg = ups.find((u) => u.element.type === "path")!;
+    const bg = ups.find((update) => update.element.type === "path")!;
     expect(bg.updates.backgroundColor).toBe(light.colors.accent);
     expect(bg.updates.handles[0].radius).toBe(8);
   });
 
   it("inserts from the panel and re-themes the selection", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
     expect(screen.getAllByTestId("symbols-tile").length).toBeGreaterThan(20);
 
@@ -194,56 +202,56 @@ describe("on the canvas", () => {
     fireEvent.click(tiles[0]);
     expect(screen.getByTestId("symbols-detail")).toBeTruthy();
     fireEvent.click(screen.getByTestId("symbols-insert"));
-    const live = h.elements.filter((e) => !e.isDeleted);
+    const live = handle.elements.filter((element) => !element.isDeleted);
     expect(live.length).toBeGreaterThanOrEqual(2);
-    expect(new Set(live.map((e) => e.groupIds[0])).size).toBe(1);
-    const before = live.map((e) => e.backgroundColor).join();
+    expect(new Set(live.map((element) => element.groupIds[0])).size).toBe(1);
+    const before = live.map((element) => element.backgroundColor).join();
 
     fireEvent.change(screen.getByTestId("symbols-theme-preset"), {
       target: { value: "Forest" },
     });
     fireEvent.click(screen.getByTestId("symbols-apply-all"));
-    const after = h.elements
-      .filter((e) => !e.isDeleted)
-      .map((e) => e.backgroundColor)
+    const after = handle.elements
+      .filter((element) => !element.isDeleted)
+      .map((element) => element.backgroundColor)
       .join();
     expect(after).not.toBe(before);
   });
 
   it("inserts an icon at the chosen size", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
     fireEvent.click(screen.getByTestId("symbols-mode-icons"));
     fireEvent.change(screen.getByTestId("symbols-search"), {
       target: { value: "search" },
     });
     fireEvent.click(screen.getAllByTestId("symbols-icon")[0]);
-    const live = h.elements.filter((e) => !e.isDeleted);
+    const live = handle.elements.filter((element) => !element.isDeleted);
     expect(live.length).toBeGreaterThan(0);
-    expect(live.every((e) => e.type === "path")).toBe(true);
+    expect(live.every((element) => element.type === "path")).toBe(true);
   });
 });
 
 describe("the palette stays, and the theme is live", () => {
   it("collapses to its title bar and never leaves", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: false } as any));
+    act(() => handle.setState({ paletteOpen: false } as any));
     const panel = screen.getByTestId("palette-panel");
     expect(panel.getAttribute("data-collapsed")).toBe("true");
     fireEvent.click(screen.getByTestId("palette-collapse"));
-    expect(h.state.paletteOpen).toBe(true);
+    expect(handle.state.paletteOpen).toBe(true);
     expect(
       screen.getByTestId("palette-panel").getAttribute("data-collapsed"),
     ).toBeNull();
     fireEvent.click(screen.getByTestId("palette-collapse"));
-    expect(h.state.paletteOpen).toBe(false);
+    expect(handle.state.paletteOpen).toBe(false);
     expect(screen.queryByTestId("palette-panel")).not.toBeNull();
   });
 
   it("has every tool of the top bar, on every tab", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     for (const tab of ["design", "symbols", "flow"]) {
       fireEvent.click(screen.getByTestId(`inspector-tab-${tab}`));
       for (const id of [
@@ -263,14 +271,14 @@ describe("the palette stays, and the theme is live", () => {
       }
     }
     fireEvent.click(screen.getByTestId("tool-diamond"));
-    expect(h.state.activeTool.type).toBe("diamond");
+    expect(handle.state.activeTool.type).toBe("diamond");
     fireEvent.click(screen.getByTestId("tool-lock"));
-    expect(h.state.activeTool.locked).toBe(true);
+    expect(handle.state.activeTool.locked).toBe(true);
   });
 
   it("restyles every symbol as soon as the theme changes", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
     fireEvent.change(screen.getByTestId("symbols-search"), {
       target: { value: "switch" },
@@ -278,9 +286,9 @@ describe("the palette stays, and the theme is live", () => {
     fireEvent.click(screen.getAllByTestId("symbols-tile")[0]);
     fireEvent.click(screen.getByTestId("symbols-insert"));
     const colors = () =>
-      h.elements
-        .filter((e) => !e.isDeleted)
-        .map((e) => e.backgroundColor)
+      handle.elements
+        .filter((element) => !element.isDeleted)
+        .map((element) => element.backgroundColor)
         .join();
     const before = colors();
     fireEvent.change(screen.getByTestId("symbols-theme-preset"), {
@@ -292,7 +300,7 @@ describe("the palette stays, and the theme is live", () => {
 
   it("takes corners as a number or a slider, and any stroke width", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
     fireEvent.change(screen.getByTestId("symbols-radius"), {
       target: { value: "13" },
@@ -318,7 +326,7 @@ describe("the palette stays, and the theme is live", () => {
 describe("modes, height, reference colours, grids", () => {
   it("has the switches of the preferences as icons, and they work", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     for (const id of [
       "snap-objects",
       "snap-guides",
@@ -330,19 +338,19 @@ describe("modes, height, reference colours, grids", () => {
     ]) {
       expect(screen.getByTestId(`mode-${id}`)).toBeTruthy();
     }
-    const before = h.state.gridModeEnabled;
+    const before = handle.state.gridModeEnabled;
     fireEvent.click(screen.getByTestId("mode-grid"));
-    expect(h.state.gridModeEnabled).toBe(!before);
+    expect(handle.state.gridModeEnabled).toBe(!before);
     expect(screen.getByTestId("mode-grid").getAttribute("aria-pressed")).toBe(
       String(!before),
     );
     fireEvent.click(screen.getByTestId("mode-rulers"));
-    expect(h.state.rulersEnabled).toBe(true);
+    expect(handle.state.rulersEnabled).toBe(true);
   });
 
   it("stretches down as well as sideways", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     expect(screen.getByTestId("palette-resize-height")).toBeTruthy();
     act(() => setPaletteHeight(500));
     expect(screen.getByTestId("palette-panel").style.height).toBe("500px");
@@ -352,7 +360,7 @@ describe("modes, height, reference colours, grids", () => {
 
   it("lists the colours of a theme and keeps them in the swatches", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
     expect(colorScheme(THEMES[2]).length).toBeGreaterThan(15);
     expect(
@@ -363,9 +371,9 @@ describe("modes, height, reference colours, grids", () => {
   });
 
   it("ships layout grids", () => {
-    const grids = COMPONENTS.filter((c) => c.category === "Grids").map(
-      (c) => c.id,
-    );
+    const grids = COMPONENTS.filter(
+      (component) => component.category === "Grids",
+    ).map((component) => component.id);
     expect(grids).toEqual(
       expect.arrayContaining([
         "grid-columns",
@@ -375,10 +383,12 @@ describe("modes, height, reference colours, grids", () => {
         "grid-thirds",
       ]),
     );
-    const cols = COMPONENTS.find((c) => c.id === "grid-columns")!;
+    const cols = COMPONENTS.find(
+      (component) => component.id === "grid-columns",
+    )!;
     const twelve = cols
       .shapes(night, defaultsOf(cols))
-      .filter((s) => s.t === "rect");
+      .filter((shape) => shape.t === "rect");
     // the frame, plus one band per column
     expect(twelve).toHaveLength(13);
   });
@@ -386,7 +396,7 @@ describe("modes, height, reference colours, grids", () => {
 
 describe("code from symbols", () => {
   const items = (id: string, values: any = {}) => {
-    const def = COMPONENTS.find((c) => c.id === id)!;
+    const def = COMPONENTS.find((component) => component.id === id)!;
     const els = buildElements(
       def.shapes(night, { ...defaultsOf(def), ...values }),
       night,
@@ -439,9 +449,9 @@ describe("code from symbols", () => {
   });
 
   it("orders components top to bottom", () => {
-    const a = items("badge")[0];
-    const b = { ...items("progress")[0], y: a.y - 100 };
-    const code = generateCode([a, b], night);
+    const badge = items("badge")[0];
+    const progress = { ...items("progress")[0], y: badge.y - 100 };
+    const code = generateCode([badge, progress], night);
     expect(code.html.indexOf("<progress")).toBeLessThan(
       code.html.indexOf("badge badge--"),
     );
@@ -449,7 +459,7 @@ describe("code from symbols", () => {
 
   it("the panel turns a selection into code", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
     fireEvent.change(screen.getByTestId("symbols-search"), {
       target: { value: "switch" },
@@ -470,33 +480,35 @@ describe("code from symbols", () => {
 describe("screen templates and more code", () => {
   it("every template builds from components that exist, in every theme", () => {
     expect(TEMPLATES.length).toBeGreaterThanOrEqual(6);
-    for (const t of TEMPLATES) {
-      for (const p of t.parts) {
-        expect(COMPONENTS.some((c) => c.id === p.component)).toBe(true);
+    for (const template of TEMPLATES) {
+      for (const part of template.parts) {
+        expect(
+          COMPONENTS.some((component) => component.id === part.component),
+        ).toBe(true);
       }
       for (const theme of ALL_THEMES) {
-        const els = buildTemplate(t, theme);
+        const els = buildTemplate(template, theme);
         expect(els.length).toBeGreaterThan(10);
-        expect(templateShapes(t, theme).length).toBeGreaterThan(10);
+        expect(templateShapes(template, theme).length).toBeGreaterThan(10);
       }
     }
   });
 
   it("a template is one group per part, each remembering its component", () => {
-    const t = TEMPLATES.find((x) => x.id === "tpl-login")!;
-    const els = buildTemplate(t, THEMES[2]);
-    const groups = new Set(els.map((e) => e.groupIds[0]));
-    expect(groups.size).toBe(t.parts.length);
+    const template = TEMPLATES.find((x) => x.id === "tpl-login")!;
+    const els = buildTemplate(template, THEMES[2]);
+    const groups = new Set(els.map((element) => element.groupIds[0]));
+    expect(groups.size).toBe(template.parts.length);
     const items = collectCodeItems(els);
-    expect(items.map((i) => i.component)).toEqual(
+    expect(items.map((item) => item.component)).toEqual(
       expect.arrayContaining(["phone", "app-bar", "input", "button"]),
     );
   });
 
   it("a screen becomes code, frames left out, nothing unmapped", () => {
-    for (const t of TEMPLATES) {
+    for (const template of TEMPLATES) {
       const code = generateCode(
-        collectCodeItems(buildTemplate(t, THEMES[2])),
+        collectCodeItems(buildTemplate(template, THEMES[2])),
         THEMES[2],
       );
       expect(code.unmapped).toEqual([]);
@@ -523,7 +535,7 @@ describe("screen templates and more code", () => {
           "grid-columns",
           "date-picker",
         ].flatMap((id) => {
-          const def = COMPONENTS.find((c) => c.id === id)!;
+          const def = COMPONENTS.find((component) => component.id === id)!;
           return collectCodeItems(
             buildElements(
               def.shapes(night, defaultsOf(def)),
@@ -534,7 +546,7 @@ describe("screen templates and more code", () => {
             ),
           );
         }),
-      ].map((it, k) => ({ ...it, y: k * 100 })),
+      ].map((it, index) => ({ ...it, y: index * 100 })),
       night,
     );
     expect(code.unmapped).toEqual([]);
@@ -548,15 +560,15 @@ describe("screen templates and more code", () => {
 
   it("the panel inserts a screen as separate parts", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
     fireEvent.click(screen.getByTestId("symbols-mode-templates"));
     expect(screen.getAllByTestId("symbols-template").length).toBe(
       TEMPLATES.length,
     );
     fireEvent.click(screen.getAllByTestId("symbols-template")[0]);
-    const live = h.elements.filter((e) => !e.isDeleted);
-    expect(new Set(live.map((e) => e.groupIds[0])).size).toBe(
+    const live = handle.elements.filter((element) => !element.isDeleted);
+    expect(new Set(live.map((element) => element.groupIds[0])).size).toBe(
       TEMPLATES[0].parts.length,
     );
   });
@@ -564,7 +576,7 @@ describe("screen templates and more code", () => {
 
 describe("the whole canvas as a page", () => {
   it("places symbols and plain shapes where they are drawn", () => {
-    const def = COMPONENTS.find((c) => c.id === "button")!;
+    const def = COMPONENTS.find((component) => component.id === "button")!;
     const button = buildElements(
       def.shapes(night, defaultsOf(def)),
       night,
@@ -622,13 +634,19 @@ describe("the whole canvas as a page", () => {
   });
 
   it("works out rows, columns and padded boxes", () => {
-    const rect = (x: number, y: number, w: number, h: number, extra = {}) =>
+    const rect = (
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      extra = {},
+    ) =>
       API.createElement({
         type: "rectangle",
         x,
         y,
-        width: w,
-        height: h,
+        width,
+        height,
         ...extra,
       } as any);
     const card = rect(0, 0, 400, 200, { backgroundColor: "#eeeeee" });
@@ -639,11 +657,11 @@ describe("the whole canvas as a page", () => {
       text: "Title",
       fontSize: 20,
     } as any);
-    const a = rect(20, 100, 100, 40, { backgroundColor: "#ff0000" });
-    const b = rect(140, 100, 240, 40, { backgroundColor: "#0000ff" });
+    const first = rect(20, 100, 100, 40, { backgroundColor: "#ff0000" });
+    const second = rect(140, 100, 240, 40, { backgroundColor: "#0000ff" });
     const footer = rect(0, 240, 400, 60, { backgroundColor: "#00ff00" });
     const code = generateResponsiveSceneCode(
-      [card, title, a, b, footer] as any,
+      [card, title, first, second, footer] as any,
       night,
     )!;
     // a column of the card and the footer; the card is a padded box holding
@@ -665,21 +683,21 @@ describe("the whole canvas as a page", () => {
   });
 
   it("keeps overlapping parts in a fixed box", () => {
-    const a = API.createElement({
+    const first = API.createElement({
       type: "ellipse",
       x: 0,
       y: 0,
       width: 100,
       height: 100,
     } as any);
-    const b = API.createElement({
+    const second = API.createElement({
       type: "ellipse",
       x: 50,
       y: 50,
       width: 100,
       height: 100,
     } as any);
-    const code = generateResponsiveSceneCode([a, b] as any, night)!;
+    const code = generateResponsiveSceneCode([first, second] as any, night)!;
     expect(code.html).toContain("position:relative;width:150px;height:150px");
     expect(code.html).toContain("left:50px;top:50px");
     expect(code.notes[0]).toContain("1 group(s)");
@@ -690,9 +708,9 @@ describe("the whole canvas as a page", () => {
     const { elements } = importSvg(
       '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><path fill="#000" d="M0 0H40V40H0Z M10 10V30H30V10Z"/><path d="M0 0C10 0 20 10 20 20"/></svg>',
     );
-    const d = pathData(elements[0] as any);
-    expect(d.match(/M/g)).toHaveLength(2);
-    expect(d.match(/Z/g)).toHaveLength(2);
+    const data = pathData(elements[0] as any);
+    expect(data.match(/M/g)).toHaveLength(2);
+    expect(data.match(/Z/g)).toHaveLength(2);
     expect(pathData(elements[1] as any)).toContain("C");
   });
 });

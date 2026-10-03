@@ -21,8 +21,8 @@ export const getLocalFontFamilies = async (): Promise<string[]> => {
   pending ??= (async () => {
     try {
       const fonts: LocalFontData[] = await (window as any).queryLocalFonts();
-      cache = [...new Set(fonts.map((f) => f.family))].sort((a, b) =>
-        a.localeCompare(b),
+      cache = [...new Set(fonts.map((font) => font.family))].sort(
+        (first, second) => first.localeCompare(second),
       );
       return cache;
     } catch {
@@ -39,8 +39,10 @@ export const filterFontFamilies = (
   families: readonly string[],
   query: string,
 ) => {
-  const q = query.trim().toLowerCase();
-  return q
-    ? families.filter((f) => f.toLowerCase().includes(q))
+  const normalizedQuery = query.trim().toLowerCase();
+  return normalizedQuery
+    ? families.filter((family) =>
+        family.toLowerCase().includes(normalizedQuery),
+      )
     : [...families];
 };

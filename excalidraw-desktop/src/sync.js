@@ -5,24 +5,24 @@ const { slug } = require("./paths");
 
 /** what failed, in words that say what to do */
 const explain = (error) => {
-  const m = error.message || String(error);
+  const message = error.message || String(error);
   if (
     /could not read Username|Authentication failed|Permission denied|publickey|terminal prompts disabled/i.test(
-      m,
+      message,
     )
   ) {
     return `Authentication failed. Set up a git credential helper or an ssh key for this remote, then try again. (${
-      m.split("\n")[0]
+      message.split("\n")[0]
     })`;
   }
   if (
     /Could not resolve host|unable to access|Connection (timed out|refused)|Network is unreachable/i.test(
-      m,
+      message,
     )
   ) {
-    return `The remote cannot be reached: ${m.split("\n")[0]}`;
+    return `The remote cannot be reached: ${message.split("\n")[0]}`;
   }
-  return m;
+  return message;
 };
 
 /**
@@ -193,16 +193,16 @@ class Sync {
     await this.flush(id);
     if (choice === "merge") {
       const before = await git.head(root);
-      const r = await git.mergeUpstream(root);
-      if (!r.merged) {
-        const files = r.conflicts.length
-          ? r.conflicts.join(", ")
+      const result = await git.mergeUpstream(root);
+      if (!result.merged) {
+        const files = result.conflicts.length
+          ? result.conflicts.join(", ")
           : "some files";
         this.set(id, {
           state: "diverged",
           message: `Cannot merge automatically (${files} changed on both sides). Nothing was changed. You can continue on a new branch instead.`,
         });
-        return { outcome: "conflict", conflicts: r.conflicts };
+        return { outcome: "conflict", conflicts: result.conflicts };
       }
       const files = await git.changedBetween(
         root,
@@ -218,14 +218,13 @@ class Sync {
       return { outcome: "merged", files };
     }
     if (choice === "branch") {
-      const d = this.now();
-      const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(
+      const now = this.now();
+      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(
         2,
         "0",
-      )}${String(d.getDate()).padStart(2, "0")}-${String(d.getHours()).padStart(
-        2,
-        "0",
-      )}${String(d.getMinutes()).padStart(2, "0")}`;
+      )}${String(now.getDate()).padStart(2, "0")}-${String(
+        now.getHours(),
+      ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
       const branch = `ws/${slug(os.hostname()).toLowerCase()}-${stamp}`;
       await git.branchOff(root, branch, (await this.remote(id)).name);
       this.set(id, {

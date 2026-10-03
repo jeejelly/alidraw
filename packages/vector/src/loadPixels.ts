@@ -8,12 +8,12 @@ export const loadPixels = (
   new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const k = Math.min(
+      const scale = Math.min(
         1,
         maxSide / Math.max(img.naturalWidth, img.naturalHeight),
       );
-      const width = Math.max(1, Math.round(img.naturalWidth * k));
-      const height = Math.max(1, Math.round(img.naturalHeight * k));
+      const width = Math.max(1, Math.round(img.naturalWidth * scale));
+      const height = Math.max(1, Math.round(img.naturalHeight * scale));
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;

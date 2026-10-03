@@ -257,7 +257,7 @@ describe("element locking", () => {
 });
 
 describe("colour picked in the spectrum", () => {
-  const { h } = window;
+  const { h: harness } = window;
 
   beforeEach(async () => {
     await render(<Excalidraw handleKeyboardGlobally={true} />);
@@ -279,23 +279,23 @@ describe("colour picked in the spectrum", () => {
 
     const pick = (color: string, preview: boolean) =>
       act(() => {
-        h.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
+        harness.app.actionManager.executeAction(actionChangeStrokeColor, "ui", {
           color,
           preview,
         });
       });
 
     pick("#aa0000", true);
-    expect(h.elements[0].strokeColor).toBe("#aa0000");
+    expect(harness.elements[0].strokeColor).toBe("#aa0000");
     pick("#bb0000", true);
     pick("#cc0000", true);
     pick("#cc0000", false);
-    expect(h.elements[0].strokeColor).toBe("#cc0000");
+    expect(harness.elements[0].strokeColor).toBe("#cc0000");
 
     Keyboard.undo();
-    expect(h.elements[0].strokeColor).toBe("#1e1e1e");
-    expect(h.elements[0].isDeleted).toBe(false);
+    expect(harness.elements[0].strokeColor).toBe("#1e1e1e");
+    expect(harness.elements[0].isDeleted).toBe(false);
     Keyboard.redo();
-    expect(h.elements[0].strokeColor).toBe("#cc0000");
+    expect(harness.elements[0].strokeColor).toBe("#cc0000");
   });
 });

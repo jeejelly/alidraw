@@ -1,4 +1,4 @@
-import { EVENT, viewportCoordsToSceneCoords } from "@excalidraw/common";
+import { viewportCoordsToSceneCoords } from "@excalidraw/common";
 import {
   getBoundTextElement,
   getElementBounds,
@@ -21,17 +21,19 @@ import {
   guideEdgeCoordinate,
 } from "../anchors";
 
+import { listenToGesture, onEscape } from "./gestureListeners";
+
 import type App from "./App";
 
 const EPSILON = 0.01;
+/** how often a refresh re-settles anchor chains */
+const SETTLE_PASSES = 4;
+/** an anchor chain longer than this is treated as a loop */
+const MAX_CHAIN_LENGTH = 64;
 
 type Memory = { ex: number; ey: number; tx: number; ty: number };
 
-/**
- * Keeps anchored elements where their anchors say: when the target (another
- * element or a ruler guide) moves, the follower follows; when the follower is
- * moved on purpose, the anchor takes the new gap. See `anchors.ts`.
- */
+/** Keeps anchored elements on their anchors: the follower follows its target, and a deliberate move changes the gap. */
 export class AppAnchors {
   private busy = false;
   private memory = new Map<string, Memory>();
@@ -56,6 +58,12 @@ export class AppAnchors {
     updateBoundElements(el, scene);
   };
 
+  private commitAndRefresh = () => {
+    this.app.store.scheduleCapture();
+    this.refresh();
+    this.app.setState({});
+  };
+
   private writeAnchor = (
     el: NonDeletedExcalidrawElement,
     anchor: Anchor | null,
@@ -66,15 +74,7 @@ export class AppAnchors {
     this.memory.delete(el.id);
   };
 
-  // ---------------------------------------------------------------------------
-  // setting
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Hangs `at` of the element off `from` of the target. With `snap` the
-   * element jumps onto the point (gap 0); otherwise it stays where it is and
-   * the gap it has now is kept.
-   */
+  /** Hangs `at` of the element off `from` of the target; `snap` closes the gap, else the current gap is kept. */
   setElementAnchor = (
     sourceId: string,
     targetId: string,
@@ -101,9 +101,7 @@ export class AppAnchors {
       dx: snap ? 0 : ex - tx,
       dy: snap ? 0 : ey - ty,
     });
-    this.app.store.scheduleCapture();
-    this.refresh();
-    this.app.setState({});
+    this.commitAndRefresh();
     return true;
   };
 
@@ -114,7 +112,9 @@ export class AppAnchors {
     snap = false,
   ) => {
     const source = this.app.scene.getNonDeletedElement(sourceId);
-    const guide = this.app.state.guides.find((g) => g.id === guideId);
+    const guide = this.app.state.guides.find(
+      (candidate) => candidate.id === guideId,
+    );
     if (!source || !guide) {
       return false;
     }
@@ -124,9 +124,7 @@ export class AppAnchors {
       edge,
       offset: snap ? 0 : at - guide.position,
     });
-    this.app.store.scheduleCapture();
-    this.refresh();
-    this.app.setState({});
+    this.commitAndRefresh();
     return true;
   };
 
@@ -155,28 +153,22 @@ export class AppAnchors {
         ? { ...anchor, offset: gap.offset ?? anchor.offset }
         : { ...anchor, dx: gap.dx ?? anchor.dx, dy: gap.dy ?? anchor.dy },
     );
-    this.app.store.scheduleCapture();
-    this.refresh();
-    this.app.setState({});
+    this.commitAndRefresh();
   };
 
   /** an anchor chain that loops back would never settle */
   private wouldCycle = (sourceId: string, targetId: string) => {
     let id: string | null = targetId;
-    for (let i = 0; i < 64 && id; i++) {
+    for (let index = 0; index < MAX_CHAIN_LENGTH && id; index++) {
       if (id === sourceId) {
         return true;
       }
       const el = this.app.scene.getNonDeletedElement(id);
-      const a = el && getAnchor(el);
-      id = a && !isGuideAnchor(a) ? a.to : null;
+      const anchor = el && getAnchor(el);
+      id = anchor && !isGuideAnchor(anchor) ? anchor.to : null;
     }
     return false;
   };
-
-  // ---------------------------------------------------------------------------
-  // following
-  // ---------------------------------------------------------------------------
 
   /** brings every anchored element back in line with its anchor */
   refresh = () => {
@@ -192,72 +184,16 @@ export class AppAnchors {
         state.isRotating;
       const anchored = scene
         .getNonDeletedElements()
-        .filter((el) => getAnchor(el));
+        .filter((element) => getAnchor(element));
       if (!anchored.length) {
         this.memory.clear();
         return;
       }
       // chains settle front to back; a few passes cover them
-      for (let pass = 0; pass < 4; pass++) {
+      for (let pass = 0; pass < SETTLE_PASSES; pass++) {
         let moved = false;
-        for (const el of anchored) {
-          const anchor = getAnchor(el)!;
-          const box = this.bounds(el);
-          let current: { ex: number; ey: number; tx: number; ty: number };
-          let delta: { x: number; y: number };
-          if (isGuideAnchor(anchor)) {
-            const guide = state.guides.find((g) => g.id === anchor.guide);
-            if (!guide) {
-              continue;
-            }
-            const e = guideEdgeCoordinate(box, guide.axis, anchor.edge);
-            current =
-              guide.axis === "x"
-                ? { ex: e, ey: 0, tx: guide.position, ty: 0 }
-                : { ex: 0, ey: e, tx: 0, ty: guide.position };
-            delta = solveGuideAnchor(box, guide, anchor);
-          } else {
-            const target = scene.getNonDeletedElement(anchor.to);
-            if (!target) {
-              continue;
-            }
-            const tb = this.bounds(target);
-            const [ex, ey] = pointOnBounds(box, anchor.at);
-            const [tx, ty] = pointOnBounds(tb, anchor.from);
-            current = { ex, ey, tx, ty };
-            delta = solveElementAnchor(box, tb, anchor);
-          }
-          const mem = this.memory.get(el.id);
-          const targetMoved =
-            !mem ||
-            Math.abs(mem.tx - current.tx) > EPSILON ||
-            Math.abs(mem.ty - current.ty) > EPSILON;
-          const elementMoved =
-            !!mem &&
-            (Math.abs(mem.ex - current.ex) > EPSILON ||
-              Math.abs(mem.ey - current.ey) > EPSILON);
-
-          if (
-            targetMoved &&
-            (Math.abs(delta.x) > EPSILON || Math.abs(delta.y) > EPSILON)
-          ) {
-            this.moveBy(el, delta.x, delta.y);
-            moved = true;
-            current = {
-              ...current,
-              ex: current.ex + delta.x,
-              ey: current.ey + delta.y,
-            };
-          } else if (!targetMoved && elementMoved && !interacting) {
-            // the follower was moved on purpose: it keeps its new gap
-            const next: Anchor = isGuideAnchor(anchor)
-              ? { ...anchor, offset: anchor.offset - delta.x - delta.y }
-              : { ...anchor, dx: anchor.dx - delta.x, dy: anchor.dy - delta.y };
-            this.app.scene.mutateElement(el, {
-              customData: withAnchor(el.customData, next),
-            });
-          }
-          this.memory.set(el.id, current);
+        for (const element of anchored) {
+          moved = this.follow(element, interacting) || moved;
         }
         if (!moved) {
           break;
@@ -268,21 +204,94 @@ export class AppAnchors {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // picking a target on the canvas
-  // ---------------------------------------------------------------------------
+  /** where the follower and its target are, and how far the follower is off */
+  private measure = (
+    element: NonDeletedExcalidrawElement,
+    anchor: Anchor,
+  ): { current: Memory; delta: { x: number; y: number } } | null => {
+    const box = this.bounds(element);
+    if (isGuideAnchor(anchor)) {
+      const guide = this.app.state.guides.find(
+        (candidate) => candidate.id === anchor.guide,
+      );
+      if (!guide) {
+        return null;
+      }
+      const edgeCoordinate = guideEdgeCoordinate(box, guide.axis, anchor.edge);
+      return {
+        current:
+          guide.axis === "x"
+            ? { ex: edgeCoordinate, ey: 0, tx: guide.position, ty: 0 }
+            : { ex: 0, ey: edgeCoordinate, tx: 0, ty: guide.position },
+        delta: solveGuideAnchor(box, guide, anchor),
+      };
+    }
+    const target = this.app.scene.getNonDeletedElement(anchor.to);
+    if (!target) {
+      return null;
+    }
+    const targetBox = this.bounds(target);
+    const [ex, ey] = pointOnBounds(box, anchor.at);
+    const [tx, ty] = pointOnBounds(targetBox, anchor.from);
+    return {
+      current: { ex, ey, tx, ty },
+      delta: solveElementAnchor(box, targetBox, anchor),
+    };
+  };
+
+  /** @returns true when the follower was moved */
+  private follow = (
+    element: NonDeletedExcalidrawElement,
+    interacting: boolean,
+  ) => {
+    const anchor = getAnchor(element)!;
+    const measured = this.measure(element, anchor);
+    if (!measured) {
+      return false;
+    }
+    const { delta } = measured;
+    let { current } = measured;
+    const previous = this.memory.get(element.id);
+    const targetMoved =
+      !previous ||
+      Math.abs(previous.tx - current.tx) > EPSILON ||
+      Math.abs(previous.ty - current.ty) > EPSILON;
+    const elementMoved =
+      !!previous &&
+      (Math.abs(previous.ex - current.ex) > EPSILON ||
+        Math.abs(previous.ey - current.ey) > EPSILON);
+
+    let moved = false;
+    if (
+      targetMoved &&
+      (Math.abs(delta.x) > EPSILON || Math.abs(delta.y) > EPSILON)
+    ) {
+      this.moveBy(element, delta.x, delta.y);
+      moved = true;
+      current = {
+        ...current,
+        ex: current.ex + delta.x,
+        ey: current.ey + delta.y,
+      };
+    } else if (!targetMoved && elementMoved && !interacting) {
+      // the follower was moved on purpose: it keeps its new gap
+      const next: Anchor = isGuideAnchor(anchor)
+        ? { ...anchor, offset: anchor.offset - delta.x - delta.y }
+        : { ...anchor, dx: anchor.dx - delta.x, dy: anchor.dy - delta.y };
+      this.app.scene.mutateElement(element, {
+        customData: withAnchor(element.customData, next),
+      });
+    }
+    this.memory.set(element.id, current);
+    return moved;
+  };
 
   beginPick = (sourceId: string, from: AnchorPoint, at: AnchorPoint) => {
     this.cancelPick();
     this.app.setState({ anchorPick: { sourceId, from, at } });
-    const win = this.app.ownerWindow;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        this.cancelPick();
-      }
-    };
-    win.addEventListener(EVENT.KEYDOWN, onKey);
-    this.stopPicking = () => win.removeEventListener(EVENT.KEYDOWN, onKey);
+    this.stopPicking = listenToGesture(this.app.ownerWindow, {
+      onKeyDown: onEscape(this.cancelPick),
+    });
   };
 
   cancelPick = () => {
@@ -299,8 +308,8 @@ export class AppAnchors {
     if (!pick) {
       return false;
     }
-    const p = viewportCoordsToSceneCoords(event, this.app.state);
-    const hit = this.app.getElementAtPosition(p.x, p.y);
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
+    const hit = this.app.getElementAtPosition(point.x, point.y);
     if (hit && hit.id !== pick.sourceId) {
       this.setElementAnchor(pick.sourceId, hit.id, pick.from, pick.at);
     }

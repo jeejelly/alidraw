@@ -31,7 +31,9 @@ export const actionSelectAll = register({
     }
 
     const hiddenLayers = new Set(
-      appState.layers.filter((l) => !l.visible).map((l) => l.id),
+      appState.layers
+        .filter((layer) => !layer.visible)
+        .map((layer) => layer.id),
     );
     const selectedElementIds = elements
       .filter(

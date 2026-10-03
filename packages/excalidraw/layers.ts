@@ -55,8 +55,8 @@ export const newLayer = (layers: readonly Layer[], name?: string): Layer => ({
 /** the ids of the layers that are switched off, as a stable key */
 export const getHiddenLayerKey = (layers: readonly Layer[]) =>
   layers
-    .filter((l) => !l.visible)
-    .map((l) => l.id)
+    .filter((layer) => !layer.visible)
+    .map((layer) => layer.id)
     .join(",");
 
 export const isInHiddenLayer = (
@@ -77,17 +77,19 @@ export const orderByLayers = <T extends ExcalidrawElement>(
   layers: readonly Layer[],
   fallbackLayerId: string,
 ): T[] => {
-  const rank = new Map(layers.map((l, i) => [l.id, i]));
-  const byId = new Map(elements.map((e) => [e.id, e]));
-  const rankOf = (e: ExcalidrawElement): number => {
+  const rank = new Map(layers.map((layer, index) => [layer.id, index]));
+  const byId = new Map(elements.map((element) => [element.id, element]));
+  const rankOf = (element: ExcalidrawElement): number => {
     const owner =
-      e.type === "text" && e.containerId ? byId.get(e.containerId) ?? e : e;
+      element.type === "text" && element.containerId
+        ? byId.get(element.containerId) ?? element
+        : element;
     return rank.get(getLayerId(owner) ?? fallbackLayerId) ?? 0;
   };
   return elements
-    .map((e, i) => ({ e, i, r: rankOf(e) }))
-    .sort((a, b) => a.r - b.r || a.i - b.i)
-    .map(({ e }) => e);
+    .map((element, index) => ({ element, index, rank: rankOf(element) }))
+    .sort((left, right) => left.rank - right.rank || left.index - right.index)
+    .map(({ element }) => element);
 };
 
 export const sanitizeLayers = (raw: unknown): Layer[] => {
@@ -96,22 +98,37 @@ export const sanitizeLayers = (raw: unknown): Layer[] => {
   }
   const seen = new Set<string>();
   const out: Layer[] = [];
-  for (const l of raw) {
-    if (!l || typeof l.id !== "string" || !l.id || seen.has(l.id)) {
+  for (const entry of raw) {
+    if (
+      !entry ||
+      typeof entry.id !== "string" ||
+      !entry.id ||
+      seen.has(entry.id)
+    ) {
       continue;
     }
-    seen.add(l.id);
+    seen.add(entry.id);
     out.push({
-      id: l.id,
-      name: typeof l.name === "string" && l.name ? l.name : "Layer",
+      id: entry.id,
+      name: typeof entry.name === "string" && entry.name ? entry.name : "Layer",
       color:
-        typeof l.color === "string" && /^#[0-9a-f]{3,8}$/i.test(l.color)
-          ? l.color
+        typeof entry.color === "string" && /^#[0-9a-f]{3,8}$/i.test(entry.color)
+          ? entry.color
           : LAYER_COLORS[out.length % LAYER_COLORS.length],
-      visible: l.visible !== false,
-      locked: l.locked === true,
-      collapsed: l.collapsed === true,
+      visible: entry.visible !== false,
+      locked: entry.locked === true,
+      collapsed: entry.collapsed === true,
     });
   }
   return out;
+};
+
+/** the sanitized layers and the active one (the topmost when it is gone) */
+export const restoreLayers = (rawLayers: unknown, activeLayerId: unknown) => {
+  const layers = sanitizeLayers(rawLayers);
+  const active = layers.find((layer) => layer.id === activeLayerId);
+  return {
+    layers,
+    activeLayerId: active?.id ?? layers[layers.length - 1]?.id ?? null,
+  };
 };

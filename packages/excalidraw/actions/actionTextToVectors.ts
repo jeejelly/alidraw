@@ -53,7 +53,7 @@ export const actionTextToVectors = register({
       const out = await textToPaths(text);
       if (out) {
         made.set(text.id, out.elements);
-        out.missing.forEach((c) => missing.add(c));
+        out.missing.forEach((char) => missing.add(char));
       }
     }
     if (!made.size) {
@@ -76,7 +76,7 @@ export const actionTextToVectors = register({
       }
       // the glyphs stand where the text was; the text is gone
       next.push(newElementWith(el, { isDeleted: true }), ...paths);
-      paths.forEach((p) => (selected[p.id] = true));
+      paths.forEach((path) => (selected[path.id] = true));
     }
     return {
       elements: next,

@@ -44,13 +44,16 @@ export const canEditCorners = (el: ExcalidrawElement | undefined | null) =>
     el.type === "diamond" ||
     (el.type === "path" && el.points.length >= 3));
 
-const live = (v: LocalPoint | null) => !!v && (v[0] !== 0 || v[1] !== 0);
-const curved = (h: PathPointHandles | undefined) =>
-  !!h && h.mode !== "corner" && (live(h.in) || live(h.out));
-const curvedOut = (h: PathPointHandles | undefined) =>
-  !!h && h.mode !== "corner" && live(h.out);
-const curvedIn = (h: PathPointHandles | undefined) =>
-  !!h && h.mode !== "corner" && live(h.in);
+const live = (point: LocalPoint | null) =>
+  !!point && (point[0] !== 0 || point[1] !== 0);
+const curved = (handles: PathPointHandles | undefined) =>
+  !!handles &&
+  handles.mode !== "corner" &&
+  (live(handles.in) || live(handles.out));
+const curvedOut = (handles: PathPointHandles | undefined) =>
+  !!handles && handles.mode !== "corner" && live(handles.out);
+const curvedIn = (handles: PathPointHandles | undefined) =>
+  !!handles && handles.mode !== "corner" && live(handles.in);
 
 type Loop = {
   points: readonly LocalPoint[];
@@ -63,12 +66,14 @@ const loopsOf = (el: ExcalidrawElement): Loop[] => {
     return allContours(el);
   }
   if (el.type === "rectangle" || el.type === "diamond") {
-    const g = getPathGeometryFromShape(el);
+    const geometry = getPathGeometryFromShape(el);
     const radius = getCornerRadius(Math.min(el.width, el.height), el);
     return [
       {
-        points: g.points,
-        handles: g.handles.map((h) => (radius ? { ...h, radius } : h)),
+        points: geometry.points,
+        handles: geometry.handles.map((handle) =>
+          radius ? { ...handle, radius } : handle,
+        ),
         closed: true,
       },
     ];
@@ -82,39 +87,39 @@ export const getCornerHandles = (
 ): CornerHandle[] => {
   const [, , , , cx, cy] = getElementAbsoluteCoords(el, elementsMap);
   const center = pointFrom<GlobalPoint>(cx, cy);
-  const toScene = (p: LocalPoint) => {
-    const r = pointRotateRads(
-      pointFrom<GlobalPoint>(el.x + p[0], el.y + p[1]),
+  const toScene = (point: LocalPoint) => {
+    const rotated = pointRotateRads(
+      pointFrom<GlobalPoint>(el.x + point[0], el.y + point[1]),
       center,
       el.angle,
     );
-    return { x: r[0], y: r[1] };
+    return { x: rotated[0], y: rotated[1] };
   };
   const out: CornerHandle[] = [];
   loopsOf(el).forEach((loop, li) => {
-    const n = loop.points.length;
-    for (let i = 0; i < n; i++) {
-      const hasPrev = loop.closed || i > 0;
-      const hasNext = loop.closed || i < n - 1;
-      const pi = (i - 1 + n) % n;
-      const ni = (i + 1) % n;
+    const count = loop.points.length;
+    for (let index = 0; index < count; index++) {
+      const hasPrev = loop.closed || index > 0;
+      const hasNext = loop.closed || index < count - 1;
+      const pi = (index - 1 + count) % count;
+      const ni = (index + 1) % count;
       if (
         !hasPrev ||
         !hasNext ||
-        n < 3 ||
-        curved(loop.handles[i]) ||
+        count < 3 ||
+        curved(loop.handles[index]) ||
         curvedOut(loop.handles[pi]) ||
         curvedIn(loop.handles[ni])
       ) {
         continue;
       }
-      const c = toScene(loop.points[i]);
-      const a = toScene(loop.points[pi]);
-      const b = toScene(loop.points[ni]);
-      const ax = a.x - c.x;
-      const ay = a.y - c.y;
-      const bx = b.x - c.x;
-      const by = b.y - c.y;
+      const current = toScene(loop.points[index]);
+      const previous = toScene(loop.points[pi]);
+      const next = toScene(loop.points[ni]);
+      const ax = previous.x - current.x;
+      const ay = previous.y - current.y;
+      const bx = next.x - current.x;
+      const by = next.y - current.y;
       const la = Math.hypot(ax, ay);
       const lb = Math.hypot(bx, by);
       if (la < 1e-6 || lb < 1e-6) {
@@ -132,17 +137,17 @@ export const getCornerHandles = (
       dy /= dl;
       const sinHalf = Math.sin(alpha / 2);
       const maxRadius = (Math.min(la, lb) / 2) * Math.tan(alpha / 2);
-      const radius = Math.min(loop.handles[i]?.radius ?? 0, maxRadius);
+      const radius = Math.min(loop.handles[index]?.radius ?? 0, maxRadius);
       const dist = radius / sinHalf;
       out.push({
         loop: li,
-        index: i,
-        corner: c,
+        index,
+        corner: current,
         dir: { x: dx, y: dy },
         sinHalf,
         radius,
         maxRadius,
-        center: { x: c.x + dx * dist, y: c.y + dy * dist },
+        center: { x: current.x + dx * dist, y: current.y + dy * dist },
       });
     }
   });
@@ -151,9 +156,11 @@ export const getCornerHandles = (
 
 /** the radius a pointer position asks for along a corner's bisector */
 export const radiusAt = (
-  h: CornerHandle,
-  p: { x: number; y: number },
+  handle: CornerHandle,
+  point: { x: number; y: number },
 ): number => {
-  const t = (p.x - h.corner.x) * h.dir.x + (p.y - h.corner.y) * h.dir.y;
-  return Math.max(0, Math.min(h.maxRadius, t * h.sinHalf));
+  const distance =
+    (point.x - handle.corner.x) * handle.dir.x +
+    (point.y - handle.corner.y) * handle.dir.y;
+  return Math.max(0, Math.min(handle.maxRadius, distance * handle.sinHalf));
 };

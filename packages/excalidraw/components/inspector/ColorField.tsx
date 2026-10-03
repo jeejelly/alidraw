@@ -1,10 +1,6 @@
 import { normalizeHex } from "@excalidraw/color";
 
-/**
- * The one way to edit a colour in the palette: a square that opens the system
- * colour picker, and the hex value beside it. Used for swatches, theme colours
- * and the fill and stroke.
- */
+/** A colour square that opens the system picker, with its hex value beside it. */
 export const ColorField = ({
   value,
   onChange,
@@ -28,7 +24,7 @@ export const ColorField = ({
         aria-label={label ?? "Pick a colour"}
         title={label}
         value={hex}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(changeEvent) => onChange(changeEvent.target.value)}
       />
       <input
         className="inspector__text inspector__colorfield-hex"
@@ -37,18 +33,18 @@ export const ColorField = ({
         key={hex}
         defaultValue={hex}
         spellCheck={false}
-        onKeyDown={(e) => {
-          e.stopPropagation();
-          if (e.key === "Enter") {
-            (e.target as HTMLInputElement).blur();
+        onKeyDown={(keyEvent) => {
+          keyEvent.stopPropagation();
+          if (keyEvent.key === "Enter") {
+            (keyEvent.target as HTMLInputElement).blur();
           }
         }}
-        onBlur={(e) => {
-          const v = normalizeHex(e.target.value);
-          if (v && v !== hex) {
-            onChange(v);
+        onBlur={(blurEvent) => {
+          const normalized = normalizeHex(blurEvent.target.value);
+          if (normalized && normalized !== hex) {
+            onChange(normalized);
           } else {
-            e.target.value = hex;
+            blurEvent.target.value = hex;
           }
         }}
       />

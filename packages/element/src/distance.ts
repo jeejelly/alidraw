@@ -57,8 +57,8 @@ export const distanceToElement = (
         elementCenterPoint(element, elementsMap),
       );
       return Math.min(
-        ...lines.map((s) => distanceToLineSegment(p, s)),
-        ...curves.map((a) => curvePointDistance(a, p)),
+        ...lines.map((segment) => distanceToLineSegment(p, segment)),
+        ...curves.map((curve) => curvePointDistance(curve, p)),
       );
     }
     case "freedraw":

@@ -2,7 +2,6 @@ import React from "react";
 
 import { reseed } from "@excalidraw/common";
 
-import { actionTogglePalette } from "../actions";
 import {
   addSwatch,
   getPaletteState,
@@ -16,6 +15,8 @@ import {
   setPaletteLayout,
   snapPanel,
 } from "@excalidraw/color";
+
+import { actionTogglePalette } from "../actions";
 import { Excalidraw } from "../index";
 
 import { API } from "./helpers/api";
@@ -24,7 +25,7 @@ import { render, fireEvent, screen, act, unmountComponent } from "./test-utils";
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
 beforeEach(() => {
   localStorage.clear();
@@ -36,31 +37,37 @@ const ase = (
   entries: { name: string; model: string; values: number[] }[],
 ): ArrayBuffer => {
   const parts: number[] = [];
-  const u16 = (n: number) => parts.push((n >> 8) & 255, n & 255);
-  const u32 = (n: number) =>
-    parts.push((n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255);
-  const f32 = (n: number) => {
-    const b = new DataView(new ArrayBuffer(4));
-    b.setFloat32(0, n);
-    for (let i = 0; i < 4; i++) {
-      parts.push(b.getUint8(i));
+  const u16 = (value: number) => parts.push((value >> 8) & 255, value & 255);
+  const u32 = (value: number) =>
+    parts.push(
+      (value >>> 24) & 255,
+      (value >>> 16) & 255,
+      (value >>> 8) & 255,
+      value & 255,
+    );
+  const f32 = (value: number) => {
+    const view = new DataView(new ArrayBuffer(4));
+    view.setFloat32(0, value);
+    for (let index = 0; index < 4; index++) {
+      parts.push(view.getUint8(index));
     }
   };
-  parts.push(...[..."ASEF"].map((c) => c.charCodeAt(0)));
+  parts.push(...[..."ASEF"].map((char) => char.charCodeAt(0)));
   u16(1);
   u16(0);
   u32(entries.length);
-  for (const e of entries) {
-    const len = 2 + (e.name.length + 1) * 2 + 4 + e.values.length * 4 + 2;
+  for (const element of entries) {
+    const len =
+      2 + (element.name.length + 1) * 2 + 4 + element.values.length * 4 + 2;
     u16(0x0001);
     u32(len);
-    u16(e.name.length + 1);
-    for (const c of e.name) {
-      u16(c.charCodeAt(0));
+    u16(element.name.length + 1);
+    for (const color of element.name) {
+      u16(color.charCodeAt(0));
     }
     u16(0);
-    parts.push(...[...e.model].map((c) => c.charCodeAt(0)));
-    e.values.forEach(f32);
+    parts.push(...[...element.model].map((char) => char.charCodeAt(0)));
+    element.values.forEach(f32);
     u16(2);
   }
   return new Uint8Array(parts).buffer;
@@ -68,13 +75,13 @@ const ase = (
 
 describe("palette store", () => {
   it("adds, renames and removes swatches, which survive a reload", () => {
-    const a = addSwatch("#F00", "Signal red")!;
+    const swatch = addSwatch("#F00", "Signal red")!;
     addSwatch("#00ff00");
-    expect(getPaletteState().swatches.map((s) => s.color)).toEqual([
+    expect(getPaletteState().swatches.map((entry) => entry.color)).toEqual([
       "#ff0000",
       "#00ff00",
     ]);
-    renameSwatch(a.id, "Brand red");
+    renameSwatch(swatch.id, "Brand red");
     setPaletteLayout("vertical");
 
     resetPaletteCache(); // as after a page reload
@@ -86,7 +93,7 @@ describe("palette store", () => {
     expect(reloaded.swatches[1].name).toBe("#00ff00");
     expect(reloaded.layout).toBe("vertical");
 
-    removeSwatch(a.id);
+    removeSwatch(swatch.id);
     resetPaletteCache();
     expect(getPaletteState().swatches).toHaveLength(1);
   });
@@ -190,12 +197,12 @@ describe("palette panel", () => {
     fireEvent.click(screen.getByTestId("palette-target-background"));
     const swatches = await screen.findAllByTestId("palette-swatch");
     fireEvent.click(swatches[1]);
-    expect(h.elements[0].backgroundColor).toBe("#0000ff");
-    expect(h.elements[0].strokeColor).toBe("#ff0000");
+    expect(handle.elements[0].backgroundColor).toBe("#0000ff");
+    expect(handle.elements[0].strokeColor).toBe("#ff0000");
 
     fireEvent.click(screen.getByTestId("palette-target-stroke"));
     fireEvent.click((await screen.findAllByTestId("palette-swatch"))[1]);
-    expect(h.elements[0].strokeColor).toBe("#0000ff");
+    expect(handle.elements[0].strokeColor).toBe("#0000ff");
   });
 
   it("removes a swatch", async () => {
@@ -276,23 +283,23 @@ describe("inspector controls", () => {
     await setup();
     const slider = screen.getByTestId("inspector-opacity-slider");
     fireEvent.change(slider, { target: { value: "40" } });
-    expect(h.elements[0].opacity).toBe(40);
+    expect(handle.elements[0].opacity).toBe(40);
     const pill = screen.getByTestId(
       "inspector-opacity-value",
     ) as HTMLInputElement;
     expect(pill.value).toBe("40");
     fireEvent.change(pill, { target: { value: "75" } });
     fireEvent.keyDown(pill, { key: "Enter" });
-    expect(h.elements[0].opacity).toBe(75);
+    expect(handle.elements[0].opacity).toBe(75);
 
     const width = screen.getByTestId("inspector-stroke-width-value");
     fireEvent.change(width, { target: { value: "7.5" } });
     fireEvent.blur(width);
-    expect(h.elements[0].strokeWidth).toBe(7.5);
+    expect(handle.elements[0].strokeWidth).toBe(7.5);
     fireEvent.change(screen.getByTestId("inspector-stroke-width-slider"), {
       target: { value: "12" },
     });
-    expect(h.elements[0].strokeWidth).toBe(12);
+    expect(handle.elements[0].strokeWidth).toBe(12);
   });
 
   it("clamps typed values and ignores junk", async () => {
@@ -300,10 +307,10 @@ describe("inspector controls", () => {
     const pill = screen.getByTestId("inspector-opacity-value");
     fireEvent.change(pill, { target: { value: "500" } });
     fireEvent.blur(pill);
-    expect(h.elements[0].opacity).toBe(100);
+    expect(handle.elements[0].opacity).toBe(100);
     fireEvent.change(pill, { target: { value: "abc" } });
     fireEvent.blur(pill);
-    expect(h.elements[0].opacity).toBe(100);
+    expect(handle.elements[0].opacity).toBe(100);
   });
 
   it("sets stroke style and sloppiness, and swaps fill with stroke", async () => {
@@ -313,16 +320,16 @@ describe("inspector controls", () => {
         { ...rect, strokeColor: "#ff0000", backgroundColor: "#00ff00" } as any,
       ],
     });
-    API.setSelectedElements([h.elements[0] as any]);
+    API.setSelectedElements([handle.elements[0] as any]);
     fireEvent.click(screen.getByTestId("inspector-stroke-style-dashed"));
-    expect(h.elements[0].strokeStyle).toBe("dashed");
+    expect(handle.elements[0].strokeStyle).toBe("dashed");
     fireEvent.click(screen.getByTestId("inspector-roughness-2"));
-    expect(h.elements[0].roughness).toBe(2);
+    expect(handle.elements[0].roughness).toBe(2);
     fireEvent.click(screen.getByTestId("palette-swap"));
-    expect(h.elements[0].strokeColor).toBe("#00ff00");
-    expect(h.elements[0].backgroundColor).toBe("#ff0000");
+    expect(handle.elements[0].strokeColor).toBe("#00ff00");
+    expect(handle.elements[0].backgroundColor).toBe("#ff0000");
     fireEvent.click(screen.getByTestId("palette-none"));
-    expect(h.elements[0].strokeColor).toBe("transparent");
+    expect(handle.elements[0].strokeColor).toBe("transparent");
   });
 
   it("types a hex colour for the target", async () => {
@@ -330,7 +337,7 @@ describe("inspector controls", () => {
     const hex = screen.getByTestId("palette-hex");
     fireEvent.change(hex, { target: { value: "#0af" } });
     fireEvent.blur(hex);
-    expect(h.elements[0].strokeColor).toBe("#00aaff");
+    expect(handle.elements[0].strokeColor).toBe("#00aaff");
   });
 
   it("lists layers top-most first and selects on click", async () => {
@@ -338,17 +345,17 @@ describe("inspector controls", () => {
     act(() => {
       API.executeAction(actionTogglePalette);
     });
-    const a = API.createElement({ type: "rectangle" });
-    const b = API.createElement({ type: "ellipse" });
-    API.setElements([a, b]);
+    const first = API.createElement({ type: "rectangle" });
+    const second = API.createElement({ type: "ellipse" });
+    API.setElements([first, second]);
     fireEvent.click(screen.getByTestId("inspector-tab-layers"));
     const rows = screen.getAllByTestId("inspector-layer");
-    expect(rows.map((r) => r.textContent)).toEqual([
+    expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("Ellipse"),
       expect.stringContaining("Rectangle"),
     ]);
     fireEvent.click(rows[1]);
-    expect(h.state.selectedElementIds[a.id]).toBe(true);
+    expect(handle.state.selectedElementIds[first.id]).toBe(true);
   });
 
   it("hides the old style panel while the inspector is open", async () => {
@@ -375,7 +382,7 @@ describe("inspector controls", () => {
     API.setSelectedElements([rect]);
     Keyboard.withModifierKeys({ ctrl: true }, () => Keyboard.codePress("KeyT"));
     await screen.findByTestId("palette-panel");
-    expect(h.state.paletteOpen).toBe(true);
+    expect(handle.state.paletteOpen).toBe(true);
   });
 });
 
@@ -457,13 +464,13 @@ describe("panel snapping", () => {
       x: 12,
       y: 12,
     });
-    const r = snapPanel(
+    const snapped = snapPanel(
       { ...size, x: 1400 - 264 - 4, y: 800 - 300 - 20 },
       [],
       vp,
     );
-    expect(r).toMatchObject({ x: 1400 - 264 - 12, y: 800 - 300 - 12 });
-    expect(r.edge.right).toBe(true);
+    expect(snapped).toMatchObject({ x: 1400 - 264 - 12, y: 800 - 300 - 12 });
+    expect(snapped.edge.right).toBe(true);
   });
 
   it("does not snap beyond the distance", () => {
@@ -496,22 +503,22 @@ describe("transform of several shapes", () => {
   it("shows the fields for a multi selection and sets each shape", async () => {
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 10,
       y: 10,
       width: 50,
       height: 50,
     });
-    const b = API.createElement({
+    const second = API.createElement({
       type: "rectangle",
       x: 100,
       y: 100,
       width: 50,
       height: 50,
     });
-    API.setElements([a, b]);
-    API.setSelectedElements([a, b]);
+    API.setElements([first, second]);
+    API.setSelectedElements([first, second]);
     const x = screen
       .getByTestId("inspector-transform")
       .querySelector(
@@ -562,7 +569,11 @@ describe("swatch files out and back", () => {
     ];
     expect(parseGpl(serializeGpl(colors, "Mine"))).toEqual(colors);
     const ase = parseAse(serializeAse(colors));
-    expect(ase.map((c) => c.color)).toEqual(colors.map((c) => c.color));
-    expect(ase.map((c) => c.name)).toEqual(colors.map((c) => c.name));
+    expect(ase.map((entry) => entry.color)).toEqual(
+      colors.map((expected) => expected.color),
+    );
+    expect(ase.map((entry) => entry.name)).toEqual(
+      colors.map((expected) => expected.name),
+    );
   });
 });

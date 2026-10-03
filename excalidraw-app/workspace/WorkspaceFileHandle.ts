@@ -103,5 +103,6 @@ export class WorkspaceFileHandle {
   }
 }
 
-export const isWorkspaceHandle = (h: unknown): h is WorkspaceFileHandle =>
-  h instanceof WorkspaceFileHandle;
+export const isWorkspaceHandle = (
+  handle: unknown,
+): handle is WorkspaceFileHandle => handle instanceof WorkspaceFileHandle;

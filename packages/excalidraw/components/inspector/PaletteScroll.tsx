@@ -4,11 +4,7 @@ import type { ReactNode } from "react";
 
 const MIN_THUMB = 36;
 
-/**
- * The scrolling part of the palette, with a slider on its right edge instead
- * of the native bar: a wide track and a thumb you can grab, like the grip at
- * the bottom of the panel. Clicking the track pages up or down.
- */
+/** The palette's scrolling area, with a grabbable slider on its right edge instead of the native bar. */
 export const PaletteScroll = ({ children }: { children: ReactNode }) => {
   const body = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -77,13 +73,19 @@ export const PaletteScroll = ({ children }: { children: ReactNode }) => {
         ref={track}
         className={`inspector__scrollbar${thumb ? " is-active" : ""}`}
         data-testid="palette-slider"
-        onPointerDown={(e) => {
+        onPointerDown={(pointerEvent) => {
           const el = body.current;
-          if (!el || !thumb || e.target !== e.currentTarget) {
+          if (
+            !el ||
+            !thumb ||
+            pointerEvent.target !== pointerEvent.currentTarget
+          ) {
             return;
           }
           // a click on the track pages towards it
-          const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+          const y =
+            pointerEvent.clientY -
+            pointerEvent.currentTarget.getBoundingClientRect().top;
           el.scrollBy({
             top: (y < thumb.top ? -1 : 1) * el.clientHeight * 0.9,
             behavior: "smooth",
@@ -95,16 +97,21 @@ export const PaletteScroll = ({ children }: { children: ReactNode }) => {
             className="inspector__scrollthumb"
             data-testid="palette-slider-thumb"
             style={{ top: thumb.top, height: thumb.height }}
-            onPointerDown={(e) => {
+            onPointerDown={(pointerEvent) => {
               const el = body.current;
               if (!el) {
                 return;
               }
-              e.preventDefault();
-              e.currentTarget.setPointerCapture?.(e.pointerId);
-              drag.current = { y: e.clientY, scrollTop: el.scrollTop };
+              pointerEvent.preventDefault();
+              pointerEvent.currentTarget.setPointerCapture?.(
+                pointerEvent.pointerId,
+              );
+              drag.current = {
+                y: pointerEvent.clientY,
+                scrollTop: el.scrollTop,
+              };
             }}
-            onPointerMove={(e) => {
+            onPointerMove={(pointerEvent) => {
               const el = body.current;
               const tr = track.current;
               if (!drag.current || !el || !tr) {
@@ -115,7 +122,7 @@ export const PaletteScroll = ({ children }: { children: ReactNode }) => {
               if (room > 0) {
                 el.scrollTop =
                   drag.current.scrollTop +
-                  ((e.clientY - drag.current.y) * max) / room;
+                  ((pointerEvent.clientY - drag.current.y) * max) / room;
               }
             }}
             onPointerUp={() => {

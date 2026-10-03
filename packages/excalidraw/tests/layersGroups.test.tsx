@@ -1,13 +1,13 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
-
-import { Excalidraw } from "../index";
-import { nestGroups, groupLabel } from "../components/inspector/LayersTree";
 import { buildElements } from "@excalidraw/symbols";
 import { COMPONENTS, defaultsOf } from "@excalidraw/symbols";
 import { THEMES } from "@excalidraw/symbols";
 
+import { nestGroups, groupLabel } from "../components/inspector/LayersTree";
+import { Excalidraw } from "../index";
+
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import {
   act,
@@ -21,12 +21,9 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 const rect = (id: string, groupIds: string[] = []) =>
   API.createElement({
@@ -48,17 +45,20 @@ describe("grouped objects in the layers", () => {
       rect("d"),
     ] as any[];
     const tree = nestGroups(els);
-    expect(tree.map((n) => n.kind)).toEqual(["group", "el"]);
+    expect(tree.map((node) => node.kind)).toEqual(["group", "el"]);
     const outer = tree[0] as any;
     expect(outer.id).toBe("outer");
     expect(outer.members).toHaveLength(3);
-    expect(outer.children.map((n: any) => n.kind)).toEqual(["group", "el"]);
+    expect(outer.children.map((node: any) => node.kind)).toEqual([
+      "group",
+      "el",
+    ]);
     expect(outer.children[0].id).toBe("inner");
     expect(outer.children[0].children).toHaveLength(2);
   });
 
   it("labels a group by what the user said, what a symbol is, or Group", () => {
-    const def = COMPONENTS.find((c) => c.id === "toggle")!;
+    const def = COMPONENTS.find((component) => component.id === "toggle")!;
     const symbol = buildElements(
       def.shapes(THEMES[2], defaultsOf(def)),
       THEMES[2],
@@ -66,9 +66,9 @@ describe("grouped objects in the layers", () => {
       "toggle",
     );
     expect(groupLabel(symbol as any)).toBe("Toggle");
-    const named = symbol.map((e) => ({
-      ...e,
-      customData: { ...e.customData, groupLabel: "Dark mode switch" },
+    const named = symbol.map((element) => ({
+      ...element,
+      customData: { ...element.customData, groupLabel: "Dark mode switch" },
     }));
     expect(groupLabel(named as any)).toBe("Dark mode switch");
     expect(groupLabel([rect("x", ["g"])] as any)).toBe("Group");
@@ -86,7 +86,7 @@ describe("grouped objects in the layers", () => {
       await render(<Excalidraw />);
       const els = [rect("a", ["g1"]), rect("b", ["g1"]), rect("c")];
       API.setElements(els as any);
-      act(() => h.app.layers.add("Top"));
+      act(() => handle.app.layers.add("Top"));
       API.setAppState({ paletteOpen: true });
       fireEvent.click(screen.getByText("Layers"));
       // the group is one row; the loose shape another
@@ -98,11 +98,11 @@ describe("grouped objects in the layers", () => {
       expect(screen.getAllByTestId("inspector-layer")).toHaveLength(3);
 
       fireEvent.click(screen.getByTestId("layer-group-row"));
-      expect(Object.keys(h.state.selectedElementIds).sort()).toEqual([
+      expect(Object.keys(handle.state.selectedElementIds).sort()).toEqual([
         "a",
         "b",
       ]);
-      expect(h.state.selectedGroupIds).toEqual({ g1: true });
+      expect(handle.state.selectedGroupIds).toEqual({ g1: true });
 
       fireEvent.doubleClick(screen.getByTestId("layer-group-name"));
       const input = screen.getByTestId("layer-group-input");
@@ -112,9 +112,9 @@ describe("grouped objects in the layers", () => {
         "Toolbar",
       );
       expect(
-        h.elements
-          .filter((e) => e.groupIds[0] === "g1")
-          .every((e) => e.customData?.groupLabel === "Toolbar"),
+        handle.elements
+          .filter((element) => element.groupIds[0] === "g1")
+          .every((element) => element.customData?.groupLabel === "Toolbar"),
       ).toBe(true);
     });
   });
@@ -123,37 +123,37 @@ describe("grouped objects in the layers", () => {
 describe("modes", () => {
   it("snapping to objects and the grid can both be on", async () => {
     await render(<Excalidraw />);
-    act(() => h.setState({ paletteOpen: true } as any));
+    act(() => handle.setState({ paletteOpen: true } as any));
     fireEvent.click(screen.getByTestId("mode-grid"));
     fireEvent.click(screen.getByTestId("mode-snap-objects"));
-    expect(h.state.gridModeEnabled).toBe(true);
-    expect(h.state.objectsSnapModeEnabled).toBe(true);
+    expect(handle.state.gridModeEnabled).toBe(true);
+    expect(handle.state.objectsSnapModeEnabled).toBe(true);
     // the grid is drawn, and the objects win over its lines
-    expect(h.app.getEffectiveGridSize()).toBeNull();
+    expect(handle.app.getEffectiveGridSize()).toBeNull();
     fireEvent.click(screen.getByTestId("mode-snap-objects"));
-    expect(h.app.getEffectiveGridSize()).toBe(h.state.gridSize);
+    expect(handle.app.getEffectiveGridSize()).toBe(handle.state.gridSize);
   });
 
   it("the guides can be locked from the palette, so they cannot be grabbed", async () => {
     await render(<Excalidraw />);
     act(() =>
-      h.setState({
+      handle.setState({
         paletteOpen: true,
         rulersEnabled: true,
         guides: [{ id: "g", axis: "x", position: 100 }],
       } as any),
     );
     expect(
-      h.app.guides.hitGuide({
-        clientX: 100 + h.state.offsetLeft + h.state.scrollX,
+      handle.app.guides.hitGuide({
+        clientX: 100 + handle.state.offsetLeft + handle.state.scrollX,
         clientY: 50,
       }),
     ).not.toBeNull();
     fireEvent.click(screen.getByTestId("mode-lock-guides"));
-    expect(h.state.guidesLocked).toBe(true);
+    expect(handle.state.guidesLocked).toBe(true);
     expect(
-      h.app.guides.hitGuide({
-        clientX: 100 + h.state.offsetLeft + h.state.scrollX,
+      handle.app.guides.hitGuide({
+        clientX: 100 + handle.state.offsetLeft + handle.state.scrollX,
         clientY: 50,
       }),
     ).toBeNull();

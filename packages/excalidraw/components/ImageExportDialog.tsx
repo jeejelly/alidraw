@@ -27,10 +27,6 @@ import { useCopyStatus } from "../hooks/useCopiedIndicator";
 import { t } from "../i18n";
 import { isSomeElementSelected } from "../scene";
 
-import { copyIcon, downloadIcon, helpIcon } from "./icons";
-import { Dialog } from "./Dialog";
-import { RadioGroup } from "./RadioGroup";
-import { Switch } from "./Switch";
 import {
   getPdfOptions,
   sanitizePdfOptions,
@@ -38,6 +34,11 @@ import {
   type PdfOptions,
   type PdfPage,
 } from "../data/pdfExport";
+
+import { copyIcon, downloadIcon, helpIcon } from "./icons";
+import { Dialog } from "./Dialog";
+import { RadioGroup } from "./RadioGroup";
+import { Switch } from "./Switch";
 import { Tooltip } from "./Tooltip";
 import { FilledButton } from "./FilledButton";
 
@@ -396,7 +397,9 @@ const PdfSettings = () => {
         <select
           data-testid="pdf-page"
           value={options.page}
-          onChange={(e) => change({ page: e.target.value as PdfPage })}
+          onChange={(changeEvent) =>
+            change({ page: changeEvent.target.value as PdfPage })
+          }
         >
           <option value="content">Size of the drawing</option>
           <option value="a4">A4</option>
@@ -412,8 +415,11 @@ const PdfSettings = () => {
           data-testid="pdf-orientation"
           disabled={!fixed}
           value={options.orientation}
-          onChange={(e) =>
-            change({ orientation: e.target.value as PdfOptions["orientation"] })
+          onChange={(changeEvent) =>
+            change({
+              orientation: changeEvent.target
+                .value as PdfOptions["orientation"],
+            })
           }
         >
           <option value="auto">Automatic</option>
@@ -429,8 +435,10 @@ const PdfSettings = () => {
           min={0}
           max={100}
           value={options.margin}
-          onKeyDown={(e) => e.stopPropagation()}
-          onChange={(e) => change({ margin: Number(e.target.value) })}
+          onKeyDown={(keyboardEvent) => keyboardEvent.stopPropagation()}
+          onChange={(changeEvent) =>
+            change({ margin: Number(changeEvent.target.value) })
+          }
         />
       </label>
       <label>
@@ -439,8 +447,8 @@ const PdfSettings = () => {
           data-testid="pdf-scale"
           disabled={!fixed}
           value={options.scale}
-          onChange={(e) =>
-            change({ scale: e.target.value as PdfOptions["scale"] })
+          onChange={(changeEvent) =>
+            change({ scale: changeEvent.target.value as PdfOptions["scale"] })
           }
         >
           <option value="fit">Fit to the page</option>

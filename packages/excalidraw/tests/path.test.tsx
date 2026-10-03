@@ -1,6 +1,6 @@
 import React from "react";
 
-import { KEYS, reseed } from "@excalidraw/common";
+import { KEYS } from "@excalidraw/common";
 import {
   CaptureUpdateAction,
   isPathElement,
@@ -14,6 +14,7 @@ import { actionConvertShapeToPath, actionEditPath } from "../actions";
 import { restoreElements } from "../data/restore";
 import { Excalidraw } from "../index";
 
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import { Keyboard } from "./helpers/ui";
 import {
@@ -28,15 +29,14 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 const getPath = () => {
-  const el = h.elements.find((e) => !e.isDeleted && e.type === "path");
+  const el = handle.elements.find(
+    (element) => !element.isDeleted && element.type === "path",
+  );
   return el as ExcalidrawPathElement;
 };
 
@@ -56,7 +56,7 @@ describe("path tool", () => {
   it("draws a path: click for corners, drag for curves, Enter to finish", async () => {
     const { container } = await render(<Excalidraw handleKeyboardGlobally />);
     const canvas = container.querySelector("canvas.interactive")!;
-    act(() => h.app.setActiveTool({ type: "path" }));
+    act(() => handle.app.setActiveTool({ type: "path" }));
 
     click(canvas, 100, 100);
     fireEvent.pointerMove(window, { clientX: 150, clientY: 100 });
@@ -83,8 +83,8 @@ describe("path tool", () => {
     expect(path.handles[0].out).toBeNull();
     expect(path.handles[2].mode).toBe("corner");
     // finished: selection tool, the path selected
-    expect(h.state.activeTool.type).toBe("selection");
-    expect(h.state.selectedElementIds[path.id]).toBe(true);
+    expect(handle.state.activeTool.type).toBe("selection");
+    expect(handle.state.selectedElementIds[path.id]).toBe(true);
     expect([path.x + path.points[0][0], path.y + path.points[0][1]]).toEqual([
       100, 100,
     ]);
@@ -93,7 +93,7 @@ describe("path tool", () => {
   it("clicking the first point closes the path", async () => {
     const { container } = await render(<Excalidraw handleKeyboardGlobally />);
     const canvas = container.querySelector("canvas.interactive")!;
-    act(() => h.app.setActiveTool({ type: "path" }));
+    act(() => handle.app.setActiveTool({ type: "path" }));
 
     click(canvas, 100, 100);
     click(canvas, 200, 100);
@@ -108,7 +108,7 @@ describe("path tool", () => {
   it("a double click finishes without a duplicate point", async () => {
     const { container } = await render(<Excalidraw handleKeyboardGlobally />);
     const canvas = container.querySelector("canvas.interactive")!;
-    act(() => h.app.setActiveTool({ type: "path" }));
+    act(() => handle.app.setActiveTool({ type: "path" }));
 
     click(canvas, 100, 100);
     click(canvas, 200, 100);
@@ -116,16 +116,18 @@ describe("path tool", () => {
     click(canvas, 300, 250);
 
     expect(getPath().points).toHaveLength(3);
-    expect(h.state.activeTool.type).toBe("selection");
+    expect(handle.state.activeTool.type).toBe("selection");
   });
 
   it("a lone click leaves nothing behind", async () => {
     const { container } = await render(<Excalidraw handleKeyboardGlobally />);
     const canvas = container.querySelector("canvas.interactive")!;
-    act(() => h.app.setActiveTool({ type: "path" }));
+    act(() => handle.app.setActiveTool({ type: "path" }));
     click(canvas, 100, 100);
     Keyboard.keyPress(KEYS.ESCAPE);
-    expect(h.elements.filter((e) => !e.isDeleted)).toHaveLength(0);
+    expect(
+      handle.elements.filter((element) => !element.isDeleted),
+    ).toHaveLength(0);
   });
 });
 
@@ -166,21 +168,24 @@ describe("path editing", () => {
   it("an edit action enters the editor, Escape leaves it", async () => {
     await setup();
     API.executeAction(actionEditPath);
-    expect(h.state.editingPath?.elementId).toBe(getPath().id);
+    expect(handle.state.editingPath?.elementId).toBe(getPath().id);
     Keyboard.keyPress(KEYS.ESCAPE);
-    expect(h.state.editingPath).toBeNull();
+    expect(handle.state.editingPath).toBeNull();
   });
 
-  it("drags an anchor", async () => {
+  it("dragging an anchor moves only that point", async () => {
     const { canvas } = await setup();
     API.executeAction(actionEditPath);
     fireEvent.pointerDown(canvas, { clientX: 200, clientY: 100 });
     fireEvent.pointerMove(window, { clientX: 240, clientY: 130 });
     fireEvent.pointerUp(window, { clientX: 240, clientY: 130 });
     const path = getPath();
-    expect(h.state.editingPath?.selectedPoint).toBe(1);
+    expect(handle.state.editingPath?.selectedPoint).toBe(1);
     // points are relative to the top-left of the curve
-    const abs = path.points.map((p) => [path.x + p[0], path.y + p[1]]);
+    const abs = path.points.map((point) => [
+      path.x + point[0],
+      path.y + point[1],
+    ]);
     expect(abs[0]).toEqual([100, 100]);
     expect(abs[1]).toEqual([240, 130]);
     expect(abs[2]).toEqual([200, 200]);
@@ -190,7 +195,7 @@ describe("path editing", () => {
     const { canvas } = await setup();
     API.executeAction(actionEditPath);
     click(canvas, 200, 100);
-    act(() => h.app.path.setPointMode("smooth"));
+    act(() => handle.app.path.setPointMode("smooth"));
     let path = getPath();
     expect(path.handles[1].mode).toBe("smooth");
     expect(path.handles[1].out).not.toBeNull();
@@ -205,12 +210,18 @@ describe("path editing", () => {
     fireEvent.pointerUp(window, { clientX: 260, clientY: 140 });
     path = getPath();
     const anchor = [path.x + path.points[1][0], path.y + path.points[1][1]];
-    const o = path.handles[1].out!;
-    const i = path.handles[1].in!;
-    expect([anchor[0] + o[0], anchor[1] + o[1]]).toEqual([260, 140]);
+    const outHandle = path.handles[1].out!;
+    const inHandle = path.handles[1].in!;
+    expect([anchor[0] + outHandle[0], anchor[1] + outHandle[1]]).toEqual([
+      260, 140,
+    ]);
     // `in` stays collinear, on the other side
-    expect(o[0] * i[1] - o[1] * i[0]).toBeCloseTo(0);
-    expect(o[0] * i[0] + o[1] * i[1]).toBeLessThan(0);
+    expect(outHandle[0] * inHandle[1] - outHandle[1] * inHandle[0]).toBeCloseTo(
+      0,
+    );
+    expect(
+      outHandle[0] * inHandle[0] + outHandle[1] * inHandle[1],
+    ).toBeLessThan(0);
   });
 
   it("a double click on a segment inserts a point, Delete removes it", async () => {
@@ -221,7 +232,7 @@ describe("path editing", () => {
     click(canvas, 150, 100);
     click(canvas, 150, 100);
     expect(getPath().points).toHaveLength(4);
-    expect(h.state.editingPath?.selectedPoint).toBe(1);
+    expect(handle.state.editingPath?.selectedPoint).toBe(1);
     // the geometry did not move
     const after = flat(getPath());
     expect(after.slice(0, 2)).toEqual(before.slice(0, 2));
@@ -248,7 +259,7 @@ describe("path editing", () => {
     const { canvas } = await setup();
     API.executeAction(actionEditPath);
     click(canvas, 600, 600);
-    expect(h.state.editingPath).toBeNull();
+    expect(handle.state.editingPath).toBeNull();
   });
 
   it("undo restores the previous geometry", async () => {
@@ -276,45 +287,45 @@ describe("open, close, split and join in the editor", () => {
       type: "path",
       x,
       y,
-      points: pts.map(([a, b]) => pointFrom<LocalPoint>(a, b)),
+      points: pts.map(([px, py]) => pointFrom<LocalPoint>(px, py)),
     });
 
   it("toggles closed and back", async () => {
     await render(<Excalidraw />);
-    const p = mk(100, 100, [
+    const path = mk(100, 100, [
       [0, 0],
       [100, 0],
       [100, 100],
     ]);
-    API.setElements([p]);
-    API.setSelectedElements([p]);
+    API.setElements([path]);
+    API.setSelectedElements([path]);
     API.executeAction(actionEditPath);
-    act(() => h.app.path.toggleClosed());
+    act(() => handle.app.path.toggleClosed());
     expect(getPath().closed).toBe(true);
-    act(() => h.app.path.toggleClosed());
+    act(() => handle.app.path.toggleClosed());
     expect(getPath().closed).toBe(false);
     expect(getPath().points).toHaveLength(3);
   });
 
   it("splits at the selected point into two paths", async () => {
     await render(<Excalidraw />);
-    const p = mk(100, 100, [
+    const path = mk(100, 100, [
       [0, 0],
       [100, 0],
       [100, 100],
     ]);
-    API.setElements([p]);
-    API.setSelectedElements([p]);
-    API.setAppState({ editingPath: { elementId: p.id, selectedPoint: 1 } });
-    act(() => h.app.path.splitAtSelectedPoint());
-    const paths = h.elements.filter(
-      (e) => e.type === "path" && !e.isDeleted,
+    API.setElements([path]);
+    API.setSelectedElements([path]);
+    API.setAppState({ editingPath: { elementId: path.id, selectedPoint: 1 } });
+    act(() => handle.app.path.splitAtSelectedPoint());
+    const paths = handle.elements.filter(
+      (element) => element.type === "path" && !element.isDeleted,
     ) as ExcalidrawPathElement[];
     expect(paths).toHaveLength(2);
-    expect(paths.map((q) => q.points.length).sort()).toEqual([2, 2]);
+    expect(paths.map((piece) => piece.points.length).sort()).toEqual([2, 2]);
     // the pieces stay where they were
-    const abs = paths.map((q) =>
-      q.points.map((pt) => [q.x + pt[0], q.y + pt[1]]),
+    const abs = paths.map((piece) =>
+      piece.points.map((pt) => [piece.x + pt[0], piece.y + pt[1]]),
     );
     expect(abs).toContainEqual([
       [100, 100],
@@ -328,19 +339,19 @@ describe("open, close, split and join in the editor", () => {
 
   it("joins two selected open paths at their nearest ends", async () => {
     await render(<Excalidraw handleKeyboardGlobally />);
-    const a = mk(0, 0, [
+    const first = mk(0, 0, [
       [0, 0],
       [100, 0],
     ]);
-    const b = mk(300, 0, [
+    const second = mk(300, 0, [
       [0, 0],
       [100, 0],
     ]);
-    API.setElements([a, b]);
-    API.setSelectedElements([a, b]);
+    API.setElements([first, second]);
+    API.setSelectedElements([first, second]);
     Keyboard.withModifierKeys({ ctrl: true }, () => Keyboard.codePress("KeyJ"));
-    const live = h.elements.filter(
-      (e) => !e.isDeleted,
+    const live = handle.elements.filter(
+      (element) => !element.isDeleted,
     ) as ExcalidrawPathElement[];
     expect(live).toHaveLength(1);
     const abs = live[0].points.map((pt) => [
@@ -356,8 +367,8 @@ describe("open, close, split and join in the editor", () => {
   });
 });
 
-const flat = (p: ExcalidrawPathElement) =>
-  p.points.flatMap((pt) => [p.x + pt[0], p.y + pt[1]]);
+const flat = (path: ExcalidrawPathElement) =>
+  path.points.flatMap((pt) => [path.x + pt[0], path.y + pt[1]]);
 
 describe("shape to path", () => {
   it.each(["rectangle", "diamond", "ellipse"] as const)(
@@ -377,7 +388,7 @@ describe("shape to path", () => {
       API.setSelectedElements([shape]);
       API.executeAction(actionConvertShapeToPath);
 
-      const path = h.elements[0];
+      const path = handle.elements[0];
       expect(isPathElement(path)).toBe(true);
       expect(path.id).toBe(shape.id);
       expect(path.strokeColor).toBe("#ff0000");
@@ -398,12 +409,12 @@ describe("shape to path", () => {
     API.setElements([rect]);
     API.setSelectedElements([rect]);
     API.executeAction(actionConvertShapeToPath);
-    expect(h.elements[0].type).toBe("rectangle");
+    expect(handle.elements[0].type).toBe("rectangle");
   });
 });
 
 describe("path in files", () => {
-  it("survives restore", () => {
+  it("path elements keep their points and handles through restoreElements", () => {
     const path = API.createElement({
       type: "path",
       points: [pointFrom<LocalPoint>(0, 0), pointFrom<LocalPoint>(50, 50)],
@@ -453,12 +464,12 @@ describe("shape with a hole", () => {
     restoreOriginalGetBoundingClientRect();
   });
 
-  const square = (x: number, y: number, s: number) => {
+  const square = (x: number, y: number, size: number) => {
     const points = [
       pointFrom<LocalPoint>(x, y),
-      pointFrom<LocalPoint>(x + s, y),
-      pointFrom<LocalPoint>(x + s, y + s),
-      pointFrom<LocalPoint>(x, y + s),
+      pointFrom<LocalPoint>(x + size, y),
+      pointFrom<LocalPoint>(x + size, y + size),
+      pointFrom<LocalPoint>(x, y + size),
     ];
     return {
       points,
@@ -500,7 +511,7 @@ describe("shape with a hole", () => {
   it("a click inside the hole does not hit the shape, one on the fill does", async () => {
     await setup();
     const shape = getPath();
-    const map = h.app.scene.getNonDeletedElementsMap();
+    const map = handle.app.scene.getNonDeletedElementsMap();
     const at = (x: number, y: number) =>
       isPointInElement(pointFrom<GlobalPoint>(x, y), shape, map);
     expect(at(150, 150)).toBe(true);
@@ -511,7 +522,7 @@ describe("shape with a hole", () => {
     const { canvas } = await setup();
     API.executeAction(actionEditPath);
     fireEvent.pointerDown(canvas, { clientX: 200, clientY: 200 });
-    expect(h.state.editingPath?.loop).toBe(1);
+    expect(handle.state.editingPath?.loop).toBe(1);
     fireEvent.pointerMove(window, { clientX: 220, clientY: 230 });
     fireEvent.pointerUp(window, { clientX: 220, clientY: 230 });
     const shape = getPath();
@@ -542,7 +553,7 @@ describe("shape with a hole", () => {
     dbl(250, 200);
     expect(getPath().contours![0].points).toHaveLength(5);
     expect(getPath().points).toHaveLength(4);
-    expect(h.state.editingPath?.loop).toBe(1);
+    expect(handle.state.editingPath?.loop).toBe(1);
     Keyboard.keyPress(KEYS.DELETE);
     expect(getPath().contours![0].points).toHaveLength(4);
   });
@@ -560,9 +571,9 @@ describe("path tools in the inspector", () => {
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
     fireEvent.click(screen.getByTestId("path-tool-pen"));
-    expect(h.state.activeTool.type).toBe("path");
+    expect(handle.state.activeTool.type).toBe("path");
     fireEvent.click(screen.getByTestId("path-tool-knife"));
-    expect(h.state.activeTool.type).toBe("knife");
+    expect(handle.state.activeTool.type).toBe("knife");
   });
 
   it("converts a straight line into a path as drawn", async () => {
@@ -581,7 +592,10 @@ describe("path tools in the inspector", () => {
     expect(path.id).toBe(line.id);
     expect(path.type).toBe("path");
     expect(path.closed).toBe(false);
-    const abs = path.points.map((p) => [path.x + p[0], path.y + p[1]]);
+    const abs = path.points.map((point) => [
+      path.x + point[0],
+      path.y + point[1],
+    ]);
     expect(abs).toEqual([
       [50, 60],
       [150, 60],
@@ -639,19 +653,19 @@ describe("edges", () => {
   it("sharp and round are in the inspector", async () => {
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
-    const r = API.createElement({
+    const rectangle = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 50,
       height: 50,
     });
-    API.setElements([r]);
-    API.setSelectedElements([r]);
+    API.setElements([rectangle]);
+    API.setSelectedElements([rectangle]);
     fireEvent.click(screen.getByTestId("edges-round"));
-    expect(h.elements[0].roundness).not.toBeNull();
+    expect(handle.elements[0].roundness).not.toBeNull();
     fireEvent.click(screen.getByTestId("edges-sharp"));
-    expect(h.elements[0].roundness).toBeNull();
+    expect(handle.elements[0].roundness).toBeNull();
   });
 });
 
@@ -666,22 +680,22 @@ describe("per-corner rounding", () => {
   it("a rectangle takes a radius on one corner only, then any corner of the path", async () => {
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
-    const r = API.createElement({
+    const rectangle = API.createElement({
       type: "rectangle",
       x: 100,
       y: 100,
       width: 200,
       height: 100,
     });
-    API.setElements([r]);
-    API.setSelectedElements([r]);
+    API.setElements([rectangle]);
+    API.setSelectedElements([rectangle]);
     const tr = screen.getByTestId("corner-1");
     fireEvent.change(tr, { target: { value: "30" } });
     fireEvent.blur(tr);
-    const p = getPath();
-    expect(p.type).toBe("path");
-    expect(p.id).toBe(r.id);
-    expect(p.handles.map((hd) => hd.radius)).toEqual([
+    const path = getPath();
+    expect(path.type).toBe("path");
+    expect(path.id).toBe(rectangle.id);
+    expect(path.handles.map((hd) => hd.radius)).toEqual([
       undefined,
       30,
       undefined,
@@ -711,26 +725,26 @@ describe("corner radius slider", () => {
   it("sets a parametric radius on rectangles, and 0 makes them sharp again", async () => {
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
-    const r = API.createElement({
+    const rectangle = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 200,
       height: 100,
     });
-    API.setElements([r]);
-    API.setSelectedElements([r]);
+    API.setElements([rectangle]);
+    API.setSelectedElements([rectangle]);
     const pill = screen.getByTestId("corner-radius-value");
     fireEvent.change(pill, { target: { value: "24" } });
     fireEvent.blur(pill);
-    expect(h.elements[0].roundness).toMatchObject({ value: 24 });
+    expect(handle.elements[0].roundness).toMatchObject({ value: 24 });
     fireEvent.change(screen.getByTestId("corner-radius-slider"), {
       target: { value: "10" },
     });
-    expect(h.elements[0].roundness).toMatchObject({ value: 10 });
+    expect(handle.elements[0].roundness).toMatchObject({ value: 10 });
     fireEvent.change(screen.getByTestId("corner-radius-slider"), {
       target: { value: "0" },
     });
-    expect(h.elements[0].roundness).toBeNull();
+    expect(handle.elements[0].roundness).toBeNull();
   });
 });

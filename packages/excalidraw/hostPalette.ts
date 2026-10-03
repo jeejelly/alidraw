@@ -18,20 +18,20 @@ let tabs: readonly HostPaletteTab[] = [];
 const listeners = new Set<() => void>();
 
 export const registerPaletteTab = (tab: HostPaletteTab) => {
-  tabs = [...tabs.filter((t) => t.id !== tab.id), tab];
-  listeners.forEach((l) => l());
+  tabs = [...tabs.filter((existing) => existing.id !== tab.id), tab];
+  listeners.forEach((listener) => listener());
   return () => {
-    tabs = tabs.filter((t) => t !== tab);
-    listeners.forEach((l) => l());
+    tabs = tabs.filter((existing) => existing !== tab);
+    listeners.forEach((listener) => listener());
   };
 };
 
 export const useHostPaletteTabs = () =>
   useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
+    (listener) => {
+      listeners.add(listener);
       return () => {
-        listeners.delete(l);
+        listeners.delete(listener);
       };
     },
     () => tabs,

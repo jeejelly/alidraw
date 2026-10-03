@@ -15,8 +15,8 @@ export const StretchOverlay = ({ app }: { app: App }) => {
   }
   const at = (x: number, y: number) =>
     sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, app.state);
-  const a = at(frame.x0, frame.y0);
-  const b = at(frame.x1, frame.y1);
+  const start = at(frame.x0, frame.y0);
+  const end = at(frame.x1, frame.y1);
   const aligned = guides.length > 0;
   return (
     <div
@@ -26,18 +26,29 @@ export const StretchOverlay = ({ app }: { app: App }) => {
     >
       <div
         className={`stretch-overlay__frame${aligned ? " is-aligned" : ""}`}
-        style={{ left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y }}
+        style={{
+          left: start.x,
+          top: start.y,
+          width: end.x - start.x,
+          height: end.y - start.y,
+        }}
       />
-      {guides.map((g, k) => {
-        const p0 = g.axis === "x" ? at(g.pos, g.from) : at(g.from, g.pos);
-        const p1 = g.axis === "x" ? at(g.pos, g.to) : at(g.to, g.pos);
+      {guides.map((guide, index) => {
+        const p0 =
+          guide.axis === "x"
+            ? at(guide.pos, guide.from)
+            : at(guide.from, guide.pos);
+        const p1 =
+          guide.axis === "x"
+            ? at(guide.pos, guide.to)
+            : at(guide.to, guide.pos);
         return (
           <div
-            key={k}
+            key={index}
             data-testid="stretch-guide"
-            className={`stretch-overlay__guide stretch-overlay__guide--${g.axis}`}
+            className={`stretch-overlay__guide stretch-overlay__guide--${guide.axis}`}
             style={
-              g.axis === "x"
+              guide.axis === "x"
                 ? { left: p0.x, top: p0.y, height: p1.y - p0.y }
                 : { left: p0.x, top: p0.y, width: p1.x - p0.x }
             }

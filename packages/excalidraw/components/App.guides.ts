@@ -1,15 +1,16 @@
-import {
-  EVENT,
-  randomId,
-  viewportCoordsToSceneCoords,
-} from "@excalidraw/common";
+import { randomId, viewportCoordsToSceneCoords } from "@excalidraw/common";
 
 import { type Guide } from "../guides";
+
+import { ChangeNotifier } from "./changeNotifier";
+import { listenToGesture, onEscape } from "./gestureListeners";
 
 import type App from "./App";
 
 /** a guide within this many screen px of the pointer can be grabbed */
 const GRAB_DISTANCE = 4;
+
+export const RULER_SIZE = 20;
 
 export type GuideReadout = {
   /** viewport coordinates of the pointer */
@@ -30,54 +31,42 @@ export type GuideEdit = {
   clientY: number;
 };
 
-/**
- * Dragging guides: new ones off a ruler, existing ones off the canvas. The
- * pointer owns window listeners until release; over a ruler, the guide is
- * dropped (deleted).
- */
+/** Dragging guides, new ones off a ruler or existing ones off the canvas; dropped over a ruler, a guide is deleted. */
 export class AppGuides {
   private readout: GuideReadout | null = null;
-  private listeners = new Set<() => void>();
+  /** the guide whose exact position is being typed (no window.prompt in Electron) */
+  private editing: GuideEdit | null = null;
+  private notifier = new ChangeNotifier();
   private teardown: (() => void) | null = null;
 
   constructor(private app: App) {}
 
-  subscribe = (cb: () => void) => {
-    this.listeners.add(cb);
-    return () => {
-      this.listeners.delete(cb);
-    };
-  };
+  subscribe = this.notifier.subscribe;
 
   getReadout = () => this.readout;
 
-  private notify = () => this.listeners.forEach((cb) => cb());
-
   private setReadout = (readout: GuideReadout | null) => {
     this.readout = readout;
-    this.notify();
+    this.notifier.notify();
   };
-
-  /** the guide whose exact position is being typed (no window.prompt in Electron) */
-  private editing: GuideEdit | null = null;
 
   getEditing = () => this.editing;
 
   cancelEdit = () => {
     this.editing = null;
-    this.notify();
+    this.notifier.notify();
   };
 
   /** applies a typed position; empty or non-numeric input changes nothing */
   commitEdit = (answer: string) => {
     const edit = this.editing;
     this.editing = null;
-    this.notify();
+    this.notifier.notify();
     const value = Number(answer);
     if (edit && answer.trim() !== "" && Number.isFinite(value)) {
       this.setGuides(
-        this.app.state.guides.map((g) =>
-          g.id === edit.id ? { ...g, position: value } : g,
+        this.app.state.guides.map((guide) =>
+          guide.id === edit.id ? { ...guide, position: value } : guide,
         ),
       );
     }
@@ -86,14 +75,14 @@ export class AppGuides {
   private setGuides = (guides: readonly Guide[]) =>
     this.app.setState({ guides });
 
-  private scene = (event: { clientX: number; clientY: number }) =>
+  private scenePoint = (event: { clientX: number; clientY: number }) =>
     viewportCoordsToSceneCoords(event, this.app.state);
 
   /** whole px, unless Alt is held for a free position */
   private place = (axis: Guide["axis"], event: PointerEvent | MouseEvent) => {
-    const p = this.scene(event);
-    const v = axis === "x" ? p.x : p.y;
-    return event.altKey ? v : Math.round(v);
+    const point = this.scenePoint(event);
+    const coordinate = axis === "x" ? point.x : point.y;
+    return event.altKey ? coordinate : Math.round(coordinate);
   };
 
   private isOverRuler = (axis: Guide["axis"], event: PointerEvent) => {
@@ -110,55 +99,41 @@ export class AppGuides {
   startDrag = (axis: Guide["axis"], guideId: string | null) => {
     this.teardown?.();
     const id = guideId ?? randomId();
-    const original = this.app.state.guides.find((g) => g.id === id);
+    const original = this.app.state.guides.find((guide) => guide.id === id);
+    const withoutDragged = () =>
+      this.app.state.guides.filter((guide) => guide.id !== id);
 
-    const apply = (position: number) => {
-      const others = this.app.state.guides.filter((g) => g.id !== id);
-      this.setGuides([...others, { id, axis, position }]);
-    };
+    const moveGuideTo = (position: number) =>
+      this.setGuides([...withoutDragged(), { id, axis, position }]);
 
-    const onMove = (event: PointerEvent) => {
-      const position = this.place(axis, event);
-      const willDelete = this.isOverRuler(axis, event);
-      apply(position);
-      this.setReadout({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        axis,
-        position,
-        willDelete,
-      });
-    };
-    const onUp = (event: PointerEvent) => {
-      const willDelete = this.isOverRuler(axis, event);
-      if (willDelete) {
-        this.setGuides(this.app.state.guides.filter((g) => g.id !== id));
-      } else {
-        apply(this.place(axis, event));
-      }
-      this.stop();
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+    this.teardown = listenToGesture(this.app.ownerWindow, {
+      onPointerMove: (event) => {
+        const position = this.place(axis, event);
+        moveGuideTo(position);
+        this.setReadout({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          axis,
+          position,
+          willDelete: this.isOverRuler(axis, event),
+        });
+      },
+      onPointerUp: (event) => {
+        if (this.isOverRuler(axis, event)) {
+          this.setGuides(withoutDragged());
+        } else {
+          moveGuideTo(this.place(axis, event));
+        }
+        this.stop();
+      },
+      onKeyDown: onEscape(() => {
         // cancel: back to where it was
         this.setGuides(
-          original
-            ? [...this.app.state.guides.filter((g) => g.id !== id), original]
-            : this.app.state.guides.filter((g) => g.id !== id),
+          original ? [...withoutDragged(), original] : withoutDragged(),
         );
         this.stop();
-      }
-    };
-
-    const win = this.app.ownerWindow;
-    win.addEventListener(EVENT.POINTER_MOVE, onMove);
-    win.addEventListener(EVENT.POINTER_UP, onUp);
-    win.addEventListener(EVENT.KEYDOWN, onKey);
-    this.teardown = () => {
-      win.removeEventListener(EVENT.POINTER_MOVE, onMove);
-      win.removeEventListener(EVENT.POINTER_UP, onUp);
-      win.removeEventListener(EVENT.KEYDOWN, onKey);
-    };
+      }),
+    });
   };
 
   private stop = () => {
@@ -175,15 +150,17 @@ export class AppGuides {
     if (guidesLocked) {
       return null;
     }
-    const p = this.scene(event);
-    const r = GRAB_DISTANCE / zoom.value;
+    const point = this.scenePoint(event);
+    const grabRadius = GRAB_DISTANCE / zoom.value;
     let best: Guide | null = null;
-    let bestD = Infinity;
-    for (const g of guides) {
-      const d = Math.abs((g.axis === "x" ? p.x : p.y) - g.position);
-      if (d <= r && d < bestD) {
-        best = g;
-        bestD = d;
+    let bestDistance = Infinity;
+    for (const guide of guides) {
+      const distance = Math.abs(
+        (guide.axis === "x" ? point.x : point.y) - guide.position,
+      );
+      if (distance <= grabRadius && distance < bestDistance) {
+        best = guide;
+        bestDistance = distance;
       }
     }
     return best;
@@ -220,11 +197,9 @@ export class AppGuides {
       clientX: event.clientX,
       clientY: event.clientY,
     };
-    this.notify();
+    this.notifier.notify();
     return true;
   };
 
   clear = () => this.setGuides([]);
 }
-
-export const RULER_SIZE = 20;

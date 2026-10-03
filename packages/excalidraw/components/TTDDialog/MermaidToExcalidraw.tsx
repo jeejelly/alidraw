@@ -6,6 +6,10 @@ import { viewportCoordsToSceneCoords } from "@excalidraw/common";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
+import { applyFlow, listFlows } from "@excalidraw/flow";
+
+import { parseFlow } from "@excalidraw/flow";
+
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
 import { useApp } from "../App";
@@ -15,10 +19,6 @@ import { t } from "../../i18n";
 import Trans from "../Trans";
 
 import { useUIAppState } from "../../context/ui-appState";
-
-import { applyFlow, listFlows } from "@excalidraw/flow";
-
-import { parseFlow } from "@excalidraw/flow";
 
 import { TTDDialogInput } from "./TTDDialogInput";
 import { TTDDialogOutput } from "./TTDDialogOutput";
@@ -238,13 +238,13 @@ const MermaidToExcalidraw = ({
   const canInsertAsFlow =
     /^\s*(flowchart|graph)\b/i.test(text) &&
     flowParse.graph.nodes.length > 0 &&
-    !flowParse.issues.some((i) => !i.warn);
+    !flowParse.issues.some((issue) => !issue.warn);
 
   const onInsertAsFlow = () => {
     const taken = listFlows(app.scene.getElementsIncludingDeleted());
-    let n = taken.length + 1;
-    while (taken.includes(`Flow ${n}`)) {
-      n++;
+    let flowNumber = taken.length + 1;
+    while (taken.includes(`Flow ${flowNumber}`)) {
+      flowNumber++;
     }
     const origin = viewportCoordsToSceneCoords(
       {
@@ -253,7 +253,7 @@ const MermaidToExcalidraw = ({
       },
       app.state,
     );
-    applyFlow(app.scene, `Flow ${n}`, flowParse.graph, origin);
+    applyFlow(app.scene, `Flow ${flowNumber}`, flowParse.graph, origin);
     app.syncActionResult({
       appState: { ...app.state, paletteOpen: true, openDialog: null },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,

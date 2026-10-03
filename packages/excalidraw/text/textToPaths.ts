@@ -1,95 +1,30 @@
-import { randomId } from "@excalidraw/common";
+import { getVerticalOffset, randomId } from "@excalidraw/common";
 import { getLineHeightInPx } from "@excalidraw/element";
-
-import { getVerticalOffset } from "@excalidraw/common";
+import { importSvg } from "@excalidraw/vector";
 
 import type {
   ExcalidrawElement,
   ExcalidrawTextElement,
 } from "@excalidraw/element/types";
 
-import { Fonts } from "../fonts";
-import {
-  findLibraryFont,
-  libraryFileUrl,
-  loadFontCatalogue,
-  pickLibraryStyle,
-} from "../fonts/library";
-import { importSvg } from "@excalidraw/vector";
+import { findLibraryFont, pickLibraryStyle } from "../fonts/library";
 
-import type * as OpenType from "opentype.js";
+import { getOutlineFontLoader } from "./glyphFonts";
+
+import type { FontLoader, GlyphFont } from "./glyphFonts";
+
+export {
+  defaultFontLoader,
+  setOutlineFontLoader,
+  type FontLoader,
+  type GlyphFont,
+} from "./glyphFonts";
 
 /**
  * Text as vector shapes ("create outlines"): each glyph becomes a path element
  * (holes kept), laid out like the text was on the canvas (line height, alignment).
- * The glyph outlines come from the font files the app already ships.
  */
-export type GlyphFont = OpenType.Font;
-
-export type FontLoader = (
-  fontFamily: number,
-  codePoint: number,
-  /** the library font and face asked for, when the text is set in one */
-  face?: { name: string | null | undefined; weight: number; italic: boolean },
-) => Promise<GlyphFont | null>;
-
-const parsed = new Map<string, Promise<GlyphFont | null>>();
-
-/** the font file slice that has the character, as an outline font */
-const parseFile = (key: string, fetchBytes: () => Promise<ArrayBuffer>) => {
-  let font = parsed.get(key);
-  if (!font) {
-    font = (async () => {
-      try {
-        const [{ woff2ToSfnt }, opentype] = await Promise.all([
-          import("../subset/subset-main"),
-          import("opentype.js"),
-        ]);
-        // decoded in the subsetting worker (a page's policy may not allow the decoder)
-        return opentype.parse(await woff2ToSfnt(await fetchBytes()));
-      } catch {
-        return null;
-      }
-    })();
-    parsed.set(key, font);
-  }
-  return font;
-};
-
-export const defaultFontLoader: FontLoader = async (
-  fontFamily,
-  codePoint,
-  wanted,
-) => {
-  // a library font: the face of the right weight and style, when it has the character
-  if (wanted?.name) {
-    await loadFontCatalogue();
-    const lib = findLibraryFont(wanted.name);
-    if (lib) {
-      const style = pickLibraryStyle(lib, wanted.weight, wanted.italic);
-      const url = libraryFileUrl(style.file);
-      const font = await parseFile(url, async () =>
-        (await fetch(url)).arrayBuffer(),
-      );
-      if (
-        font &&
-        (font as any).charToGlyph(String.fromCodePoint(codePoint)).index > 0
-      ) {
-        return font;
-      }
-    }
-  }
-  const face = Fonts.registered
-    .get(fontFamily)
-    ?.fontFaces.find((f) => f.covers(codePoint));
-  const url = face?.urls[0];
-  if (!face || !url) {
-    return null;
-  }
-  return parseFile(String(url), () => face.fetchFont(url));
-};
-
-const num = (n: number) => Math.round(n * 100) / 100;
+const num = (value: number) => Math.round(value * 100) / 100;
 
 /**
  * Glyph by glyph with pair kerning: the font's own substitutions (ligatures,
@@ -102,8 +37,8 @@ const layoutRun = (font: GlyphFont, text: string, fontSize: number) => {
     [];
   let x = 0;
   let previous: ReturnType<GlyphFont["charToGlyph"]> | null = null;
-  for (const ch of Array.from(text)) {
-    const glyph = font.charToGlyph(ch);
+  for (const char of Array.from(text)) {
+    const glyph = font.charToGlyph(char);
     if (previous) {
       x += (font.getKerningValue(previous, glyph) || 0) * scale;
     }
@@ -121,85 +56,143 @@ export type OutlinedText = {
   missing: string[];
 };
 
-/** @returns null when no glyph could be drawn at all */
-let fontLoader: FontLoader = defaultFontLoader;
+type Run = { font: GlyphFont | null; text: string };
 
-/** where glyph outlines come from (the shipped fonts unless a host or a test says otherwise) */
-export const setOutlineFontLoader = (loader: FontLoader | null) => {
-  fontLoader = loader ?? defaultFontLoader;
+/** runs of characters that share a font file, so kerning and ligatures survive */
+const splitRuns = async (
+  line: string,
+  textElement: ExcalidrawTextElement,
+  load: FontLoader,
+  missing: Set<string>,
+) => {
+  const runs: Run[] = [];
+  for (const char of Array.from(line)) {
+    const font = await load(textElement.fontFamily, char.codePointAt(0)!, {
+      name: textElement.fontFamilyName,
+      weight: textElement.fontWeight ?? 400,
+      italic: textElement.fontStyle === "italic",
+    });
+    const last = runs[runs.length - 1];
+    if (last && last.font === font) {
+      last.text += char;
+    } else {
+      runs.push({ font, text: char });
+    }
+    if (!font && char.trim()) {
+      missing.add(char);
+    }
+  }
+  return runs;
 };
 
-export const textToPaths = async (
-  el: ExcalidrawTextElement,
-  load: FontLoader = fontLoader,
-): Promise<OutlinedText | null> => {
-  const lines = el.text.replace(/\r\n?/g, "\n").split("\n");
-  const lineHeightPx = getLineHeightInPx(el.fontSize, el.lineHeight);
-  const offset = getVerticalOffset(el.fontFamily, el.fontSize, lineHeightPx);
-  const missing = new Set<string>();
-  const shapes: string[] = [];
-  const fill = el.strokeColor === "transparent" ? "#000000" : el.strokeColor;
-  // a family without a bold or italic face: the weight is faked with an outline of the
-  // same colour, the slant with a shear (what browsers do too)
-  const lib = findLibraryFont(el.fontFamilyName);
-  const picked = lib
-    ? pickLibraryStyle(lib, el.fontWeight ?? 400, el.fontStyle === "italic")
+/**
+ * A family without a bold or italic face: the weight is faked with an outline
+ * of the same colour, the slant with a shear (what browsers do too).
+ */
+const fauxStyle = (textElement: ExcalidrawTextElement, fill: string) => {
+  const libraryFont = findLibraryFont(textElement.fontFamilyName);
+  const picked = libraryFont
+    ? pickLibraryStyle(
+        libraryFont,
+        textElement.fontWeight ?? 400,
+        textElement.fontStyle === "italic",
+      )
     : null;
-  const bold = (el.fontWeight ?? 400) >= 600 && (picked?.weight ?? 400) < 600;
-  const italic = el.fontStyle === "italic" && picked?.style !== "italic";
-  const heavy = bold
-    ? ` stroke="${fill}" stroke-width="${num(
-        el.fontSize * 0.04,
-      )}" stroke-linejoin="round"`
-    : "";
+  const bold =
+    (textElement.fontWeight ?? 400) >= 600 && (picked?.weight ?? 400) < 600;
+  return {
+    italic: textElement.fontStyle === "italic" && picked?.style !== "italic",
+    heavy: bold
+      ? ` stroke="${fill}" stroke-width="${num(
+          textElement.fontSize * 0.04,
+        )}" stroke-linejoin="round"`
+      : "",
+  };
+};
 
-  for (let i = 0; i < lines.length; i++) {
-    // runs of characters that share a font file, so kerning and ligatures survive
-    const runs: { font: GlyphFont | null; text: string }[] = [];
-    for (const ch of Array.from(lines[i])) {
-      const font = await load(el.fontFamily, ch.codePointAt(0)!, {
-        name: el.fontFamilyName,
-        weight: el.fontWeight ?? 400,
-        italic: el.fontStyle === "italic",
-      });
-      const last = runs[runs.length - 1];
-      if (last && last.font === font) {
-        last.text += ch;
-      } else {
-        runs.push({ font, text: ch });
-      }
-      if (!font && ch.trim()) {
-        missing.add(ch);
+/** the `<path>`s of one line, runs side by side, aligned like the text was */
+const lineShapesOf = (
+  runs: Run[],
+  textElement: ExcalidrawTextElement,
+  y: number,
+  fill: string,
+  heavy: string,
+) => {
+  const laid = runs.map((run) =>
+    run.font ? layoutRun(run.font, run.text, textElement.fontSize) : null,
+  );
+  const widths = runs.map(
+    (run, runIndex) =>
+      laid[runIndex]?.width ?? run.text.length * textElement.fontSize * 0.5,
+  );
+  const lineWidth = widths.reduce((sum, width) => sum + width, 0);
+  let x =
+    textElement.textAlign === "center"
+      ? (textElement.width - lineWidth) / 2
+      : textElement.textAlign === "right"
+      ? textElement.width - lineWidth
+      : 0;
+  const shapes: string[] = [];
+  runs.forEach((_run, runIndex) => {
+    for (const { glyph, x: glyphX } of laid[runIndex]?.glyphs ?? []) {
+      // glyph outlines are closed shapes, whether or not the font says so
+      const raw = glyph
+        .getPath(x + glyphX, y, textElement.fontSize)
+        .toPathData(2);
+      const pathData = raw
+        ? `${raw.replace(/Z/g, "").replace(/M/g, "ZM").replace(/^Z/, "")}Z`
+        : "";
+      if (pathData) {
+        shapes.push(`<path d="${pathData}" fill="${fill}"${heavy}/>`);
       }
     }
-    const laid = runs.map((r) =>
-      r.font ? layoutRun(r.font, r.text, el.fontSize) : null,
-    );
-    const widths = runs.map(
-      (r, k) => laid[k]?.width ?? r.text.length * el.fontSize * 0.5,
-    );
-    const lineWidth = widths.reduce((a, b) => a + b, 0);
-    let x =
-      el.textAlign === "center"
-        ? (el.width - lineWidth) / 2
-        : el.textAlign === "right"
-        ? el.width - lineWidth
-        : 0;
-    const y = i * lineHeightPx + offset;
-    const lineShapes: string[] = [];
-    runs.forEach((r, k) => {
-      for (const { glyph, x: gx } of laid[k]?.glyphs ?? []) {
-        // glyph outlines are closed shapes, whether or not the font says so
-        const raw = glyph.getPath(x + gx, y, el.fontSize).toPathData(2);
-        const d = raw
-          ? `${raw.replace(/Z/g, "").replace(/M/g, "ZM").replace(/^Z/, "")}Z`
-          : "";
-        if (d) {
-          lineShapes.push(`<path d="${d}" fill="${fill}"${heavy}/>`);
-        }
-      }
-      x += widths[k];
-    });
+    x += widths[runIndex];
+  });
+  return shapes;
+};
+
+/** the shapes in an SVG the size of the text, turned like the text was */
+const outlinesSvg = (textElement: ExcalidrawTextElement, shapes: string[]) => {
+  const degrees = (textElement.angle * 180) / Math.PI;
+  const turn = textElement.angle
+    ? ` transform="rotate(${num(degrees)} ${num(textElement.width / 2)} ${num(
+        textElement.height / 2,
+      )})"`
+    : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${num(
+    textElement.width,
+  )}" height="${num(textElement.height)}" viewBox="0 0 ${num(
+    textElement.width,
+  )} ${num(textElement.height)}"><g${turn}>${shapes.join("")}</g></svg>`;
+};
+
+/** @returns null when no glyph could be drawn at all */
+export const textToPaths = async (
+  textElement: ExcalidrawTextElement,
+  load: FontLoader = getOutlineFontLoader(),
+): Promise<OutlinedText | null> => {
+  const lines = textElement.text.replace(/\r\n?/g, "\n").split("\n");
+  const lineHeightPx = getLineHeightInPx(
+    textElement.fontSize,
+    textElement.lineHeight,
+  );
+  const offset = getVerticalOffset(
+    textElement.fontFamily,
+    textElement.fontSize,
+    lineHeightPx,
+  );
+  const missing = new Set<string>();
+  const shapes: string[] = [];
+  const fill =
+    textElement.strokeColor === "transparent"
+      ? "#000000"
+      : textElement.strokeColor;
+  const { heavy, italic } = fauxStyle(textElement, fill);
+
+  for (let index = 0; index < lines.length; index++) {
+    const runs = await splitRuns(lines[index], textElement, load, missing);
+    const y = index * lineHeightPx + offset;
+    const lineShapes = lineShapesOf(runs, textElement, y, fill, heavy);
     if (lineShapes.length) {
       shapes.push(
         italic
@@ -213,26 +206,19 @@ export const textToPaths = async (
   if (!shapes.length) {
     return null;
   }
-  const deg = (el.angle * 180) / Math.PI;
-  const turn = el.angle
-    ? ` transform="rotate(${num(deg)} ${num(el.width / 2)} ${num(
-        el.height / 2,
-      )})"`
-    : "";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${num(
-    el.width,
-  )}" height="${num(el.height)}" viewBox="0 0 ${num(el.width)} ${num(
-    el.height,
-  )}"><g${turn}>${shapes.join("")}</g></svg>`;
-  const { elements } = importSvg(svg, { x: el.x, y: el.y }, 1e7);
+  const { elements } = importSvg(
+    outlinesSvg(textElement, shapes),
+    { x: textElement.x, y: textElement.y },
+    1e7,
+  );
   // one group per text, inside whatever group and frame the text was in
   const group = randomId();
   return {
-    elements: elements.map((e) => ({
-      ...e,
-      groupIds: [group, ...el.groupIds],
-      frameId: el.frameId,
-      opacity: el.opacity,
+    elements: elements.map((element) => ({
+      ...element,
+      groupIds: [group, ...textElement.groupIds],
+      frameId: textElement.frameId,
+      opacity: textElement.opacity,
     })) as ExcalidrawElement[],
     missing: [...missing],
   };

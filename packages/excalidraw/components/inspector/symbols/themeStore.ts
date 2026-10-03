@@ -1,6 +1,10 @@
 import { useSyncExternalStore } from "react";
 
-import { ALL_THEMES, DEFAULT_THEME, type SymbolTheme } from "@excalidraw/symbols";
+import {
+  ALL_THEMES,
+  DEFAULT_THEME,
+  type SymbolTheme,
+} from "@excalidraw/symbols";
 
 /** the theme symbols are inserted with: a preset plus the user's changes, kept on this machine */
 const KEY = "excalidraw-symbol-theme";
@@ -8,22 +12,13 @@ const KEY = "excalidraw-symbol-theme";
 let state: SymbolTheme = DEFAULT_THEME;
 const listeners = new Set<() => void>();
 
-const legacyRadius = (v: unknown, fallback: number) =>
-  v === "sharp"
-    ? 0
-    : v === "soft"
-    ? 8
-    : v === "round"
-    ? 40
-    : Number.isFinite(Number(v))
-    ? Number(v)
-    : fallback;
-
 const read = (): SymbolTheme => {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "null");
     if (raw && raw.colors && raw.radius !== undefined) {
-      const base = ALL_THEMES.find((t) => t.name === raw.base) ?? DEFAULT_THEME;
+      const base =
+        ALL_THEMES.find((candidate) => candidate.name === raw.base) ??
+        DEFAULT_THEME;
       return {
         ...base,
         name: String(raw.name ?? base.name),
@@ -51,19 +46,20 @@ export const setSymbolTheme = (next: SymbolTheme) => {
       KEY,
       JSON.stringify({
         ...next,
-        base: ALL_THEMES.find((t) => t.name === next.name)?.name,
+        base: ALL_THEMES.find((candidate) => candidate.name === next.name)
+          ?.name,
       }),
     );
   } catch {
     // not kept this session
   }
-  listeners.forEach((l) => l());
+  listeners.forEach((listener) => listener());
 };
 
-const subscribe = (l: () => void) => {
-  listeners.add(l);
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
   return () => {
-    listeners.delete(l);
+    listeners.delete(listener);
   };
 };
 

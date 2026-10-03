@@ -8,7 +8,7 @@ import {
   toDegrees,
 } from "../remarkableAngles";
 
-const deg = (d: number) => (d * Math.PI) / 180;
+const deg = (degrees: number) => (degrees * Math.PI) / 180;
 
 describe("remarkable angles", () => {
   it("number keys name the angles people reach for", () => {
@@ -22,10 +22,10 @@ describe("remarkable angles", () => {
   });
 
   it("the magnet pulls close angles onto 0/30/45/60/90/120/135/150", () => {
-    for (const d of [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 270]) {
-      const r = magnetAngle(deg(d + 2));
-      expect(r.snapped).toBe(true);
-      expect(toDegrees(r.angle)).toBe(d % 360);
+    for (const degrees of [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 270]) {
+      const result = magnetAngle(deg(degrees + 2));
+      expect(result.snapped).toBe(true);
+      expect(toDegrees(result.angle)).toBe(degrees % 360);
     }
     expect(magnetAngle(deg(37)).snapped).toBe(false);
     // 15 is a Shift step, not a magnet

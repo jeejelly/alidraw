@@ -565,8 +565,8 @@ export const intersectElementWithLineSegment = (
         elementCenterPoint(element, elementsMap),
       );
       const hits: GlobalPoint[] = [];
-      for (const l of lines) {
-        const hit = lineSegmentIntersectionPoints(l, line);
+      for (const segment of lines) {
+        const hit = lineSegmentIntersectionPoints(segment, line);
         if (hit) {
           hits.push(hit);
           if (onlyFirst) {
@@ -574,8 +574,8 @@ export const intersectElementWithLineSegment = (
           }
         }
       }
-      for (const c of curves) {
-        hits.push(...curveIntersectLineSegment(c, line, { iterLimit: 10 }));
+      for (const curve of curves) {
+        hits.push(...curveIntersectLineSegment(curve, line, { iterLimit: 10 }));
         if (onlyFirst && hits.length) {
           return hits;
         }

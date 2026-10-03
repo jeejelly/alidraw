@@ -6,36 +6,36 @@ import {
 
 /** a 60 x 60 picture: white background, a red disc, a blue square with a hole */
 const picture = (): PixelData => {
-  const w = 60;
-  const data = new Uint8ClampedArray(w * w * 4);
-  const put = (x: number, y: number, [r, g, b]: number[]) => {
-    const i = (y * w + x) * 4;
-    data.set([r, g, b, 255], i);
+  const width = 60;
+  const data = new Uint8ClampedArray(width * width * 4);
+  const put = (x: number, y: number, [red, green, blue]: number[]) => {
+    const offset = (y * width + x) * 4;
+    data.set([red, green, blue, 255], offset);
   };
-  for (let y = 0; y < w; y++) {
-    for (let x = 0; x < w; x++) {
-      let c = [255, 255, 255];
+  for (let y = 0; y < width; y++) {
+    for (let x = 0; x < width; x++) {
+      let color = [255, 255, 255];
       if ((x - 18) ** 2 + (y - 20) ** 2 < 12 ** 2) {
-        c = [220, 40, 40];
+        color = [220, 40, 40];
       }
       if (x >= 34 && x < 54 && y >= 30 && y < 54) {
-        c =
+        color =
           (x - 44) ** 2 + (y - 42) ** 2 < 5 ** 2
             ? [255, 255, 255]
             : [30, 60, 200];
       }
-      put(x, y, c);
+      put(x, y, color);
     }
   }
-  return { width: w, height: w, data };
+  return { width, height: width, data };
 };
 
-const near = (hex: string, [r, g, b]: number[], within = 40) => {
-  const n = parseInt(hex.slice(1), 16);
+const near = (hex: string, [red, green, blue]: number[], within = 40) => {
+  const packed = parseInt(hex.slice(1), 16);
   return (
-    Math.abs((n >> 16) - r) < within &&
-    Math.abs(((n >> 8) & 255) - g) < within &&
-    Math.abs((n & 255) - b) < within
+    Math.abs((packed >> 16) - red) < within &&
+    Math.abs(((packed >> 8) & 255) - green) < within &&
+    Math.abs((packed & 255) - blue) < within
   );
 };
 
@@ -46,19 +46,23 @@ describe("vectorizing an image", () => {
       { x: 100, y: 200, width: 120, height: 120 },
       { colors: 6, smoothing: 0.3 },
     );
-    expect(new Set(out.map((e) => e.type))).toEqual(new Set(["path"]));
-    expect(new Set(out.map((e) => e.groupIds[0])).size).toBe(1);
-    const fills = out.map((e) => e.backgroundColor);
+    expect(new Set(out.map((element) => element.type))).toEqual(
+      new Set(["path"]),
+    );
+    expect(new Set(out.map((element) => element.groupIds[0])).size).toBe(1);
+    const fills = out.map((element) => element.backgroundColor);
     // the red disc, the blue square and the white page are all there, not blended
-    expect(fills.some((f) => near(f, [220, 40, 40]))).toBe(true);
-    expect(fills.some((f) => near(f, [30, 60, 200]))).toBe(true);
-    expect(fills.some((f) => near(f, [255, 255, 255]))).toBe(true);
+    expect(fills.some((fill) => near(fill, [220, 40, 40]))).toBe(true);
+    expect(fills.some((fill) => near(fill, [30, 60, 200]))).toBe(true);
+    expect(fills.some((fill) => near(fill, [255, 255, 255]))).toBe(true);
     // twice the size, from (100, 200)
-    const xs = out.flatMap((e) => [e.x, e.x + e.width]);
+    const xs = out.flatMap((element) => [element.x, element.x + element.width]);
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(92);
     expect(Math.max(...xs)).toBeLessThanOrEqual(228);
     // the blue square has a round hole: kept as a contour
-    const blue = out.find((e) => near(e.backgroundColor, [30, 60, 200]))!;
+    const blue = out.find((element) =>
+      near(element.backgroundColor, [30, 60, 200]),
+    )!;
     expect(((blue as any).contours ?? []).length).toBeGreaterThan(0);
   });
 
@@ -76,8 +80,8 @@ describe("vectorizing an image", () => {
   });
 
   it("is deterministic", async () => {
-    const a = await traceToSvg(picture(), { colors: 5 });
-    const b = await traceToSvg(picture(), { colors: 5 });
-    expect(a).toBe(b);
+    const first = await traceToSvg(picture(), { colors: 5 });
+    const second = await traceToSvg(picture(), { colors: 5 });
+    expect(first).toBe(second);
   });
 });

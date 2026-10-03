@@ -12,12 +12,7 @@ import {
 
 import type App from "./App";
 
-/**
- * Layers: named containers that own objects. This keeps the scene in line
- * with them: new objects go to the active layer, every layer is a block of the
- * z stack, and the layer operations of the panel (hide, lock, reorder, move
- * objects, restyle all of a layer's objects) live here.
- */
+/** Layers own objects: new objects go to the active layer and each layer is a block of the z stack. */
 export class AppLayers {
   private busy = false;
 
@@ -29,7 +24,7 @@ export class AppLayers {
 
   private get activeId(): string {
     const { layers, activeLayerId } = this.app.state;
-    return layers.some((l) => l.id === activeLayerId)
+    return layers.some((layer) => layer.id === activeLayerId)
       ? activeLayerId!
       : layers[layers.length - 1].id;
   }
@@ -49,7 +44,7 @@ export class AppLayers {
       return;
     }
     const scene = this.app.scene;
-    const known = new Set(this.layers.map((l) => l.id));
+    const known = new Set(this.layers.map((layer) => layer.id));
     const active = this.activeId;
     this.busy = true;
     try {
@@ -64,7 +59,7 @@ export class AppLayers {
       }
       const all = scene.getElementsIncludingDeleted();
       const ordered = orderByLayers(all, this.layers, active);
-      if (ordered.some((el, i) => el !== all[i])) {
+      if (ordered.some((el, index) => el !== all[index])) {
         scene.replaceAllElements(ordered);
       }
     } finally {
@@ -83,10 +78,10 @@ export class AppLayers {
 
   private patch = (id: string, change: Partial<Layer>) =>
     this.setLayers(
-      this.layers.map((l) => (l.id === id ? { ...l, ...change } : l)),
+      this.layers.map((layer) =>
+        layer.id === id ? { ...layer, ...change } : layer,
+      ),
     );
-
-  // ---------------------------------------------------------------------------
 
   add = (name?: string) => {
     let layers = this.layers;
@@ -114,7 +109,7 @@ export class AppLayers {
 
   toggleCollapsed = (id: string) =>
     this.patch(id, {
-      collapsed: !this.layers.find((l) => l.id === id)?.collapsed,
+      collapsed: !this.layers.find((layer) => layer.id === id)?.collapsed,
     });
 
   setVisible = (id: string, visible: boolean) => {
@@ -124,7 +119,9 @@ export class AppLayers {
       const ids = new Set(this.getObjects(id).map((el) => el.id));
       this.app.setState((prev) => ({
         selectedElementIds: Object.fromEntries(
-          Object.entries(prev.selectedElementIds).filter(([k]) => !ids.has(k)),
+          Object.entries(prev.selectedElementIds).filter(
+            ([key]) => !ids.has(key),
+          ),
         ),
       }));
     }
@@ -146,7 +143,7 @@ export class AppLayers {
 
   /** moves a layer to a position in the stack (0 is the bottom) */
   move = (id: string, index: number) => {
-    const from = this.layers.findIndex((l) => l.id === id);
+    const from = this.layers.findIndex((candidate) => candidate.id === id);
     if (from < 0) {
       return;
     }
@@ -160,7 +157,7 @@ export class AppLayers {
   /** deletes the layer and, as it owns them, its objects */
   remove = (id: string) => {
     const owned = new Set(this.getObjects(id).map((el) => el.id));
-    const rest = this.layers.filter((l) => l.id !== id);
+    const rest = this.layers.filter((layer) => layer.id !== id);
     const scene = this.app.scene;
     scene.replaceAllElements(
       scene.getElementsIncludingDeleted().map((el) => {
@@ -180,7 +177,7 @@ export class AppLayers {
             : prev.activeLayerId,
         selectedElementIds: Object.fromEntries(
           Object.entries(prev.selectedElementIds).filter(
-            ([k]) => !owned.has(k),
+            ([key]) => !owned.has(key),
           ),
         ),
       }),
@@ -200,7 +197,8 @@ export class AppLayers {
         const next = newElementWith(el, {
           customData: withLayer(el, layerId),
           locked:
-            this.layers.find((l) => l.id === layerId)?.locked ?? el.locked,
+            this.layers.find((layer) => layer.id === layerId)?.locked ??
+            el.locked,
         });
         moved.push(next);
       } else {
@@ -215,7 +213,7 @@ export class AppLayers {
 
   /** selects every object of the layer (the layer's selection square) */
   select = (id: string, additive = false) => {
-    const layer = this.layers.find((l) => l.id === id);
+    const layer = this.layers.find((candidate) => candidate.id === id);
     if (!layer || !layer.visible) {
       return;
     }

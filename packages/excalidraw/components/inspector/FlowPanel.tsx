@@ -11,6 +11,7 @@ import {
   renameFlow,
 } from "@excalidraw/flow";
 import { parseFlow, serializeFlow, type FlowIssue } from "@excalidraw/flow";
+
 import { t } from "../../i18n";
 
 import type App from "../App";
@@ -47,7 +48,7 @@ const FlowGraphIcon = () => (
 const useSceneNonce = (app: App) => {
   const [, bump] = useState(0);
   useEffect(() => {
-    const off = app.scene.onUpdate(() => bump((n) => n + 1));
+    const off = app.scene.onUpdate(() => bump((count) => count + 1));
     return () => {
       try {
         off();
@@ -108,14 +109,17 @@ export const FlowPanel = ({ app }: { app: App }) => {
   const run = (id: string, source: string) => {
     const { graph, issues: found } = parseFlow(source);
     setIssues(found);
-    if (found.some((i) => !i.warn)) {
+    if (found.some((issue) => !issue.warn)) {
       return;
     }
     const skipped = applyFlow(app.scene, id, graph, {
       x: origin().x,
       y: origin().y,
     });
-    setIssues([...found, ...skipped.map((i) => ({ ...i, warn: true }))]);
+    setIssues([
+      ...found,
+      ...skipped.map((issue) => ({ ...issue, warn: true })),
+    ]);
     commit();
     setDraft(null);
   };
@@ -131,19 +135,19 @@ export const FlowPanel = ({ app }: { app: App }) => {
   };
 
   const newFlow = () => {
-    let n = flows.length + 1;
-    while (flows.includes(`Flow ${n}`)) {
-      n++;
+    let number = flows.length + 1;
+    while (flows.includes(`Flow ${number}`)) {
+      number++;
     }
-    const id = `Flow ${n}`;
+    const id = `Flow ${number}`;
     setChosen(id);
     run(id, STARTER);
   };
 
   const adopt = () => {
     const id = flowId ?? "Flow 1";
-    const n = adoptIntoFlow(app.scene, selected, id);
-    if (n) {
+    const adopted = adoptIntoFlow(app.scene, selected, id);
+    if (adopted) {
       setChosen(id);
       setDraft(null);
       commit();
@@ -164,8 +168,10 @@ export const FlowPanel = ({ app }: { app: App }) => {
       return;
     }
     const ids = elements
-      .filter((e) => !e.isDeleted && getFlowMeta(e)?.id === flowId)
-      .map((e) => e.id);
+      .filter(
+        (element) => !element.isDeleted && getFlowMeta(element)?.id === flowId,
+      )
+      .map((element) => element.id);
     app.setState({
       selectedElementIds: Object.fromEntries(ids.map((id) => [id, true])),
       selectedGroupIds: {},
@@ -180,15 +186,15 @@ export const FlowPanel = ({ app }: { app: App }) => {
             data-testid="flow-picker"
             className="flow__select"
             value={flowId ?? ""}
-            onChange={(e) => {
-              setChosen(e.target.value);
+            onChange={(changeEvent) => {
+              setChosen(changeEvent.target.value);
               setDraft(null);
               setIssues([]);
             }}
           >
-            {flows.map((f) => (
-              <option key={f} value={f}>
-                {f}
+            {flows.map((flow) => (
+              <option key={flow} value={flow}>
+                {flow}
               </option>
             ))}
           </select>
@@ -212,18 +218,18 @@ export const FlowPanel = ({ app }: { app: App }) => {
               className="flow__input"
               data-testid="flow-name"
               defaultValue={flowId}
-              onBlur={(e) => {
-                const next = e.target.value.trim();
+              onBlur={(blurEvent) => {
+                const next = blurEvent.target.value.trim();
                 if (next && next !== flowId && !flows.includes(next)) {
                   renameFlow(app.scene, flowId, next);
                   setChosen(next);
                   commit();
                 }
               }}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === "Enter") {
-                  (e.target as HTMLInputElement).blur();
+              onKeyDown={(keyEvent) => {
+                keyEvent.stopPropagation();
+                if (keyEvent.key === "Enter") {
+                  (keyEvent.target as HTMLInputElement).blur();
                 }
               }}
             />
@@ -233,20 +239,20 @@ export const FlowPanel = ({ app }: { app: App }) => {
             className="flow__source"
             spellCheck={false}
             value={text}
-            onChange={(e) => onEdit(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(changeEvent) => onEdit(changeEvent.target.value)}
+            onKeyDown={(keyEvent) => keyEvent.stopPropagation()}
           />
           <div data-testid="flow-issues">
-            {issues.map((i, k) => (
+            {issues.map((issue, index) => (
               <div
-                key={k}
+                key={index}
                 className={`inspector__hint${
-                  i.warn ? "" : " inspector__hint--error"
+                  issue.warn ? "" : " inspector__hint--error"
                 }`}
                 style={{ padding: "0.125rem 0" }}
               >
-                {i.line ? `${t("labels.flow.line")} ${i.line}: ` : ""}
-                {i.message}
+                {issue.line ? `${t("labels.flow.line")} ${issue.line}: ` : ""}
+                {issue.message}
               </div>
             ))}
           </div>

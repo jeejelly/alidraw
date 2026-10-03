@@ -11,7 +11,9 @@ describe("flow text", () => {
       E ==> A`);
     expect(issues).toEqual([]);
     expect(graph.direction).toBe("LR");
-    expect(graph.nodes.map((n) => [n.key, n.label, n.shape])).toEqual([
+    expect(
+      graph.nodes.map((node) => [node.key, node.label, node.shape]),
+    ).toEqual([
       ["A", "Idea", "rect"],
       ["B", "Diagram", "round"],
       ["C", "Is it clear?", "diamond"],
@@ -19,7 +21,13 @@ describe("flow text", () => {
       ["E", "E", "rect"],
     ]);
     expect(
-      graph.edges.map((e) => [e.from, e.to, e.label, e.style, e.head]),
+      graph.edges.map((edge) => [
+        edge.from,
+        edge.to,
+        edge.label,
+        edge.style,
+        edge.head,
+      ]),
     ).toEqual([
       ["A", "B", "", "solid", true],
       ["B", "C", "", "solid", true],
@@ -37,7 +45,7 @@ describe("flow text", () => {
       e <--> f`);
     expect(issues).toEqual([]);
     expect(graph.direction).toBe("TD");
-    expect(graph.edges.map((e) => `${e.from}>${e.to}`)).toEqual([
+    expect(graph.edges.map((edge) => `${edge.from}>${edge.to}`)).toEqual([
       "a>b",
       "a>c",
       "b>d",
@@ -64,7 +72,7 @@ describe("flow text", () => {
       { key: "cart", label: "Cart screen" },
       { key: "done", label: "Done" },
     ]);
-    expect(graph.nodes.map((n) => [n.key, n.screen])).toEqual([
+    expect(graph.nodes.map((node) => [node.key, node.screen])).toEqual([
       ["pay", "cart"],
       ["back", "cart"],
       ["ok", "done"],
@@ -72,18 +80,20 @@ describe("flow text", () => {
   });
 
   it("reports what it cannot use, with the line", () => {
-    const r = parseFlow(`flowchart TD
+    const result = parseFlow(`flowchart TD
       a --> 
       b ~~~ c
       subgraph s
       a --> s
       classDef x fill:#f00`);
-    const lines = r.issues.map((i) => i.line);
+    const lines = result.issues.map((issue) => issue.line);
     expect(lines).toContain(2); // a link needs a target
     expect(lines).toContain(3); // unreadable link
     expect(lines).not.toContain(5); // a link to a subgraph is fine
     expect(lines).toContain(6); // ignored statement
-    expect(r.issues.some((i) => /not closed/.test(i.message))).toBe(true);
+    expect(
+      result.issues.some((issue) => /not closed/.test(issue.message)),
+    ).toBe(true);
   });
 
   it("round-trips through serialize", () => {

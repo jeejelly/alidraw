@@ -1,10 +1,11 @@
 import { randomId } from "@excalidraw/common";
 
+import { buildPalette } from "@excalidraw/color";
+
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import { importSvg } from "./svgImport";
 
-import { buildPalette } from "@excalidraw/color";
 import { smoothClosedPath, subpathPoints } from "./smoothOutline";
 
 /**
@@ -33,27 +34,28 @@ export type PixelData = {
   data: Uint8ClampedArray | number[];
 };
 
-const clamp = (n: number, a: number, b: number) => Math.min(b, Math.max(a, n));
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
 /** the SVG text of a traced bitmap, in the bitmap's pixels */
 export const traceToSvg = async (
   image: PixelData,
   options: Partial<TraceOptions> = {},
 ) => {
-  const o = { ...DEFAULT_TRACE, ...options };
+  const settings = { ...DEFAULT_TRACE, ...options };
   const { default: ImageTracer } = await import("imagetracerjs");
-  const smooth = clamp(o.smoothing, 0, 1);
+  const smooth = clamp(settings.smoothing, 0, 1);
   const svg = ImageTracer.imagedataToSVG(image as ImageData, {
-    numberofcolors: Math.round(clamp(o.colors, 2, 64)),
+    numberofcolors: Math.round(clamp(settings.colors, 2, 64)),
     // the picture's own palette (median cut): deterministic, small details keep their colour
-    pal: buildPalette(image.data, Math.round(clamp(o.colors, 2, 64))),
+    pal: buildPalette(image.data, Math.round(clamp(settings.colors, 2, 64))),
     colorsampling: 0,
     colorquantcycles: 1,
     mincolorratio: 0,
     // the tracer only finds the outlines here (fine fit); the smoothing is ours
     ltres: 0.1,
     qtres: 0.1,
-    pathomit: Math.max(0, Math.round(o.speckle)),
+    pathomit: Math.max(0, Math.round(settings.speckle)),
     blurradius: smooth > 0.5 ? Math.round(smooth * 3) : 0,
     blurdelta: 20,
     roundcoords: 2,
@@ -69,8 +71,8 @@ export const traceToSvg = async (
     svg
       .replace(/ stroke="[^"]*"/g, "")
       .replace(/ stroke-width="[^"]*"/g, "")
-      .replace(/ d="([^"]*)"/g, (_m, d: string) => {
-        const curved = subpathPoints(d)
+      .replace(/ d="([^"]*)"/g, (_m, pathData: string) => {
+        const curved = subpathPoints(pathData)
           .map((pts) => smoothClosedPath(pts, smooth))
           .join("");
         return ` d="${curved}"`;
@@ -95,8 +97,8 @@ export const traceToElements = async (
   );
   const group = randomId();
   return importSvg(svg, { x: target.x, y: target.y }, 1e7).elements.map(
-    (e) => ({
-      ...e,
+    (element) => ({
+      ...element,
       groupIds: [group],
     }),
   ) as ExcalidrawElement[];

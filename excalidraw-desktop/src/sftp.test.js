@@ -42,21 +42,25 @@ const start = () =>
               const sftp = accept2();
               const handles = new Map();
               let next = 0;
-              const real = (p) => path.join(root, p.replace(/^\/+/, ""));
-              const newHandle = (v) => {
-                const h = Buffer.alloc(4);
-                h.writeUInt32BE(next++);
-                handles.set(h.readUInt32BE(0), v);
-                return h;
+              const real = (remotePath) =>
+                path.join(root, remotePath.replace(/^\/+/, ""));
+              const newHandle = (state) => {
+                const buffer = Buffer.alloc(4);
+                buffer.writeUInt32BE(next++);
+                handles.set(buffer.readUInt32BE(0), state);
+                return buffer;
               };
-              const get = (h) => handles.get(h.readUInt32BE(0));
+              const get = (handleBuffer) =>
+                handles.get(handleBuffer.readUInt32BE(0));
               sftp
-                .on("REALPATH", (id, p) =>
-                  sftp.name(id, [{ filename: p, longname: p, attrs: {} }]),
+                .on("REALPATH", (id, remotePath) =>
+                  sftp.name(id, [
+                    { filename: remotePath, longname: remotePath, attrs: {} },
+                  ]),
                 )
-                .on("STAT", (id, p) => {
+                .on("STAT", (id, remotePath) => {
                   try {
-                    const st = fs.statSync(real(p));
+                    const st = fs.statSync(real(remotePath));
                     sftp.attrs(id, {
                       size: st.size,
                       mode: st.mode,
@@ -69,25 +73,25 @@ const start = () =>
                     sftp.status(id, STATUS_CODE.NO_SUCH_FILE);
                   }
                 })
-                .on("MKDIR", (id, p) => {
+                .on("MKDIR", (id, remotePath) => {
                   try {
-                    fs.mkdirSync(real(p));
+                    fs.mkdirSync(real(remotePath));
                     sftp.status(id, STATUS_CODE.OK);
                   } catch {
                     sftp.status(id, STATUS_CODE.FAILURE);
                   }
                 })
-                .on("OPEN", (id, p, flags) => {
+                .on("OPEN", (id, remotePath, flags) => {
                   const write = flags & (OPEN_MODE.WRITE | OPEN_MODE.CREAT);
                   try {
-                    const fd = fs.openSync(real(p), write ? "w" : "r");
+                    const fd = fs.openSync(real(remotePath), write ? "w" : "r");
                     sftp.handle(id, newHandle({ fd }));
                   } catch {
                     sftp.status(id, STATUS_CODE.NO_SUCH_FILE);
                   }
                 })
-                .on("FSTAT", (id, h) => {
-                  const st = fs.fstatSync(get(h).fd);
+                .on("FSTAT", (id, handleBuffer) => {
+                  const st = fs.fstatSync(get(handleBuffer).fd);
                   sftp.attrs(id, {
                     size: st.size,
                     mode: st.mode,
@@ -98,49 +102,66 @@ const start = () =>
                   });
                 })
                 .on("FSETSTAT", (id) => sftp.status(id, STATUS_CODE.OK))
-                .on("WRITE", (id, h, offset, data) => {
-                  fs.writeSync(get(h).fd, data, 0, data.length, offset);
+                .on("WRITE", (id, handleBuffer, offset, data) => {
+                  fs.writeSync(
+                    get(handleBuffer).fd,
+                    data,
+                    0,
+                    data.length,
+                    offset,
+                  );
                   sftp.status(id, STATUS_CODE.OK);
                 })
-                .on("READ", (id, h, offset, length) => {
+                .on("READ", (id, handleBuffer, offset, length) => {
                   const buf = Buffer.alloc(length);
-                  const n = fs.readSync(get(h).fd, buf, 0, length, offset);
-                  n
-                    ? sftp.data(id, buf.subarray(0, n))
+                  const bytesRead = fs.readSync(
+                    get(handleBuffer).fd,
+                    buf,
+                    0,
+                    length,
+                    offset,
+                  );
+                  bytesRead
+                    ? sftp.data(id, buf.subarray(0, bytesRead))
                     : sftp.status(id, STATUS_CODE.EOF);
                 })
-                .on("CLOSE", (id, h) => {
-                  const v = get(h);
-                  if (v.fd !== undefined) {
-                    fs.closeSync(v.fd);
+                .on("CLOSE", (id, handleBuffer) => {
+                  const state = get(handleBuffer);
+                  if (state.fd !== undefined) {
+                    fs.closeSync(state.fd);
                   }
-                  handles.delete(h.readUInt32BE(0));
+                  handles.delete(handleBuffer.readUInt32BE(0));
                   sftp.status(id, STATUS_CODE.OK);
                 })
-                .on("OPENDIR", (id, p) =>
-                  fs.existsSync(real(p))
-                    ? sftp.handle(id, newHandle({ dir: real(p), done: false }))
+                .on("OPENDIR", (id, remotePath) =>
+                  fs.existsSync(real(remotePath))
+                    ? sftp.handle(
+                        id,
+                        newHandle({ dir: real(remotePath), done: false }),
+                      )
                     : sftp.status(id, STATUS_CODE.NO_SUCH_FILE),
                 )
-                .on("READDIR", (id, h) => {
-                  const v = get(h);
-                  if (v.done) {
+                .on("READDIR", (id, handleBuffer) => {
+                  const state = get(handleBuffer);
+                  if (state.done) {
                     return sftp.status(id, STATUS_CODE.EOF);
                   }
-                  v.done = true;
+                  state.done = true;
                   sftp.name(
                     id,
-                    fs
-                      .readdirSync(v.dir)
-                      .map((f) => ({ filename: f, longname: f, attrs: {} })),
+                    fs.readdirSync(state.dir).map((entryName) => ({
+                      filename: entryName,
+                      longname: entryName,
+                      attrs: {},
+                    })),
                   );
                 })
-                .on("RENAME", (id, a, b) => {
-                  fs.renameSync(real(a), real(b));
+                .on("RENAME", (id, from, to) => {
+                  fs.renameSync(real(from), real(to));
                   sftp.status(id, STATUS_CODE.OK);
                 })
-                .on("REMOVE", (id, p) => {
-                  fs.rmSync(real(p), { force: true });
+                .on("REMOVE", (id, remotePath) => {
+                  fs.rmSync(real(remotePath), { force: true });
                   sftp.status(id, STATUS_CODE.OK);
                 });
             });

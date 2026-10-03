@@ -78,8 +78,8 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
     },
     newScene: async () => "n.excalidraw",
     renameScene: async (_id, _p, name) => `${name}.excalidraw`,
-    duplicateScene: async (_id, p) =>
-      p.replace(".excalidraw", "-copy.excalidraw"),
+    duplicateScene: async (_id, path) =>
+      path.replace(".excalidraw", "-copy.excalidraw"),
     deleteScene: async () => {},
     assets: async () => [],
     getSettings: async () => ({ autoCommit: true, delaySec: 60 }),
@@ -118,15 +118,15 @@ const fakeBridge = (over: Partial<DesktopWorkspaceBridge> = {}) => {
       return { path, bytes: base64.length };
     },
     readAsset: async (_id, path) => {
-      const v = assets.get(path);
-      if (v === undefined) {
+      const content = assets.get(path);
+      if (content === undefined) {
         throw new Error("missing");
       }
-      return v;
+      return content;
     },
     meta: async () => ({ ...meta }),
-    setMeta: async (_id, m) => {
-      Object.assign(meta, m);
+    setMeta: async (_id, patch) => {
+      Object.assign(meta, patch);
       return meta;
     },
     commitNow: async () => ({ hash: null }),
@@ -193,27 +193,27 @@ afterEach(() => {
 describe("workspace file handle", () => {
   it("reads and writes through the bridge like a file handle", async () => {
     const { bridge, files } = fakeBridge();
-    const h = new WorkspaceFileHandle(bridge, "w1", "dir/a.excalidraw");
-    expect(h.name).toBe("a.excalidraw");
-    const w = await h.createWritable();
-    await w.write(new Blob(['{"a":']));
-    await w.write("1}");
-    await w.write({ type: "write", data: " " } as any);
+    const handle = new WorkspaceFileHandle(bridge, "w1", "dir/a.excalidraw");
+    expect(handle.name).toBe("a.excalidraw");
+    const writable = await handle.createWritable();
+    await writable.write(new Blob(['{"a":']));
+    await writable.write("1}");
+    await writable.write({ type: "write", data: " " } as any);
     expect(files.size).toBe(0);
-    await w.close();
+    await writable.close();
     expect(files.get("dir/a.excalidraw")).toBe('{"a":1} ');
-    expect(await blobText(await h.getFile())).toBe('{"a":1} ');
+    expect(await blobText(await handle.getFile())).toBe('{"a":1} ');
     expect(
-      await h.isSameEntry(
+      await handle.isSameEntry(
         new WorkspaceFileHandle(bridge, "w1", "dir/a.excalidraw"),
       ),
     ).toBe(true);
     expect(
-      await h.isSameEntry(
+      await handle.isSameEntry(
         new WorkspaceFileHandle(bridge, "w2", "dir/a.excalidraw"),
       ),
     ).toBe(false);
-    expect(await h.queryPermission()).toBe("granted");
+    expect(await handle.queryPermission()).toBe("granted");
   });
 });
 
@@ -309,7 +309,7 @@ describe("a workspace is where everything goes by default", () => {
     (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
     appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
     const said: string[] = [];
-    installWorkspaceSave((m) => said.push(m));
+    installWorkspaceSave((message) => said.push(message));
     const result = await fileSave(png(), {
       name: "Poster",
       extension: "png",
@@ -395,7 +395,10 @@ describe("the open dialog of a workspace", () => {
     act(() => appJotaiStore.set(openSceneDialogOpenAtom, true));
     expect(await screen.findByTestId("open-unsaved")).toBeTruthy();
     const items = await screen.findAllByTestId("open-scene-item");
-    expect(items.map((i) => i.textContent).sort()).toEqual(["home", "login"]);
+    expect(items.map((item) => item.textContent).sort()).toEqual([
+      "home",
+      "login",
+    ]);
     fireEvent.change(screen.getByTestId("open-search"), {
       target: { value: "log" },
     });
@@ -428,9 +431,9 @@ describe("workspace dialog", () => {
       list: async () => [
         { id: "w1", name: "W", path: "/w", exists: true, settings: {} },
       ],
-      setMeta: async (_id, m) => {
-        set.push(m);
-        return m;
+      setMeta: async (_id, patch) => {
+        set.push(patch);
+        return patch;
       },
     });
     await open(bridge);
@@ -503,9 +506,9 @@ describe("workspace dialog", () => {
       list: async () => [
         { id: "w1", name: "W", path: "/w", exists: true, settings: {} },
       ],
-      setSettings: async (id, s) => {
-        seen.push(s);
-        return { id, name: "", path: "", settings: s };
+      setSettings: async (id, settings) => {
+        seen.push(settings);
+        return { id, name: "", path: "", settings };
       },
     });
     await open(bridge);
@@ -522,8 +525,8 @@ describe("workspace dialog", () => {
       list: async () => [
         { id: "w0", name: "Old", path: "/o", exists: true, settings: {} },
       ],
-      secretsUnlock: async (p) => {
-        calls.push(`unlock:${p}`);
+      secretsUnlock: async (passphrase) => {
+        calls.push(`unlock:${passphrase}`);
         return { exists: true, unlocked: true };
       },
       serverSet: async (_id, server, password) => {
@@ -646,7 +649,9 @@ describe("opening a workspace scene", () => {
     const { bridge } = fakeBridge({ read: async () => scene });
     (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
     let api: any = null;
-    await render(<Excalidraw onExcalidrawAPI={(a: any) => (api = a)} />);
+    await render(
+      <Excalidraw onExcalidrawAPI={(instance: any) => (api = instance)} />,
+    );
     await waitFor(() => expect(api).toBeTruthy());
     const { openWorkspaceScene } = await import(
       "../workspace/openWorkspaceScene"
@@ -661,7 +666,9 @@ describe("opening a workspace scene", () => {
         "dir/a.excalidraw",
       );
     });
-    expect(api.getSceneElements().map((e: any) => e.id)).toEqual(["r1"]);
+    expect(api.getSceneElements().map((element: any) => element.id)).toEqual([
+      "r1",
+    ]);
     const handle = api.getAppState().fileHandle;
     expect(handle).toBeInstanceOf(WorkspaceFileHandle);
     expect(handle.path).toBe("dir/a.excalidraw");
@@ -784,12 +791,12 @@ describe("sharing", () => {
     const { bridge } = withRemote(
       { state: "idle", message: null },
       {
-        setSettings: async (id, s) => {
-          settings.push(s);
-          return { id, name: "", path: "", settings: s };
+        setSettings: async (id, newSettings) => {
+          settings.push(newSettings);
+          return { id, name: "", path: "", settings: newSettings };
         },
-        setPaused: async (p) => {
-          paused.push(p);
+        setPaused: async (value) => {
+          paused.push(value);
           return {};
         },
       },
@@ -807,7 +814,7 @@ describe("sharing", () => {
 
   it("offers to reload the open scene when a pull changed it, and does not reload unasked", async () => {
     const { bridge } = fakeBridge();
-    let emit: (e: any) => void = () => {};
+    let emit: (emitted: any) => void = () => {};
     bridge.onEvent = (cb) => {
       emit = cb;
       return () => {};
@@ -859,10 +866,10 @@ describe("linked images", () => {
     });
 
   const save = async (bridge: DesktopWorkspaceBridge, text: string) => {
-    const h = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
-    const w = await h.createWritable();
-    await w.write(text);
-    await w.close();
+    const handle = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
   };
 
   it("the workspace's default decides for images that have no choice of their own", async () => {
@@ -875,10 +882,10 @@ describe("linked images", () => {
 
     meta.assets = "linked";
     await save(bridge, scene());
-    const f = JSON.parse(files.get("a.excalidraw")!).files.f1;
-    expect(f.dataURL).toBeUndefined();
-    expect(f.link).toMatch(/^assets\/.+\.png$/);
-    expect(assets.get(f.link)).toBe(PNG);
+    const file = JSON.parse(files.get("a.excalidraw")!).files.f1;
+    expect(file.dataURL).toBeUndefined();
+    expect(file.link).toMatch(/^assets\/.+\.png$/);
+    expect(assets.get(file.link)).toBe(PNG);
     // the rest of the file is untouched
     expect(JSON.parse(files.get("a.excalidraw")!).elements).toHaveLength(1);
   });
@@ -906,8 +913,8 @@ describe("linked images", () => {
     meta.assets = "linked";
     await save(bridge, scene());
     expect(JSON.parse(files.get("a.excalidraw")!).files.f1.link).toBeTruthy();
-    const h = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
-    const opened = JSON.parse(await blobText(await h.getFile()));
+    const handle = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
+    const opened = JSON.parse(await blobText(await handle.getFile()));
     expect(opened.files.f1.dataURL).toBe(`data:image/png;base64,${PNG}`);
     expect(opened.files.f1.link).toBeUndefined();
   });
@@ -942,8 +949,8 @@ describe("linked images", () => {
       }),
     );
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
-    const h = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
-    const opened = JSON.parse(await blobText(await h.getFile()));
+    const handle = new WorkspaceFileHandle(bridge, "w1", "a.excalidraw");
+    const opened = JSON.parse(await blobText(await handle.getFile()));
     expect(opened.files).toEqual({});
     err.mockRestore();
   });
@@ -1039,16 +1046,16 @@ describe("the project tab of the palette", () => {
   it("renames, duplicates and deletes a scene", async () => {
     const calls: string[] = [];
     const { off } = await openProject({
-      renameScene: async (_i, p, n) => {
-        calls.push(`rename:${p}>${n}`);
-        return `${n}.excalidraw`;
+      renameScene: async (_i, path, newName) => {
+        calls.push(`rename:${path}>${newName}`);
+        return `${newName}.excalidraw`;
       },
-      duplicateScene: async (_i, p) => {
-        calls.push(`dup:${p}`);
+      duplicateScene: async (_i, path) => {
+        calls.push(`dup:${path}`);
         return "x";
       },
-      deleteScene: async (_i, p) => {
-        calls.push(`del:${p}`);
+      deleteScene: async (_i, path) => {
+        calls.push(`del:${path}`);
       },
     });
     fireEvent.change(await screen.findByTestId("project-select"), {
@@ -1072,12 +1079,12 @@ describe("the project tab of the palette", () => {
   it("commits with a message and checks, pulls and pushes", async () => {
     const calls: string[] = [];
     const { off } = await openProject({
-      commitNow: async (_i, m) => {
-        calls.push(`commit:${m}`);
+      commitNow: async (_i, message) => {
+        calls.push(`commit:${message}`);
         return { hash: "abc123" };
       },
-      sync: async (_i, o) => {
-        calls.push(`sync:${o?.pull}:${o?.push}`);
+      sync: async (_i, options) => {
+        calls.push(`sync:${options?.pull}:${options?.push}`);
         return { outcome: "in-sync" };
       },
     });

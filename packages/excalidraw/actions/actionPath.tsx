@@ -16,6 +16,7 @@ import { CODES, KEYS, arrayToMap } from "@excalidraw/common";
 
 import type {
   ExcalidrawElement,
+  ExcalidrawLineElement,
   ExcalidrawPathElement,
 } from "@excalidraw/element/types";
 
@@ -27,6 +28,59 @@ import { register } from "./register";
 const canConvert = (element: ExcalidrawElement) =>
   (isConvertibleToPath(element) || isLineConvertibleToPath(element)) &&
   !(element.boundElements?.length ?? 0);
+
+/** a line becomes a path as drawn: same anchors, corners kept */
+const lineToPath = (line: ExcalidrawLineElement) => {
+  let points = [...line.points];
+  const closed = !!line.polygon;
+  if (
+    closed &&
+    points.length > 2 &&
+    points[0][0] === points[points.length - 1][0] &&
+    points[0][1] === points[points.length - 1][1]
+  ) {
+    points = points.slice(0, -1);
+  }
+  const handles = points.map(() => NO_HANDLES);
+  const frame = {
+    ...line,
+    type: "path",
+    points,
+    handles,
+    closed,
+    roundness: null,
+  } as unknown as ExcalidrawPathElement;
+  return newElementWith(frame, {
+    ...getPathUpdate(frame, { points, handles }),
+  });
+};
+
+/** a rectangle, diamond or ellipse becomes a closed path with the same outline */
+const shapeToPath = (
+  shape: ExcalidrawElement & { type: "rectangle" | "diamond" | "ellipse" },
+) => {
+  const geometry = getPathGeometryFromShape(shape);
+  // a rounded rectangle or diamond keeps its rounding as bevels
+  const radius =
+    shape.type === "ellipse"
+      ? 0
+      : getCornerRadius(Math.min(shape.width, shape.height), shape);
+  const handles = radius
+    ? geometry.handles.map((handle) => ({ ...handle, radius }))
+    : geometry.handles;
+  // a new object of another type under the same id
+  return newElementWith(
+    {
+      ...shape,
+      type: "path",
+      points: geometry.points,
+      handles,
+      closed: true,
+      roundness: null,
+    } as unknown as ExcalidrawPathElement,
+    {},
+  );
+};
 
 export const actionConvertShapeToPath = register({
   name: "convertShapeToPath",
@@ -50,55 +104,9 @@ export const actionConvertShapeToPath = register({
           return element;
         }
         if (isLineConvertibleToPath(element)) {
-          // a line becomes a path as drawn: same anchors, corners kept
-          let points = [...element.points];
-          const closed = !!element.polygon;
-          if (
-            closed &&
-            points.length > 2 &&
-            points[0][0] === points[points.length - 1][0] &&
-            points[0][1] === points[points.length - 1][1]
-          ) {
-            points = points.slice(0, -1);
-          }
-          const handles = points.map(() => NO_HANDLES);
-          const frame = {
-            ...element,
-            type: "path",
-            points,
-            handles,
-            closed,
-            roundness: null,
-          } as unknown as ExcalidrawPathElement;
-          return newElementWith(frame, {
-            ...getPathUpdate(frame, { points, handles }),
-          });
+          return lineToPath(element);
         }
-        if (!isConvertibleToPath(element)) {
-          return element;
-        }
-        const geometry = getPathGeometryFromShape(element);
-        // a rounded rectangle or diamond keeps its rounding as bevels
-        const radius =
-          element.type === "ellipse"
-            ? 0
-            : getCornerRadius(Math.min(element.width, element.height), element);
-        const points = geometry.points;
-        const handles = radius
-          ? geometry.handles.map((h) => ({ ...h, radius }))
-          : geometry.handles;
-        // a new object of another type under the same id
-        return newElementWith(
-          {
-            ...element,
-            type: "path",
-            points,
-            handles,
-            closed: true,
-            roundness: null,
-          } as unknown as ExcalidrawPathElement,
-          {},
-        );
+        return isConvertibleToPath(element) ? shapeToPath(element) : element;
       }),
       appState,
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
@@ -163,40 +171,42 @@ export const actionJoinPaths = register({
     if (selected.length !== 2 || !selected.every(isOpenPath)) {
       return false;
     }
-    const [A, B] = selected as ExcalidrawPathElement[];
-    const a = getPathSceneGeometry(A);
-    const b = getPathSceneGeometry(B);
-    const gap = (x: typeof a, y: typeof a) => {
-      const p = x.points[x.points.length - 1];
-      const q = y.points[0];
-      return Math.hypot(p[0] - q[0], p[1] - q[1]);
+    const [firstPath, secondPath] = selected as ExcalidrawPathElement[];
+    const firstGeometry = getPathSceneGeometry(firstPath);
+    const secondGeometry = getPathSceneGeometry(secondPath);
+    const gap = (from: typeof firstGeometry, to: typeof firstGeometry) => {
+      const tail = from.points[from.points.length - 1];
+      const head = to.points[0];
+      return Math.hypot(tail[0] - head[0], tail[1] - head[1]);
     };
     const candidates = [
-      [a, b],
-      [a, reversePathGeometry(b)],
-      [reversePathGeometry(a), b],
-      [reversePathGeometry(a), reversePathGeometry(b)],
+      [firstGeometry, secondGeometry],
+      [firstGeometry, reversePathGeometry(secondGeometry)],
+      [reversePathGeometry(firstGeometry), secondGeometry],
+      [reversePathGeometry(firstGeometry), reversePathGeometry(secondGeometry)],
     ] as const;
-    const [first, second] = candidates.reduce((best, c) =>
-      gap(c[0], c[1]) < gap(best[0], best[1]) ? c : best,
+    const [first, second] = candidates.reduce((best, candidate) =>
+      gap(candidate[0], candidate[1]) < gap(best[0], best[1])
+        ? candidate
+        : best,
     );
     const joined = joinPathGeometries(first, second);
     // scene coordinates, no rotation: a frame at the origin
-    const frame = { ...A, x: 0, y: 0, angle: 0 as any, ...joined };
+    const frame = { ...firstPath, x: 0, y: 0, angle: 0 as any, ...joined };
     const update = getPathUpdate(frame, joined);
     return {
       elements: elements.map((element) => {
-        if (element.id === A.id) {
+        if (element.id === firstPath.id) {
           return newElementWith(element, { ...update, angle: 0 as any } as any);
         }
-        if (element.id === B.id) {
+        if (element.id === secondPath.id) {
           return newElementWith(element, { isDeleted: true });
         }
         return element;
       }),
       appState: {
         ...appState,
-        selectedElementIds: { [A.id]: true },
+        selectedElementIds: { [firstPath.id]: true },
         editingPath: null,
       },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,

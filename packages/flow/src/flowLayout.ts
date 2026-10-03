@@ -2,56 +2,58 @@ import type { FlowGraph } from "./flowGraph";
 
 type Rect = { x: number; y: number; w: number; h: number };
 
-const overlaps = (a: Rect, b: Rect, gap: number) =>
-  a.x < b.x + b.w + gap &&
-  b.x < a.x + a.w + gap &&
-  a.y < b.y + b.h + gap &&
-  b.y < a.y + a.h + gap;
+const overlaps = (first: Rect, second: Rect, gap: number) =>
+  first.x < second.x + second.w + gap &&
+  second.x < first.x + first.w + gap &&
+  first.y < second.y + second.h + gap &&
+  second.y < first.y + first.h + gap;
 
 /** longest-path ranks, ignoring edges that close a cycle */
 const rankNodes = (graph: FlowGraph) => {
-  const keys = graph.nodes.map((n) => n.key);
-  const out = new Map<string, string[]>(keys.map((k) => [k, []]));
-  for (const e of graph.edges) {
-    if (out.has(e.from) && out.has(e.to) && e.from !== e.to) {
-      out.get(e.from)!.push(e.to);
+  const keys = graph.nodes.map((node) => node.key);
+  const out = new Map<string, string[]>(keys.map((key) => [key, []]));
+  for (const edge of graph.edges) {
+    if (out.has(edge.from) && out.has(edge.to) && edge.from !== edge.to) {
+      out.get(edge.from)!.push(edge.to);
     }
   }
   const state = new Map<string, 0 | 1 | 2>();
-  const dag = new Map<string, string[]>(keys.map((k) => [k, []]));
-  const visit = (k: string) => {
-    state.set(k, 1);
-    for (const t of out.get(k)!) {
-      const s = state.get(t) ?? 0;
-      if (s === 1) {
+  const dag = new Map<string, string[]>(keys.map((key) => [key, []]));
+  const visit = (key: string) => {
+    state.set(key, 1);
+    for (const target of out.get(key)!) {
+      const visitState = state.get(target) ?? 0;
+      if (visitState === 1) {
         continue; // back edge
       }
-      dag.get(k)!.push(t);
-      if (s === 0) {
-        visit(t);
+      dag.get(key)!.push(target);
+      if (visitState === 0) {
+        visit(target);
       }
     }
-    state.set(k, 2);
+    state.set(key, 2);
   };
-  const hasIncoming = new Set(graph.edges.map((e) => e.to));
-  for (const k of keys.filter((k) => !hasIncoming.has(k))) {
-    if (!state.get(k)) {
-      visit(k);
+  const hasIncoming = new Set(graph.edges.map((edge) => edge.to));
+  for (const key of keys.filter(
+    (candidateKey) => !hasIncoming.has(candidateKey),
+  )) {
+    if (!state.get(key)) {
+      visit(key);
     }
   }
-  for (const k of keys) {
-    if (!state.get(k)) {
-      visit(k);
+  for (const key of keys) {
+    if (!state.get(key)) {
+      visit(key);
     }
   }
-  const rank = new Map<string, number>(keys.map((k) => [k, 0]));
+  const rank = new Map<string, number>(keys.map((key) => [key, 0]));
   // relax along the DAG until stable (small graphs)
   for (let pass = 0; pass < keys.length; pass++) {
     let changed = false;
-    for (const [k, targets] of dag) {
-      for (const t of targets) {
-        if (rank.get(t)! < rank.get(k)! + 1) {
-          rank.set(t, rank.get(k)! + 1);
+    for (const [key, targets] of dag) {
+      for (const target of targets) {
+        if (rank.get(target)! < rank.get(key)! + 1) {
+          rank.set(target, rank.get(key)! + 1);
           changed = true;
         }
       }
@@ -63,6 +65,144 @@ const rankNodes = (graph: FlowGraph) => {
   return rank;
 };
 
+type Size = { w: number; h: number };
+type Point = { x: number; y: number };
+
+type Flow = {
+  horizontal: boolean;
+  /** 1 along the flow's direction, -1 against it (BT, RL) */
+  along: 1 | -1;
+  gap: number;
+};
+
+/** the step keys of each rank, steps of the same screen side by side */
+const rowsOf = (graph: FlowGraph) => {
+  const rank = rankNodes(graph);
+  const screenOrder = new Map(
+    graph.screens.map((flowScreen, index) => [flowScreen.key, index]),
+  );
+  const rows = new Map<number, string[]>();
+  for (const node of graph.nodes) {
+    const nodeRank = rank.get(node.key)!;
+    rows.set(nodeRank, [...(rows.get(nodeRank) ?? []), node.key]);
+  }
+  const nodeByKey = new Map(graph.nodes.map((node) => [node.key, node]));
+  for (const keys of rows.values()) {
+    keys.sort(
+      (firstKey, secondKey) =>
+        (screenOrder.get(nodeByKey.get(firstKey)!.screen ?? "") ?? -1) -
+        (screenOrder.get(nodeByKey.get(secondKey)!.screen ?? "") ?? -1),
+    );
+  }
+  return { rows, nodeByKey };
+};
+
+/** With nothing placed: a layered layout in the graph's direction. */
+const layoutLayered = (
+  graph: FlowGraph,
+  sizes: ReadonlyMap<string, Size>,
+  origin: Point,
+  { horizontal, along, gap }: Flow,
+  put: (key: string, rect: Rect) => void,
+) => {
+  const { rows, nodeByKey } = rowsOf(graph);
+  const ranks = [...rows.keys()].sort((first, second) => first - second);
+  // thickness of each rank along the flow, extent across it
+  let cursor = 0;
+  const lanes: { keys: string[]; at: number; size: number }[] = [];
+  for (const currentRank of ranks) {
+    const keys = rows.get(currentRank)!;
+    const thick = Math.max(
+      ...keys.map((key) =>
+        horizontal ? sizes.get(key)!.w : sizes.get(key)!.h,
+      ),
+    );
+    lanes.push({ keys, at: cursor, size: thick });
+    cursor += thick + gap * 2.2;
+  }
+  const total = cursor - gap * 2.2;
+  const screenBreak = (keys: string[], index: number) =>
+    index > 0 &&
+    nodeByKey.get(keys[index - 1])!.screen !==
+      nodeByKey.get(keys[index])!.screen;
+  const span = (keys: string[]) =>
+    keys.reduce(
+      (running, key, index) =>
+        running +
+        (horizontal ? sizes.get(key)!.h : sizes.get(key)!.w) +
+        (index ? gap : 0) +
+        (screenBreak(keys, index) ? gap * 0.6 : 0),
+      0,
+    );
+  const widest = Math.max(...lanes.map((lane) => span(lane.keys)));
+  for (const lane of lanes) {
+    let across = (widest - span(lane.keys)) / 2;
+    lane.keys.forEach((key, index) => {
+      const size = sizes.get(key)!;
+      if (screenBreak(lane.keys, index)) {
+        across += gap * 0.6;
+      }
+      const main = along === 1 ? lane.at : total - lane.at - lane.size;
+      const x = horizontal ? main : across;
+      const y = horizontal ? across : main;
+      put(key, { x: origin.x + x, y: origin.y + y, w: size.w, h: size.h });
+      across += (horizontal ? size.h : size.w) + gap;
+    });
+  }
+};
+
+/** beside the placed step the new one links to, or under everything */
+const spotFor = (
+  graph: FlowGraph,
+  nodeKey: string,
+  size: Size,
+  placed: ReadonlyMap<string, Rect>,
+  origin: Point,
+  { horizontal, along, gap }: Flow,
+): Rect => {
+  const outEdge = graph.edges.find(
+    (edge) => edge.to === nodeKey && placed.has(edge.from),
+  );
+  const inEdge = graph.edges.find(
+    (edge) => edge.from === nodeKey && placed.has(edge.to),
+  );
+  const anchor = outEdge
+    ? placed.get(outEdge.from)!
+    : inEdge
+    ? placed.get(inEdge.to)!
+    : null;
+  if (!anchor) {
+    const all = [...placed.values()];
+    const bottom = all.length
+      ? Math.max(...all.map((bounds) => bounds.y + bounds.h))
+      : origin.y;
+    const left = all.length
+      ? Math.min(...all.map((bounds) => bounds.x))
+      : origin.x;
+    return { x: left, y: bottom + gap * 2.2, w: size.w, h: size.h };
+  }
+  const dir = outEdge ? along : inEdge ? -along : along;
+  return horizontal
+    ? {
+        x:
+          dir === 1
+            ? anchor.x + anchor.w + gap * 2.2
+            : anchor.x - size.w - gap * 2.2,
+        y: anchor.y + (anchor.h - size.h) / 2,
+        w: size.w,
+        h: size.h,
+      }
+    : {
+        x: anchor.x + (anchor.w - size.w) / 2,
+        y:
+          dir === 1
+            ? anchor.y + anchor.h + gap * 2.2
+            : anchor.y - size.h - gap * 2.2,
+        w: size.w,
+        h: size.h,
+      };
+};
+
 /**
  * Positions for the steps that are not on the canvas yet. With nothing placed,
  * a layered layout in the graph's direction from `origin`; otherwise each new
@@ -71,140 +211,47 @@ const rankNodes = (graph: FlowGraph) => {
 export const layoutNewNodes = (
   graph: FlowGraph,
   fixed: ReadonlyMap<string, Rect>,
-  sizes: ReadonlyMap<string, { w: number; h: number }>,
-  origin: { x: number; y: number },
+  sizes: ReadonlyMap<string, Size>,
+  origin: Point,
   gap: number,
-): Map<string, { x: number; y: number }> => {
-  const result = new Map<string, { x: number; y: number }>();
+): Map<string, Point> => {
+  const result = new Map<string, Point>();
   const placed = new Map<string, Rect>(fixed);
   const horizontal = graph.direction === "LR" || graph.direction === "RL";
   const reverse = graph.direction === "BT" || graph.direction === "RL";
-  const along = reverse ? -1 : 1;
+  const flow: Flow = { horizontal, along: reverse ? -1 : 1, gap };
 
-  const free = (r: Rect) =>
-    ![...placed.values()].some((p) => overlaps(r, p, gap / 2));
-  const put = (key: string, r: Rect) => {
-    placed.set(key, r);
-    result.set(key, { x: r.x, y: r.y });
+  const free = (rect: Rect) =>
+    ![...placed.values()].some((placedRect) =>
+      overlaps(rect, placedRect, gap / 2),
+    );
+  const put = (key: string, rect: Rect) => {
+    placed.set(key, rect);
+    result.set(key, { x: rect.x, y: rect.y });
   };
 
   if (!fixed.size && graph.nodes.length) {
-    const rank = rankNodes(graph);
-    const screenOrder = new Map(graph.screens.map((s, i) => [s.key, i]));
-    const rows = new Map<number, string[]>();
-    for (const n of graph.nodes) {
-      const r = rank.get(n.key)!;
-      rows.set(r, [...(rows.get(r) ?? []), n.key]);
-    }
-    const nodeByKey = new Map(graph.nodes.map((n) => [n.key, n]));
-    for (const keys of rows.values()) {
-      keys.sort(
-        (a, b) =>
-          (screenOrder.get(nodeByKey.get(a)!.screen ?? "") ?? -1) -
-          (screenOrder.get(nodeByKey.get(b)!.screen ?? "") ?? -1),
-      );
-    }
-    const ranks = [...rows.keys()].sort((a, b) => a - b);
-    // thickness of each rank along the flow, extent across it
-    let cursor = 0;
-    const lanes: { keys: string[]; at: number; size: number }[] = [];
-    for (const r of ranks) {
-      const keys = rows.get(r)!;
-      const thick = Math.max(
-        ...keys.map((k) => (horizontal ? sizes.get(k)!.w : sizes.get(k)!.h)),
-      );
-      lanes.push({ keys, at: cursor, size: thick });
-      cursor += thick + gap * 2.2;
-    }
-    const total = cursor - gap * 2.2;
-    const span = (keys: string[]) =>
-      keys.reduce(
-        (s, k, i) =>
-          s +
-          (horizontal ? sizes.get(k)!.h : sizes.get(k)!.w) +
-          (i ? gap : 0) +
-          (i && nodeByKey.get(keys[i - 1])!.screen !== nodeByKey.get(k)!.screen
-            ? gap * 0.6
-            : 0),
-        0,
-      );
-    const widest = Math.max(...lanes.map((l) => span(l.keys)));
-    for (const lane of lanes) {
-      let across = (widest - span(lane.keys)) / 2;
-      lane.keys.forEach((k, i) => {
-        const s = sizes.get(k)!;
-        if (
-          i &&
-          nodeByKey.get(lane.keys[i - 1])!.screen !== nodeByKey.get(k)!.screen
-        ) {
-          across += gap * 0.6;
-        }
-        const main = along === 1 ? lane.at : total - lane.at - lane.size;
-        const x = horizontal ? main : across;
-        const y = horizontal ? across : main;
-        put(k, { x: origin.x + x, y: origin.y + y, w: s.w, h: s.h });
-        across += (horizontal ? s.h : s.w) + gap;
-      });
-    }
+    layoutLayered(graph, sizes, origin, flow, put);
     return result;
   }
 
   // incremental: next to a placed neighbour
-  for (const n of graph.nodes) {
-    if (placed.has(n.key)) {
+  for (const node of graph.nodes) {
+    if (placed.has(node.key)) {
       continue;
     }
-    const s = sizes.get(n.key)!;
-    const outEdge = graph.edges.find(
-      (e) => e.to === n.key && placed.has(e.from),
-    );
-    const inEdge = graph.edges.find(
-      (e) => e.from === n.key && placed.has(e.to),
-    );
-    const anchor = outEdge
-      ? placed.get(outEdge.from)!
-      : inEdge
-      ? placed.get(inEdge.to)!
-      : null;
-    const dir = outEdge ? along : inEdge ? -along : along;
-    let r: Rect;
-    if (anchor) {
-      r = horizontal
-        ? {
-            x:
-              dir === 1
-                ? anchor.x + anchor.w + gap * 2.2
-                : anchor.x - s.w - gap * 2.2,
-            y: anchor.y + (anchor.h - s.h) / 2,
-            w: s.w,
-            h: s.h,
-          }
-        : {
-            x: anchor.x + (anchor.w - s.w) / 2,
-            y:
-              dir === 1
-                ? anchor.y + anchor.h + gap * 2.2
-                : anchor.y - s.h - gap * 2.2,
-            w: s.w,
-            h: s.h,
-          };
-    } else {
-      const all = [...placed.values()];
-      const bottom = all.length
-        ? Math.max(...all.map((p) => p.y + p.h))
-        : origin.y;
-      const left = all.length ? Math.min(...all.map((p) => p.x)) : origin.x;
-      r = { x: left, y: bottom + gap * 2.2, w: s.w, h: s.h };
-    }
-    for (let i = 0; i < 40 && !free(r); i++) {
+    const size = sizes.get(node.key)!;
+    let rect = spotFor(graph, node.key, size, placed, origin, flow);
+    for (let attempt = 0; attempt < 40 && !free(rect); attempt++) {
       // sideways, alternating
-      const step = (Math.floor(i / 2) + 1) * ((horizontal ? s.h : s.w) + gap);
-      const sign = i % 2 ? -1 : 1;
-      r = horizontal
-        ? { ...r, y: r.y + sign * step }
-        : { ...r, x: r.x + sign * step };
+      const step =
+        (Math.floor(attempt / 2) + 1) * ((horizontal ? size.h : size.w) + gap);
+      const sign = attempt % 2 ? -1 : 1;
+      rect = horizontal
+        ? { ...rect, y: rect.y + sign * step }
+        : { ...rect, x: rect.x + sign * step };
     }
-    put(n.key, r);
+    put(node.key, rect);
   }
   return result;
 };

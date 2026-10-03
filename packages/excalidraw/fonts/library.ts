@@ -74,7 +74,7 @@ export const setFontCatalogue = (fonts: LibraryFont[] | null) => {
 export const getLoadedCatalogue = () => loaded;
 
 export const findLibraryFont = (family: string | null | undefined) =>
-  family ? loaded.find((f) => f.family === family) ?? null : null;
+  family ? loaded.find((font) => font.family === family) ?? null : null;
 
 /** the face of a family closest to the weight and style asked for */
 export const pickLibraryStyle = (
@@ -83,10 +83,13 @@ export const pickLibraryStyle = (
   italic = false,
 ): LibraryFontStyle => {
   const wanted = italic ? "italic" : "normal";
-  const sameStyle = font.styles.filter((s) => s.style === wanted);
+  const sameStyle = font.styles.filter(
+    (fontStyle) => fontStyle.style === wanted,
+  );
   const pool = sameStyle.length ? sameStyle : font.styles;
   return [...pool].sort(
-    (a, b) => Math.abs(a.weight - weight) - Math.abs(b.weight - weight),
+    (first, second) =>
+      Math.abs(first.weight - weight) - Math.abs(second.weight - weight),
   )[0];
 };
 
@@ -97,7 +100,9 @@ export const hasExactStyle = (
   italic: boolean,
 ) =>
   font.styles.some(
-    (s) => s.weight === weight && s.style === (italic ? "italic" : "normal"),
+    (fontStyle) =>
+      fontStyle.weight === weight &&
+      fontStyle.style === (italic ? "italic" : "normal"),
   );
 
 const faces = new Map<string, Promise<FontFace | null>>();
@@ -113,7 +118,7 @@ export const loadLibraryFace = (
   if (!face) {
     face = (async () => {
       try {
-        const f = new FontFace(
+        const fontFace = new FontFace(
           font.family,
           `url(${libraryFileUrl(style.file)})`,
           {
@@ -122,9 +127,9 @@ export const loadLibraryFace = (
             display: "swap",
           },
         );
-        ownerDocument.fonts.add(f);
-        await f.load();
-        return f;
+        ownerDocument.fonts.add(fontFace);
+        await fontFace.load();
+        return fontFace;
       } catch {
         return null;
       }
@@ -169,7 +174,7 @@ export const loadLibraryFontsFor = async (
       loadLibraryFace(font, style, ownerDocument),
     ),
   );
-  return made.filter((f): f is FontFace => !!f);
+  return made.filter((face): face is FontFace => !!face);
 };
 
 /** `@font-face` rules (subsetted to the characters used, inlined) for exporting texts set in library fonts */
@@ -180,7 +185,9 @@ export const libraryFontFaceCSS = async (
     string,
     { font: LibraryFont; style: LibraryFontStyle; chars: Set<number> }
   >();
-  const named = elements.some((e) => isTextElement(e) && e.fontFamilyName);
+  const named = elements.some(
+    (element) => isTextElement(element) && element.fontFamilyName,
+  );
   if (!named) {
     return [];
   }

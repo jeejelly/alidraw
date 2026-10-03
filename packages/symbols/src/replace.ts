@@ -29,18 +29,18 @@ export const symbolInBox = (
   box: { x: number; y: number; width: number; height: number },
   label: string,
 ): ExcalidrawElement[] => {
-  const def = COMPONENTS.find((c) => c.id === componentId);
+  const def = COMPONENTS.find((component) => component.id === componentId);
   if (!def) {
     return [];
   }
   const key = labelKeyOf(componentId);
-  const v = {
+  const merged = {
     ...defaultsOf(def),
     ...values,
     ...(key && label ? { [key]: label } : {}),
   };
   const els = buildElements(
-    def.shapes(theme, v),
+    def.shapes(theme, merged),
     theme,
     { x: 0, y: 0 },
     def.id,
@@ -54,15 +54,15 @@ export const symbolInBox = (
   };
   const pins = inferPins(els, from, getLayout(els));
   const updates = stretchUpdates(els, pins, from, to);
-  return els.map((e) => {
-    const u = updates.get(e.id) ?? {};
+  return els.map((element) => {
+    const update = updates.get(element.id) ?? {};
     return {
-      ...e,
-      ...u,
+      ...element,
+      ...update,
       customData: {
-        ...e.customData,
+        ...element.customData,
         symbol: {
-          ...e.customData?.symbol,
+          ...element.customData?.symbol,
           component: componentId,
           values,
         },

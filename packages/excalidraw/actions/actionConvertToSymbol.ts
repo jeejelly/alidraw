@@ -1,17 +1,19 @@
 import { CaptureUpdateAction } from "@excalidraw/element";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
-
 import { getFlowMeta } from "@excalidraw/flow";
 import { expandSelection } from "@excalidraw/flow";
-import { t } from "../i18n";
+
 import { getSymbolMeta } from "@excalidraw/symbols";
 import { makeCustomSymbol } from "@excalidraw/symbols";
+
+import type { ExcalidrawElement } from "@excalidraw/element/types";
+
+import { t } from "../i18n";
 
 import { register } from "./register";
 
 const NAME_FROM = (els: readonly ExcalidrawElement[]) => {
-  const text = els.find((e) => e.type === "text") as any;
+  const text = els.find((element) => element.type === "text") as any;
   const first = text?.text?.split("\n")[0]?.trim();
   return first ? first.slice(0, 30) : "Symbol";
 };
@@ -36,14 +38,14 @@ export const actionConvertToSymbol = register({
         selectedElementIds: appState.selectedElementIds,
         includeBoundTextElement: true,
       }),
-    ).filter((e) => {
-      const flow = getFlowMeta(e);
+    ).filter((element) => {
+      const flow = getFlowMeta(element);
       return !(
         flow &&
         (flow.kind === "label" || flow.kind === "handle" || flow.wrap)
       );
     });
-    if (!wanted.length || wanted.every((e) => getSymbolMeta(e))) {
+    if (!wanted.length || wanted.every((element) => getSymbolMeta(element))) {
       return {
         elements: all,
         appState: {
@@ -54,16 +56,16 @@ export const actionConvertToSymbol = register({
       };
     }
     // in the order they are drawn
-    const ids = new Set(wanted.map((e) => e.id));
-    const ordered = all.filter((e) => ids.has(e.id));
+    const ids = new Set(wanted.map((element) => element.id));
+    const ordered = all.filter((element) => ids.has(element.id));
     const made = makeCustomSymbol(ordered, NAME_FROM(ordered));
-    const byId = new Map(made.elements.map((e) => [e.id, e]));
+    const byId = new Map(made.elements.map((element) => [element.id, element]));
     return {
-      elements: all.map((e) => byId.get(e.id) ?? e),
+      elements: all.map((element) => byId.get(element.id) ?? element),
       appState: {
         ...appState,
         selectedElementIds: Object.fromEntries(
-          made.elements.map((e) => [e.id, true as const]),
+          made.elements.map((element) => [element.id, true as const]),
         ),
         selectedGroupIds: {},
         toast: {

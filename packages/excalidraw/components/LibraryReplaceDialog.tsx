@@ -14,7 +14,7 @@ const Preview = ({ item }: { item: LibraryItem }) => {
   useEffect(() => {
     let cancelled = false;
     exportToSvg(
-      item.elements.filter((e) => !e.isDeleted) as any,
+      item.elements.filter((element) => !element.isDeleted) as any,
       {
         exportBackground: false,
         viewBackgroundColor: "#ffffff",

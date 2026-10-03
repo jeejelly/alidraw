@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ROUNDNESS, reseed } from "@excalidraw/common";
+import { ROUNDNESS } from "@excalidraw/common";
 import { CaptureUpdateAction } from "@excalidraw/element";
 
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
@@ -15,6 +15,7 @@ import {
 } from "../actions";
 import { Excalidraw } from "../index";
 
+import { liveElements, resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import { Keyboard } from "./helpers/ui";
 import {
@@ -28,27 +29,23 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
-const live = () =>
-  h.elements.filter((e) => !e.isDeleted) as ExcalidrawPathElement[];
+const live = () => liveElements<ExcalidrawPathElement>();
 
 const run = async (action: any) => {
   await act(async () => {
-    h.app.actionManager.executeAction(action);
+    handle.app.actionManager.executeAction(action);
     // the operation loads its engine on first use
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   });
 };
 
 const setup = async () => {
   await render(<Excalidraw />);
-  const a = API.createElement({
+  const first = API.createElement({
     type: "rectangle",
     x: 0,
     y: 0,
@@ -57,7 +54,7 @@ const setup = async () => {
     strokeColor: "#ff0000",
     backgroundColor: "#ffff00",
   });
-  const b = API.createElement({
+  const second = API.createElement({
     type: "ellipse",
     x: 50,
     y: 50,
@@ -66,21 +63,21 @@ const setup = async () => {
     strokeColor: "#0000ff",
     backgroundColor: "#00ffff",
   });
-  API.setElements([a, b]);
-  API.setSelectedElements([a, b]);
-  return { a, b };
+  API.setElements([first, second]);
+  API.setSelectedElements([first, second]);
+  return { first, second };
 };
 
-const box = (p: ExcalidrawPathElement) => [
-  p.x,
-  p.y,
-  p.x + p.width,
-  p.y + p.height,
+const box = (path: ExcalidrawPathElement) => [
+  path.x,
+  path.y,
+  path.x + path.width,
+  path.y + path.height,
 ];
 
 describe("pathfinder in the editor", () => {
   it("unite replaces both with one path, wearing the top shape's style", async () => {
-    const { a, b } = await setup();
+    const { first, second } = await setup();
     await run(actionPathfinderUnite);
     const out = live();
     expect(out).toHaveLength(1);
@@ -89,9 +86,13 @@ describe("pathfinder in the editor", () => {
     expect(out[0].strokeColor).toBe("#0000ff");
     expect(box(out[0]).map(Math.round)).toEqual([0, 0, 150, 150]);
     // the operands are gone, the result is selected
-    expect(h.elements.find((e) => e.id === a.id)!.isDeleted).toBe(true);
-    expect(h.elements.find((e) => e.id === b.id)!.isDeleted).toBe(true);
-    expect(h.state.selectedElementIds).toEqual({ [out[0].id]: true });
+    expect(
+      handle.elements.find((element) => element.id === first.id)!.isDeleted,
+    ).toBe(true);
+    expect(
+      handle.elements.find((element) => element.id === second.id)!.isDeleted,
+    ).toBe(true);
+    expect(handle.state.selectedElementIds).toEqual({ [out[0].id]: true });
   });
 
   it("subtract keeps the bottom shape's style and cuts the top out of it", async () => {
@@ -118,28 +119,28 @@ describe("pathfinder in the editor", () => {
     await run(actionPathfinderDivide);
     const out = live();
     expect(out).toHaveLength(3);
-    const groups = new Set(out.map((e) => e.groupIds[0]));
+    const groups = new Set(out.map((element) => element.groupIds[0]));
     expect(groups.size).toBe(1);
   });
 
   it("a rotated shape takes part where it really is", async () => {
     await render(<Excalidraw />);
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 100,
       height: 20,
     });
-    const b = API.createElement({
+    const second = API.createElement({
       type: "rectangle",
       x: 40,
       y: -40,
       width: 20,
       height: 100,
     });
-    API.setElements([a, b]);
-    API.setSelectedElements([a, b]);
+    API.setElements([first, second]);
+    API.setSelectedElements([first, second]);
     await run(actionPathfinderUnite);
     const [plus] = live();
     // a plus sign: 100 wide and 100 tall
@@ -150,20 +151,20 @@ describe("pathfinder in the editor", () => {
 
   it("does nothing for one shape or for text", async () => {
     await render(<Excalidraw />);
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 10,
       height: 10,
     });
-    const t = API.createElement({ type: "text", x: 5, y: 5, text: "hi" });
-    API.setElements([a, t]);
-    API.setSelectedElements([a, t]);
+    const text = API.createElement({ type: "text", x: 5, y: 5, text: "hi" });
+    API.setElements([first, text]);
+    API.setSelectedElements([first, text]);
     await run(actionPathfinderUnite);
     expect(
       live()
-        .map((e) => e.type)
+        .map((element) => element.type)
         .sort(),
     ).toEqual(["rectangle", "text"]);
   });
@@ -171,42 +172,42 @@ describe("pathfinder in the editor", () => {
   it("the inspector's buttons are live only for two or more closed shapes", async () => {
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 100,
       height: 100,
     });
-    const b = API.createElement({
+    const second = API.createElement({
       type: "ellipse",
       x: 50,
       y: 50,
       width: 100,
       height: 100,
     });
-    API.setElements([a, b]);
-    API.setSelectedElements([a]);
+    API.setElements([first, second]);
+    API.setSelectedElements([first]);
     expect(
       (screen.getByTestId("pathfinder-unite") as HTMLButtonElement).disabled,
     ).toBe(true);
-    API.setSelectedElements([a, b]);
+    API.setSelectedElements([first, second]);
     const unite = screen.getByTestId("pathfinder-unite") as HTMLButtonElement;
     expect(unite.disabled).toBe(false);
     fireEvent.click(unite);
     await waitFor(() => expect(live()).toHaveLength(1));
   });
 
-  it("is one undo step", async () => {
+  it("a pathfinder operation undoes in one step", async () => {
     await render(<Excalidraw handleKeyboardGlobally />);
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 100,
       height: 100,
     });
-    const b = API.createElement({
+    const second = API.createElement({
       type: "ellipse",
       x: 50,
       y: 50,
@@ -214,20 +215,20 @@ describe("pathfinder in the editor", () => {
       height: 100,
     });
     API.updateScene({
-      elements: [a, b],
+      elements: [first, second],
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
-    API.setSelectedElements([a, b]);
+    API.setSelectedElements([first, second]);
     await run(actionPathfinderUnite);
-    expect(live().map((e) => e.type)).toEqual(["path"]);
+    expect(live().map((element) => element.type)).toEqual(["path"]);
     Keyboard.undo();
     expect(
       live()
-        .map((e) => e.type)
+        .map((element) => element.type)
         .sort(),
     ).toEqual(["ellipse", "rectangle"]);
     Keyboard.redo();
-    expect(live().map((e) => e.type)).toEqual(["path"]);
+    expect(live().map((element) => element.type)).toEqual(["path"]);
   });
 });
 
@@ -263,8 +264,8 @@ describe("compound shapes", () => {
     expect(box(out[0]).map(Math.round)).toEqual([0, 0, 200, 200]);
     // the hole sits inside the frame
     const hole = out[0].contours![0].points;
-    expect(Math.min(...hole.map((p) => p[0]))).toBeGreaterThan(40);
-    expect(Math.max(...hole.map((p) => p[0]))).toBeLessThan(160);
+    expect(Math.min(...hole.map((point) => point[0]))).toBeGreaterThan(40);
+    expect(Math.max(...hole.map((point) => point[0]))).toBeLessThan(160);
   });
 
   it("a shape with a hole takes part in the next operation whole", async () => {
@@ -284,23 +285,23 @@ describe("compound shapes", () => {
     const out = live();
     // the plug sits in the hole: ring and island stay apart as one shape
     expect(out).toHaveLength(2);
-    expect(out.filter((e) => e.contours?.length)).toHaveLength(1);
+    expect(out.filter((element) => element.contours?.length)).toHaveLength(1);
   });
 
   it("make and release compound shape round-trip", async () => {
     await donut();
     await act(async () => {
-      h.app.actionManager.executeAction(actionMakeCompoundShape);
+      handle.app.actionManager.executeAction(actionMakeCompoundShape);
     });
     let out = live();
     expect(out).toHaveLength(1);
     expect(out[0].contours).toHaveLength(1);
     await act(async () => {
-      h.app.actionManager.executeAction(actionReleaseCompoundShape);
+      handle.app.actionManager.executeAction(actionReleaseCompoundShape);
     });
     out = live();
     expect(out).toHaveLength(2);
-    expect(out.every((e) => !e.contours)).toBe(true);
+    expect(out.every((element) => !element.contours)).toBe(true);
   });
 
   it("moves, scales and saves with its holes", async () => {
@@ -309,14 +310,14 @@ describe("compound shapes", () => {
     const ring = live()[0];
     const json = JSON.parse(
       (await import("../data/json")).serializeAsJSON(
-        h.elements,
-        h.state,
+        handle.elements,
+        handle.state,
         {},
         "local",
       ),
     );
     const { restoreElements } = await import("../data/restore");
-    const saved = json.elements.find((e: any) => e.type === "path");
+    const saved = json.elements.find((element: any) => element.type === "path");
     const [back] = restoreElements([saved], null) as any[];
     expect(back.contours).toHaveLength(1);
     expect(back.contours[0].points).toEqual(ring.contours![0].points);
@@ -369,7 +370,9 @@ describe("pathfinder with rounded shapes", () => {
         piece.handles.filter((hd) => hd.in || hd.out).length,
       ).toBeGreaterThanOrEqual(2);
     }
-    const xs = out.map((p) => Math.round(p.x)).sort((a, b) => a - b);
+    const xs = out
+      .map((path) => Math.round(path.x))
+      .sort((first, second) => first - second);
     expect(xs).toEqual([0, 300]);
   });
 });

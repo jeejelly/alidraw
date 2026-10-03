@@ -19,7 +19,6 @@ import {
   invariant,
   shouldRotateWithDiscreteAngle,
   THEME,
-  applyDarkModeFilter,
 } from "@excalidraw/common";
 
 import {
@@ -53,12 +52,7 @@ import {
 
 import { renderSelectionElement } from "@excalidraw/element";
 
-import {
-  getCommonBounds,
-  getPathLoopView,
-  getElementAbsoluteCoords,
-  getElementBounds,
-} from "@excalidraw/element";
+import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
 import {
   getGlobalFixedPointForBindableElement,
   isFocusPointVisible,
@@ -79,29 +73,12 @@ import type {
   ExcalidrawFrameLikeElement,
   ExcalidrawImageElement,
   ExcalidrawLinearElement,
-  ExcalidrawPathElement,
   ExcalidrawTextElement,
   GroupId,
   NonDeleted,
   NonDeletedExcalidrawElement,
   NonDeletedSceneElementsMap,
 } from "@excalidraw/element/types";
-
-import {
-  getAnchor,
-  guideEdgeCoordinate,
-  isGuideAnchor,
-  pointOnBounds,
-} from "../anchors";
-import {
-  GIZMO_INNER,
-  GIZMO_OUTER,
-  getGizmoTarget,
-  gizmoToScene,
-  sameZone,
-  type GizmoZone,
-} from "../gizmo";
-import { canEditCorners, getCornerHandles } from "../corners";
 
 import { renderSnaps } from "../renderer/renderSnaps";
 import { roundRect } from "../renderer/roundRect";
@@ -117,6 +94,13 @@ import {
   getTextBoxPadding,
 } from "../textAutoResizeHandle";
 
+import { renderAnchorLink } from "./interactive/anchorLink";
+import { renderCornerGizmos } from "./interactive/cornerGizmos";
+import { renderGizmo } from "./interactive/gizmo";
+import { renderGuides } from "./interactive/guides";
+import { renderKnife } from "./interactive/knife";
+import { renderPathEditor } from "./interactive/pathEditor";
+import { getThemedColor } from "./interactive/shared";
 import {
   bootstrapCanvas,
   fillCircle,
@@ -163,12 +147,6 @@ const SEARCH_MATCH_COLOR = {
     match: "rgba(221, 181, 136, 0.4)",
   },
 } as const;
-
-/** maps a light-mode UI color to its dark-mode counterpart when in dark mode */
-const getThemedColor = (
-  color: string,
-  theme: InteractiveCanvasAppState["theme"],
-) => applyDarkModeFilter(color, theme === THEME.DARK);
 
 const renderElbowArrowMidPointHighlight = (
   context: CanvasRenderingContext2D,
@@ -1075,85 +1053,6 @@ const renderElementsBoxHighlight = (
     );
 };
 
-/** anchors of a path being edited, and the tangent handles of the selected one */
-const renderPathEditor = (
-  context: CanvasRenderingContext2D,
-  appState: InteractiveCanvasAppState,
-  element: ExcalidrawPathElement,
-  elementsMap: RenderableElementsMap,
-) => {
-  const editing = appState.editingPath;
-  if (!editing) {
-    return;
-  }
-  const zoom = appState.zoom.value;
-  const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
-  const center = pointFrom<GlobalPoint>(cx, cy);
-  const toScene = (p: readonly [number, number]) =>
-    pointRotateRads(
-      pointFrom<GlobalPoint>(element.x + p[0], element.y + p[1]),
-      center,
-      element.angle,
-    );
-
-  context.save();
-  context.translate(appState.scrollX, appState.scrollY);
-  context.lineWidth = 1 / zoom;
-  const accent = getThemedColor("#5e5ad8", appState.theme);
-  const fill = getThemedColor("rgba(255, 255, 255, 0.95)", appState.theme);
-  const fillSelected = getThemedColor("#5e5ad8", appState.theme);
-  const r = 5 / zoom;
-
-  const loops = 1 + (element.contours?.length ?? 0);
-  for (let loop = 0; loop < loops; loop++) {
-    const view = getPathLoopView(element, loop);
-    const selected =
-      loop === (editing.loop ?? 0) ? editing.selectedPoint : null;
-    if (
-      selected != null &&
-      view.handles[selected]?.mode !== "corner" &&
-      view.handles[selected]
-    ) {
-      const anchor = toScene(view.points[selected]);
-      for (const side of ["in", "out"] as const) {
-        const h = view.handles[selected][side];
-        if (!h) {
-          continue;
-        }
-        const tip = toScene([
-          view.points[selected][0] + h[0],
-          view.points[selected][1] + h[1],
-        ]);
-        context.strokeStyle = accent;
-        context.beginPath();
-        context.moveTo(anchor[0], anchor[1]);
-        context.lineTo(tip[0], tip[1]);
-        context.stroke();
-        context.fillStyle = fill;
-        context.beginPath();
-        context.arc(tip[0], tip[1], r * 0.8, 0, Math.PI * 2);
-        context.fill();
-        context.stroke();
-      }
-    }
-
-    view.points.forEach((point, index) => {
-      const p = toScene(point);
-      context.strokeStyle = accent;
-      context.fillStyle = index === selected ? fillSelected : fill;
-      context.beginPath();
-      if (view.handles[index]?.mode === "corner") {
-        context.rect(p[0] - r, p[1] - r, r * 2, r * 2);
-      } else {
-        context.arc(p[0], p[1], r, 0, Math.PI * 2);
-      }
-      context.fill();
-      context.stroke();
-    });
-  }
-  context.restore();
-};
-
 const renderLinearPointHandles = (
   context: CanvasRenderingContext2D,
   appState: InteractiveCanvasAppState,
@@ -1424,407 +1323,6 @@ const renderFocusPointIndicator = ({
       isHovered,
     );
   }
-};
-
-/** rotate arcs at the corners, skew grips on the edges, the hovered zone, a readout */
-/** the circle gizmos of live corners: the rounding circle and its grab point */
-const renderCornerGizmos = (
-  context: CanvasRenderingContext2D,
-  appState: InteractiveCanvasAppState,
-  element: ExcalidrawElement,
-  elementsMap: RenderableElementsMap,
-) => {
-  if (
-    !appState.cornerMode ||
-    appState.editingPath ||
-    !canEditCorners(element)
-  ) {
-    return;
-  }
-  const zoom = appState.zoom.value;
-  const accent = getThemedColor("#6965db", appState.theme);
-  const white = getThemedColor("#ffffff", appState.theme);
-  // the caller has already moved the origin to the scene
-  context.save();
-  context.lineWidth = 1.5 / zoom;
-  for (const h of getCornerHandles(element, elementsMap)) {
-    // the grab point sits on the circle's centre; at radius 0 just inside
-    const grab =
-      h.radius > 0
-        ? h.center
-        : {
-            x: h.corner.x + h.dir.x * (14 / zoom),
-            y: h.corner.y + h.dir.y * (14 / zoom),
-          };
-    if (h.radius > 0) {
-      context.strokeStyle = accent;
-      context.globalAlpha = 0.55;
-      context.beginPath();
-      context.arc(h.center.x, h.center.y, h.radius, 0, Math.PI * 2);
-      context.stroke();
-      context.globalAlpha = 1;
-    }
-    context.strokeStyle = accent;
-    context.setLineDash([3 / zoom, 3 / zoom]);
-    context.beginPath();
-    context.moveTo(h.corner.x, h.corner.y);
-    context.lineTo(grab.x, grab.y);
-    context.stroke();
-    context.setLineDash([]);
-    context.fillStyle = white;
-    context.beginPath();
-    context.arc(grab.x, grab.y, 6 / zoom, 0, Math.PI * 2);
-    context.fill();
-    context.stroke();
-    if (h.radius > 0) {
-      context.fillStyle = accent;
-      context.font = `${11 / zoom}px sans-serif`;
-      context.fillText(
-        `${Math.round(h.radius)}`,
-        grab.x + 9 / zoom,
-        grab.y - 6 / zoom,
-      );
-    }
-  }
-  context.restore();
-};
-
-const renderGizmo = (
-  context: CanvasRenderingContext2D,
-  appState: InteractiveCanvasAppState,
-  selected: readonly NonDeletedExcalidrawElement[],
-  elementsMap: RenderableElementsMap,
-) => {
-  if (
-    appState.activeTool.type !== "selection" ||
-    appState.viewModeEnabled ||
-    appState.editingPath ||
-    appState.editingTextElement ||
-    appState.croppingElementId
-  ) {
-    return;
-  }
-  const target = getGizmoTarget(selected, elementsMap);
-  if (!target) {
-    return;
-  }
-  const z = appState.zoom.value;
-  const { cx, cy, hw, hh, angle } = target.frame;
-  const skewable = target.skewable;
-  const hover = appState.gizmo?.hover ?? null;
-  const accent = getThemedColor("#6965db", appState.theme);
-  const at = (lx: number, ly: number) => gizmoToScene(lx, ly, cx, cy, angle);
-  const inner = GIZMO_INNER / z;
-  const mid = (GIZMO_INNER + 10) / z;
-  const outer = GIZMO_OUTER / z;
-
-  context.save();
-  context.lineCap = "round";
-  context.lineJoin = "round";
-  context.lineWidth = 2 / z;
-
-  // every stroke gets a light halo so it reads over any drawing
-  const stroke = () => {
-    const color = context.strokeStyle;
-    const width = context.lineWidth;
-    const alpha = context.globalAlpha;
-    context.strokeStyle = getThemedColor("#ffffff", appState.theme);
-    context.lineWidth = width + 3 / z;
-    context.globalAlpha = alpha * 0.9;
-    context.stroke();
-    context.strokeStyle = color;
-    context.lineWidth = width;
-    context.globalAlpha = alpha;
-    context.stroke();
-  };
-
-  // axes through the centre: the pivot and the selection's own
-  // orientation, readable at a glance
-  {
-    const reach = Math.max(hw, hh) + (GIZMO_OUTER * 2.2) / z;
-    const axes: [number, number, string][] = [
-      [1, 0, "#e5484d"],
-      [0, 1, "#30a46c"],
-    ];
-    context.save();
-    context.setLineDash([6 / z, 4 / z]);
-    context.lineWidth = 1 / z;
-    for (const [ax, ay, color] of axes) {
-      const [sx, sy] = at(-ax * reach, -ay * reach);
-      const [ex, ey] = at(ax * reach, ay * reach);
-      context.strokeStyle = getThemedColor(color, appState.theme);
-      context.globalAlpha = 0.55;
-      context.beginPath();
-      context.moveTo(sx, sy);
-      context.lineTo(ex, ey);
-      context.stroke();
-    }
-    context.restore();
-    context.save();
-    context.fillStyle = accent;
-    context.strokeStyle = getThemedColor("#ffffff", appState.theme);
-    context.lineWidth = 2 / z;
-    context.beginPath();
-    context.arc(cx, cy, 4 / z, 0, Math.PI * 2);
-    context.stroke();
-    context.fill();
-    context.restore();
-  }
-
-  // axes of other elements this rotation is locked onto
-  for (const line of appState.gizmo?.align ?? []) {
-    // a short guide from the turning selection to what it lined up with,
-    // not a line across the whole canvas
-    const dx = line.x - line.tx;
-    const dy = line.y - line.ty;
-    const dist = Math.hypot(dx, dy);
-    const reach = Math.max(hw, hh) + (GIZMO_OUTER * 2) / z;
-    const ux = Math.cos(line.angle);
-    const uy = Math.sin(line.angle);
-    const pad = 40 / z;
-    const [ax, ay, bx, by] =
-      dist < 1e-6
-        ? [
-            line.tx - ux * reach,
-            line.ty - uy * reach,
-            line.tx + ux * reach,
-            line.ty + uy * reach,
-          ]
-        : [
-            line.tx - (dx / dist) * pad,
-            line.ty - (dy / dist) * pad,
-            line.x + (dx / dist) * pad,
-            line.y + (dy / dist) * pad,
-          ];
-    context.save();
-    context.strokeStyle = getThemedColor("#e0449b", appState.theme);
-    context.lineWidth = 1 / z;
-    context.setLineDash([5 / z, 4 / z]);
-    context.globalAlpha = 0.9;
-    context.beginPath();
-    context.moveTo(ax, ay);
-    context.lineTo(bx, by);
-    context.stroke();
-    context.restore();
-  }
-
-  const hot = (zone: GizmoZone) => hover && sameZone(hover, zone);
-
-  // rotate: an arc with an arrowhead around each corner
-  for (const corner of ["nw", "ne", "se", "sw"] as const) {
-    const sx = corner.endsWith("w") ? -1 : 1;
-    const sy = corner.startsWith("n") ? -1 : 1;
-    const active = hot({ kind: "rotate", corner });
-    context.strokeStyle = accent;
-    context.globalAlpha = active ? 1 : 0.45;
-    const [ox, oy] = at(sx * (hw + mid), sy * (hh + mid));
-    const r = 10 / z;
-    const base = Math.atan2(sy, sx) + angle;
-    context.beginPath();
-    context.arc(ox, oy, r, base - 0.9, base + 0.9);
-    stroke();
-    // arrowheads at both ends
-    for (const end of [-0.9, 0.9]) {
-      const a = base + end;
-      const tx = ox + Math.cos(a) * r;
-      const ty = oy + Math.sin(a) * r;
-      const dir = a + (end > 0 ? Math.PI / 2 : -Math.PI / 2);
-      context.beginPath();
-      context.moveTo(
-        tx - (Math.cos(dir - 0.5) * 4) / z,
-        ty - (Math.sin(dir - 0.5) * 4) / z,
-      );
-      context.lineTo(tx, ty);
-      context.lineTo(
-        tx - (Math.cos(dir + 0.5) * 4) / z,
-        ty - (Math.sin(dir + 0.5) * 4) / z,
-      );
-      stroke();
-    }
-    if (active) {
-      context.globalAlpha = 0.12;
-      context.fillStyle = accent;
-      const pts = [
-        at(sx * (hw + inner * 0.35), sy * (hh + inner * 0.35)),
-        at(sx * (hw + outer), sy * (hh + inner * 0.35)),
-        at(sx * (hw + outer), sy * (hh + outer)),
-        at(sx * (hw + inner * 0.35), sy * (hh + outer)),
-      ];
-      context.beginPath();
-      pts.forEach(([px, py], i) =>
-        i ? context.lineTo(px, py) : context.moveTo(px, py),
-      );
-      context.closePath();
-      context.fill();
-    }
-  }
-
-  // skew: a slanted double bar on the middle of each edge
-  if (skewable) {
-    for (const edge of ["n", "e", "s", "w"] as const) {
-      // the rotation handle sits above the top edge
-      if (edge === "n") {
-        continue;
-      }
-      const horizontal = edge === "s";
-      const sgn = edge === "s" || edge === "e" ? 1 : -1;
-      const active = hot({ kind: "skew", edge });
-      context.strokeStyle = accent;
-      context.globalAlpha = active ? 1 : 0.45;
-      const [px, py] = horizontal
-        ? at(0, sgn * (hh + mid))
-        : at(sgn * (hw + mid), 0);
-      const len = 11 / z;
-      const slant = 4 / z;
-      const along = horizontal ? angle : angle + Math.PI / 2;
-      const ux = Math.cos(along);
-      const uy = Math.sin(along);
-      const nx = -uy;
-      const ny = ux;
-      for (const off of [-2.5 / z, 2.5 / z]) {
-        context.beginPath();
-        context.moveTo(
-          px + ux * (-len + slant * Math.sign(off || 1)) + nx * off,
-          py + uy * (-len + slant * Math.sign(off || 1)) + ny * off,
-        );
-        context.lineTo(
-          px + ux * (len + slant * Math.sign(off || 1)) + nx * off,
-          py + uy * (len + slant * Math.sign(off || 1)) + ny * off,
-        );
-        stroke();
-      }
-    }
-  }
-
-  // live readout while dragging
-  const readout = appState.gizmo?.readout;
-  if (readout) {
-    context.globalAlpha = 1;
-    context.font = `${12 / z}px sans-serif`;
-    const w = context.measureText(readout.text).width + 10 / z;
-    const h = 18 / z;
-    context.fillStyle = accent;
-    context.beginPath();
-    if (context.roundRect) {
-      context.roundRect(readout.x, readout.y, w, h, 9 / z);
-    } else {
-      context.rect(readout.x, readout.y, w, h);
-    }
-    context.fill();
-    context.fillStyle = "#fff";
-    context.textBaseline = "middle";
-    context.fillText(readout.text, readout.x + 5 / z, readout.y + h / 2);
-  }
-  context.restore();
-};
-
-/** a dashed link from an anchored element to what it follows */
-const renderAnchorLink = (
-  context: CanvasRenderingContext2D,
-  appState: InteractiveCanvasAppState,
-  element: NonDeletedExcalidrawElement,
-  elementsMap: RenderableElementsMap,
-) => {
-  const anchor = getAnchor(element);
-  if (!anchor) {
-    return;
-  }
-  const z = appState.zoom.value;
-  const box = getElementBounds(element, elementsMap);
-  let from: [number, number] | null = null;
-  let to: [number, number] | null = null;
-  if (isGuideAnchor(anchor)) {
-    const guide = appState.guides.find((g) => g.id === anchor.guide);
-    if (!guide) {
-      return;
-    }
-    const e = guideEdgeCoordinate(box, guide.axis, anchor.edge);
-    const mid = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
-    from = guide.axis === "x" ? [e, mid[1]] : [mid[0], e];
-    to =
-      guide.axis === "x" ? [guide.position, mid[1]] : [mid[0], guide.position];
-  } else {
-    const target = elementsMap.get(anchor.to);
-    if (!target) {
-      return;
-    }
-    from = pointOnBounds(box, anchor.at);
-    to = pointOnBounds(getElementBounds(target, elementsMap), anchor.from);
-  }
-  const color = getThemedColor("#e0449b", appState.theme);
-  context.save();
-  context.strokeStyle = color;
-  context.fillStyle = color;
-  context.lineWidth = 1.5 / z;
-  context.setLineDash([5 / z, 4 / z]);
-  context.beginPath();
-  context.moveTo(from[0], from[1]);
-  context.lineTo(to[0], to[1]);
-  context.stroke();
-  context.setLineDash([]);
-  context.beginPath();
-  context.arc(from[0], from[1], 3 / z, 0, Math.PI * 2);
-  context.fill();
-  // the anchored end is a small diamond
-  const d = 4.5 / z;
-  context.beginPath();
-  context.moveTo(to[0], to[1] - d);
-  context.lineTo(to[0] + d, to[1]);
-  context.lineTo(to[0], to[1] + d);
-  context.lineTo(to[0] - d, to[1]);
-  context.closePath();
-  context.fill();
-  context.restore();
-};
-
-/** the knife's cut line with its angle */
-const renderKnife = (
-  context: CanvasRenderingContext2D,
-  appState: InteractiveCanvasAppState,
-) => {
-  const knife = appState.knife;
-  if (!knife) {
-    return;
-  }
-  const z = appState.zoom.value;
-  const color = getThemedColor("#e0449b", appState.theme);
-  context.save();
-  context.lineCap = "round";
-  context.strokeStyle = getThemedColor("#ffffff", appState.theme);
-  context.lineWidth = 4 / z;
-  context.beginPath();
-  context.moveTo(knife.from.x, knife.from.y);
-  context.lineTo(knife.to.x, knife.to.y);
-  context.stroke();
-  context.strokeStyle = color;
-  context.lineWidth = 1.75 / z;
-  context.setLineDash([7 / z, 5 / z]);
-  context.stroke();
-  context.setLineDash([]);
-  context.fillStyle = color;
-  for (const p of [knife.from, knife.to]) {
-    context.beginPath();
-    context.arc(p.x, p.y, 3.5 / z, 0, Math.PI * 2);
-    context.fill();
-  }
-  if (knife.label) {
-    context.font = `${12 / z}px sans-serif`;
-    const w = context.measureText(knife.label).width + 10 / z;
-    const h = 18 / z;
-    const x = knife.to.x + 12 / z;
-    const y = knife.to.y + 12 / z;
-    context.beginPath();
-    if (context.roundRect) {
-      context.roundRect(x, y, w, h, 9 / z);
-    } else {
-      context.rect(x, y, w, h);
-    }
-    context.fill();
-    context.fillStyle = "#fff";
-    context.textBaseline = "middle";
-    context.fillText(knife.label, x + 5 / z, y + h / 2);
-  }
-  context.restore();
 };
 
 const renderTransformHandles = (
@@ -2151,32 +1649,7 @@ const _renderInteractiveScene = ({
     normalizedHeight,
   });
 
-  if (appState.guides.length) {
-    context.save();
-    context.lineWidth = 1;
-    context.strokeStyle = getThemedColor("#e0449b", appState.theme);
-    context.setLineDash([]);
-    for (const guide of appState.guides) {
-      context.beginPath();
-      if (guide.axis === "x") {
-        const x =
-          Math.round(
-            (guide.position + appState.scrollX) * appState.zoom.value,
-          ) + 0.5;
-        context.moveTo(x, 0);
-        context.lineTo(x, appState.height);
-      } else {
-        const y =
-          Math.round(
-            (guide.position + appState.scrollY) * appState.zoom.value,
-          ) + 0.5;
-        context.moveTo(0, y);
-        context.lineTo(appState.width, y);
-      }
-      context.stroke();
-    }
-    context.restore();
-  }
+  renderGuides(context, appState);
 
   // Apply zoom
   context.save();

@@ -1,9 +1,6 @@
 import { radiusOf, type SymbolTheme, type Token } from "./theme";
 
-/**
- * UI components as a short list of shapes in theme tokens. The same list
- * draws the preview in the panel and builds the editable shapes on the canvas.
- */
+/** Components as shapes in theme tokens; the same list draws the preview and builds the canvas elements. */
 export type Radius = "ctl" | "card" | "pill" | number;
 
 type Common = {
@@ -82,10 +79,10 @@ export type ComponentDef = {
 };
 
 export const defaultsOf = (def: ComponentDef): Values =>
-  Object.fromEntries((def.params ?? []).map((p) => [p.key, p.def]));
+  Object.fromEntries((def.params ?? []).map((param) => [param.key, param.def]));
 
 /** a parametric component: `shapes` reads its values, `w` and `h` come from the shapes */
-export const p = (
+export const defineParametric = (
   id: string,
   name: string,
   category: ComponentCategory,
@@ -95,89 +92,92 @@ export const p = (
 ): ComponentDef => ({ id, name, category, w: 0, h: 0, params, shapes, tags });
 
 export const resolveRadius = (
-  r: Radius | undefined,
-  h: number,
-  w: number,
+  radius: Radius | undefined,
+  height: number,
+  width: number,
   theme: SymbolTheme,
 ) => {
-  const max = Math.min(w, h) / 2;
-  if (typeof r === "number") {
-    return Math.min(r, max);
+  const max = Math.min(width, height) / 2;
+  if (typeof radius === "number") {
+    return Math.min(radius, max);
   }
-  if (r === "pill") {
+  if (radius === "pill") {
     return theme.radius === 0 ? 0 : max;
   }
-  if (r === "card") {
-    return Math.min(radiusOf(theme, "card", h), max);
+  if (radius === "card") {
+    return Math.min(radiusOf(theme, "card", height), max);
   }
-  if (r === "ctl") {
-    return Math.min(radiusOf(theme, "ctl", h), max);
+  if (radius === "ctl") {
+    return Math.min(radiusOf(theme, "ctl", height), max);
   }
   return 0;
 };
 
-export const R = (
+export const rectShape = (
   x: number,
   y: number,
-  w: number,
-  h: number,
-  o: Partial<Extract<Shape, { t: "rect" }>> = {},
-): Shape => ({ t: "rect", x, y, w, h, ...o });
-export const E = (
+  width: number,
+  height: number,
+  overrides: Partial<Extract<Shape, { t: "rect" }>> = {},
+): Shape => ({ t: "rect", x, y, w: width, h: height, ...overrides });
+export const ellipseShape = (
   x: number,
   y: number,
-  w: number,
-  h: number,
-  o: Partial<Extract<Shape, { t: "ellipse" }>> = {},
-): Shape => ({ t: "ellipse", x, y, w, h, ...o });
-export const L = (pts: [number, number][], o: Partial<Common> = {}): Shape => ({
+  width: number,
+  height: number,
+  overrides: Partial<Extract<Shape, { t: "ellipse" }>> = {},
+): Shape => ({ t: "ellipse", x, y, w: width, h: height, ...overrides });
+export const lineShape = (
+  pts: [number, number][],
+  overrides: Partial<Common> = {},
+): Shape => ({
   t: "line",
   pts,
   s: "text",
-  ...o,
+  ...overrides,
 });
-export const I = (
+export const iconShape = (
   name: string,
   x: number,
   y: number,
   size: number,
-  s: Token = "text",
-): Shape => ({ t: "icon", name, x, y, size, s });
-export const T = (
+  stroke: Token = "text",
+): Shape => ({ t: "icon", name, x, y, size, s: stroke });
+export const textShape = (
   text: string,
   x: number,
   y: number,
   size: number,
-  s: Token = "text",
+  stroke: Token = "text",
   anchor: "start" | "middle" | "end" = "start",
-): Shape => ({ t: "text", text, x, y, size, s, anchor });
+): Shape => ({ t: "text", text, x, y, size, s: stroke, anchor });
 
 export const arcPts = (
   cx: number,
   cy: number,
-  r: number,
+  radius: number,
   a0: number,
   a1: number,
-  n = 18,
+  segments = 18,
 ): [number, number][] =>
-  Array.from({ length: n + 1 }, (_, k) => {
-    const a = a0 + ((a1 - a0) * k) / n;
-    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  Array.from({ length: segments + 1 }, (_, index) => {
+    const angle = a0 + ((a1 - a0) * index) / segments;
+    return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius];
   });
 
-export const deg = (d: number) => (d * Math.PI) / 180;
+export const deg = (degrees: number) => (degrees * Math.PI) / 180;
 
-export const c = (
+export const defineComponent = (
   id: string,
   name: string,
   category: ComponentCategory,
-  w: number,
-  h: number,
+  width: number,
+  height: number,
   shapes: ComponentDef["shapes"],
   tags = "",
-): ComponentDef => ({ id, name, category, w, h, shapes, tags });
+): ComponentDef => ({ id, name, category, w: width, h: height, shapes, tags });
 
-const textWidth = (s: string, size: number) => s.length * size * 0.62;
+const textWidth = (shape: string, size: number) => shape.length * size * 0.62;
 
 /** the box the shapes fill */
 export const boundsOf = (shapes: readonly Shape[]) => {
@@ -191,25 +191,25 @@ export const boundsOf = (shapes: readonly Shape[]) => {
     x1 = Math.max(x1, x);
     y1 = Math.max(y1, y);
   };
-  for (const s of shapes) {
-    if (s.t === "line") {
-      s.pts.forEach(([x, y]) => add(x, y));
-    } else if (s.t === "text") {
-      const w = textWidth(s.text, s.size);
+  for (const shape of shapes) {
+    if (shape.t === "line") {
+      shape.pts.forEach(([x, y]) => add(x, y));
+    } else if (shape.t === "text") {
+      const width = textWidth(shape.text, shape.size);
       const left =
-        s.anchor === "middle"
-          ? s.x - w / 2
-          : s.anchor === "end"
-          ? s.x - w
-          : s.x;
-      add(left, s.y - s.size * 0.62);
-      add(left + w, s.y + s.size * 0.62);
-    } else if (s.t === "icon") {
-      add(s.x, s.y);
-      add(s.x + s.size, s.y + s.size);
+        shape.anchor === "middle"
+          ? shape.x - width / 2
+          : shape.anchor === "end"
+          ? shape.x - width
+          : shape.x;
+      add(left, shape.y - shape.size * 0.62);
+      add(left + width, shape.y + shape.size * 0.62);
+    } else if (shape.t === "icon") {
+      add(shape.x, shape.y);
+      add(shape.x + shape.size, shape.y + shape.size);
     } else {
-      add(s.x, s.y);
-      add(s.x + s.w, s.y + s.h);
+      add(shape.x, shape.y);
+      add(shape.x + shape.w, shape.y + shape.h);
     }
   }
   return Number.isFinite(x0)

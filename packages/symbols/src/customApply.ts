@@ -42,7 +42,7 @@ export const setCustomParam = (
   value: string | number | boolean,
 ) => {
   const { params, root, values } = customOf(members);
-  const param = params.find((p) => p.key === key);
+  const param = params.find((candidate) => candidate.key === key);
   if (!param || !root) {
     return;
   }
@@ -65,7 +65,9 @@ export const setCustomParam = (
   void map;
   writeRoot(scene, root, {
     values: { ...values, [key]: value },
-    params: params.map((p) => (p.key === key ? { ...p, value } : p)),
+    params: params.map((entry) =>
+      entry.key === key ? { ...entry, value } : entry,
+    ),
   });
 };
 
@@ -79,23 +81,24 @@ export const addCustomParam = (
   sameValue = true,
 ) => {
   const { parts, params, root, values } = customOf(members);
-  const at = parts.findIndex((e) => e.id === part.id);
+  const at = parts.findIndex((element) => element.id === part.id);
   if (!root || at < 0) {
     return null;
   }
   const mine = readProp(part, prop);
   const indexes =
     sameValue && (prop === "backgroundColor" || prop === "strokeColor")
-      ? parts.flatMap((e, i) =>
-          readProp(e, prop) === mine &&
-          (e.type === "text") === (part.type === "text")
-            ? [i]
+      ? parts.flatMap((element, index) =>
+          readProp(element, prop) === mine &&
+          (element.type === "text") === (part.type === "text")
+            ? [index]
             : [],
         )
       : [at];
   // part numbers are positions in the symbol: the meta of each element says which it is
   const numbers = indexes.map(
-    (i) => (getSymbolMeta(parts[i]) as CustomMeta | null)?.part ?? i,
+    (index) =>
+      (getSymbolMeta(parts[index]) as CustomMeta | null)?.part ?? index,
   );
   const key = freshKey(
     params,
@@ -108,7 +111,7 @@ export const addCustomParam = (
     parts,
     indexes,
   );
-  param.targets = numbers.map((n) => ({ part: n, prop }));
+  param.targets = numbers.map((partIndex) => ({ part: partIndex, prop }));
   writeRoot(scene, root, {
     params: [...params, param],
     values: { ...values, [key]: param.value },
@@ -125,8 +128,8 @@ export const renameCustomParam = (
   const { params, root } = customOf(members);
   if (root && label.trim()) {
     writeRoot(scene, root, {
-      params: params.map((p) =>
-        p.key === key ? { ...p, label: label.trim() } : p,
+      params: params.map((param) =>
+        param.key === key ? { ...param, label: label.trim() } : param,
       ),
     });
   }
@@ -141,7 +144,7 @@ export const removeCustomParam = (
   if (root) {
     const { [key]: _gone, ...rest } = values;
     writeRoot(scene, root, {
-      params: params.filter((p) => p.key !== key),
+      params: params.filter((param) => param.key !== key),
       values: rest,
     });
   }

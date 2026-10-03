@@ -215,48 +215,50 @@ export const TONAL_THEMES: readonly SymbolTheme[] = [
 
 export const ALL_THEMES: readonly SymbolTheme[] = [...THEMES, ...TONAL_THEMES];
 
-export const DEFAULT_THEME = THEMES.find((t) => t.name === "Pop")!;
+export const DEFAULT_THEME = THEMES.find((theme) => theme.name === "Pop")!;
 
 /** the radius of controls and of cards, in px, for a control of height `h` */
-export const radiusOf = (theme: SymbolTheme, kind: "ctl" | "card", h = 40) => {
+export const radiusOf = (
+  theme: SymbolTheme,
+  kind: "ctl" | "card",
+  height = 40,
+) => {
   const full = theme.radius >= MAX_RADIUS;
   return kind === "ctl"
     ? full
-      ? h / 2
+      ? height / 2
       : theme.radius
     : full
     ? 20
     : Math.min(theme.radius * 1.5, 28);
 };
 
-const mix = (a: string, b: string, t: number) => {
-  const pa = /^#?([0-9a-f]{6})$/i.exec(a)?.[1];
-  const pb = /^#?([0-9a-f]{6})$/i.exec(b)?.[1];
+const mix = (from: string, to: string, amount: number) => {
+  const pa = /^#?([0-9a-f]{6})$/i.exec(from)?.[1];
+  const pb = /^#?([0-9a-f]{6})$/i.exec(to)?.[1];
   if (!pa || !pb) {
-    return a;
+    return from;
   }
-  const ch = (h: string, i: number) => parseInt(h.slice(i, i + 2), 16);
-  const out = [0, 2, 4].map((i) =>
-    Math.round(ch(pa, i) * (1 - t) + ch(pb, i) * t)
+  const ch = (hex: string, offset: number) =>
+    parseInt(hex.slice(offset, offset + 2), 16);
+  const out = [0, 2, 4].map((offset) =>
+    Math.round(ch(pa, offset) * (1 - amount) + ch(pb, offset) * amount)
       .toString(16)
       .padStart(2, "0"),
   );
   return `#${out.join("")}`;
 };
 
-/**
- * The reference colours of a theme: its tokens, then a ramp of the accent from
- * light to dark, so a design keeps to a short list of colours.
- */
+/** The theme tokens, then a light-to-dark ramp of the accent. */
 export const colorScheme = (theme: SymbolTheme) => {
-  const a = theme.colors.accent;
-  const ramp = [0.85, 0.7, 0.5, 0.3, 0.15].map((t, k) => ({
-    name: `accent ${100 + k * 100}`,
-    color: mix(a, "#ffffff", t),
+  const accent = theme.colors.accent;
+  const ramp = [0.85, 0.7, 0.5, 0.3, 0.15].map((amount, index) => ({
+    name: `accent ${100 + index * 100}`,
+    color: mix(accent, "#ffffff", amount),
   }));
-  const shades = [0.2, 0.4, 0.6].map((t, k) => ({
-    name: `accent ${600 + k * 100}`,
-    color: mix(a, "#000000", t),
+  const shades = [0.2, 0.4, 0.6].map((amount, index) => ({
+    name: `accent ${600 + index * 100}`,
+    color: mix(accent, "#000000", amount),
   }));
   return [
     ...TOKENS.map((tk) => ({ name: tk, color: theme.colors[tk] })),

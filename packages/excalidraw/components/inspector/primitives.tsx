@@ -20,7 +20,7 @@ export const Section = ({
         type="button"
         className="inspector__title"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((isOpen) => !isOpen)}
       >
         <span>{title}</span>
         <span>{hint ?? (open ? "−" : "+")}</span>
@@ -30,12 +30,12 @@ export const Section = ({
   );
 };
 
-const clamp = (v: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, v));
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
 const parse = (raw: string) => {
-  const v = Number(raw.trim().replace(",", "."));
-  return raw.trim() && Number.isFinite(v) ? v : null;
+  const parsed = Number(raw.trim().replace(",", "."));
+  return raw.trim() && Number.isFinite(parsed) ? parsed : null;
 };
 
 /** an editable number in a pill; arrows step, Shift steps by ten */
@@ -60,17 +60,17 @@ export const NumberPill = ({
   testId?: string;
   label: string;
 }) => {
-  const show = (v: number | null) =>
-    v === null ? "" : `${Math.round(v * 100) / 100}`;
+  const show = (nextValue: number | null) =>
+    nextValue === null ? "" : `${Math.round(nextValue * 100) / 100}`;
   const [draft, setDraft] = useState(show(value));
   useEffect(() => setDraft(show(value)), [value]);
 
   const commit = () => {
-    const v = parse(draft);
-    if (v === null) {
+    const parsed = parse(draft);
+    if (parsed === null) {
       setDraft(show(value));
-    } else if (v !== value) {
-      onCommit(clamp(v, min, max));
+    } else if (parsed !== value) {
+      onCommit(clamp(parsed, min, max));
     }
   };
 
@@ -84,18 +84,27 @@ export const NumberPill = ({
         disabled={disabled}
         placeholder="—"
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(changeEvent) => setDraft(changeEvent.target.value)}
         onBlur={commit}
-        onKeyDown={(e) => {
-          e.stopPropagation();
-          if (e.key === "Enter") {
+        onKeyDown={(keyEvent) => {
+          keyEvent.stopPropagation();
+          if (keyEvent.key === "Enter") {
             commit();
-          } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            e.preventDefault();
+          } else if (
+            keyEvent.key === "ArrowUp" ||
+            keyEvent.key === "ArrowDown"
+          ) {
+            keyEvent.preventDefault();
             const base = parse(draft) ?? value ?? min;
-            const d =
-              (e.key === "ArrowUp" ? 1 : -1) * step * (e.shiftKey ? 10 : 1);
-            const next = clamp(Math.round((base + d) * 1000) / 1000, min, max);
+            const delta =
+              (keyEvent.key === "ArrowUp" ? 1 : -1) *
+              step *
+              (keyEvent.shiftKey ? 10 : 1);
+            const next = clamp(
+              Math.round((base + delta) * 1000) / 1000,
+              min,
+              max,
+            );
             setDraft(show(next));
             onCommit(next);
           }
@@ -145,7 +154,7 @@ export const SliderRow = ({
         style={{
           ["--p" as string]: (clamp(shown, min, max) - min) / (max - min),
         }}
-        onChange={(e) => onChange(+e.target.value)}
+        onChange={(changeEvent) => onChange(+changeEvent.target.value)}
       />
       <NumberPill
         label={label}
@@ -173,23 +182,23 @@ export function Segmented<T extends string | number>({
   label: string;
   options: readonly { value: T; text: string; title?: string }[];
   value: T | null;
-  onChange: (v: T) => void;
+  onChange: (selected: T) => void;
   testId: string;
 }) {
   return (
     <div className="inspector__row">
       <span className="inspector__label">{label}</span>
       <div className="inspector__seg" role="group" aria-label={label}>
-        {options.map((o) => (
+        {options.map((option) => (
           <button
-            key={o.value}
+            key={option.value}
             type="button"
-            title={o.title}
-            data-testid={`${testId}-${o.value}`}
-            aria-pressed={value === o.value}
-            onClick={() => onChange(o.value)}
+            title={option.title}
+            data-testid={`${testId}-${option.value}`}
+            aria-pressed={value === option.value}
+            onClick={() => onChange(option.value)}
           >
-            {o.text}
+            {option.text}
           </button>
         ))}
       </div>

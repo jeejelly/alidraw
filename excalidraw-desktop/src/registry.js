@@ -49,17 +49,20 @@ class Registry {
   /** most recently opened first */
   list() {
     return [...this.read()].sort(
-      (a, b) => (b.lastOpened ?? 0) - (a.lastOpened ?? 0),
+      (first, second) => (second.lastOpened ?? 0) - (first.lastOpened ?? 0),
     );
   }
 
   get(id) {
-    return this.read().find((w) => w.id === id) ?? null;
+    return this.read().find((workspace) => workspace.id === id) ?? null;
   }
 
-  byPath(p) {
-    const full = path.resolve(p);
-    return this.read().find((w) => path.resolve(w.path) === full) ?? null;
+  byPath(folderPath) {
+    const full = path.resolve(folderPath);
+    return (
+      this.read().find((workspace) => path.resolve(workspace.path) === full) ??
+      null
+    );
   }
 
   add({ name, path: root, settings }) {
@@ -81,14 +84,14 @@ class Registry {
   update(id, patch) {
     let found = null;
     this.write(
-      this.read().map((w) => {
-        if (w.id !== id) {
-          return w;
+      this.read().map((workspace) => {
+        if (workspace.id !== id) {
+          return workspace;
         }
         found = {
-          ...w,
+          ...workspace,
           ...patch,
-          settings: { ...w.settings, ...(patch.settings ?? {}) },
+          settings: { ...workspace.settings, ...(patch.settings ?? {}) },
         };
         return found;
       }),
@@ -97,7 +100,7 @@ class Registry {
   }
 
   remove(id) {
-    this.write(this.read().filter((w) => w.id !== id));
+    this.write(this.read().filter((workspace) => workspace.id !== id));
   }
 }
 

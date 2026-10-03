@@ -14,11 +14,11 @@ let tmp;
 let remote;
 let events;
 
-const scene = (n) =>
+const scene = (count) =>
   JSON.stringify({
     type: "excalidraw",
     version: 2,
-    elements: Array(n).fill({}),
+    elements: Array(count).fill({}),
     appState: {},
     files: {},
   });
@@ -33,15 +33,15 @@ const machine = async (name, { paused = () => false } = {}) => {
     workspaces,
     isPaused: paused,
     flush: async () => {},
-    emit: (e) => events.push({ machine: name, ...e }),
+    emit: (payload) => events.push({ machine: name, ...payload }),
     now: () => new Date(2026, 9, 5, 14, 30),
   });
   return { workspaces, sync, dir };
 };
 
-const commitFile = async (w, id, rel, n, msg) => {
-  w.writeScene(id, rel, scene(n));
-  await git.commit(w.root(id), msg, [rel]);
+const commitFile = async (workspaces, id, rel, count, msg) => {
+  workspaces.writeScene(id, rel, scene(count));
+  await git.commit(workspaces.root(id), msg, [rel]);
 };
 
 beforeEach(() => {
@@ -54,18 +54,21 @@ afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 /** machine A creates the project and pushes; machine B clones it */
 const twoMachines = async () => {
-  const A = await machine("A");
-  const wa = await A.workspaces.create({ name: "Proj", parent: A.dir });
-  const a = A.workspaces.newScene(wa.id, "main");
-  await git.commit(wa.path, "add main", [a]);
-  await A.sync.setRemote(wa.id, remote);
-  expect((await A.sync.sync(wa.id)).outcome).toBe("pushed");
+  const machineA = await machine("A");
+  const wa = await machineA.workspaces.create({
+    name: "Proj",
+    parent: machineA.dir,
+  });
+  const createdPath = machineA.workspaces.newScene(wa.id, "main");
+  await git.commit(wa.path, "add main", [createdPath]);
+  await machineA.sync.setRemote(wa.id, remote);
+  expect((await machineA.sync.sync(wa.id)).outcome).toBe("pushed");
 
-  const B = await machine("B");
-  const clone = path.join(B.dir, "Proj");
+  const machineB = await machine("B");
+  const clone = path.join(machineB.dir, "Proj");
   execFileSync("git", ["clone", remote, clone]);
-  const wb = await B.workspaces.open(clone);
-  return { A, B, wa, wb, scenePath: a };
+  const wb = await machineB.workspaces.open(clone);
+  return { A: machineA, B: machineB, wa, wb, scenePath: createdPath };
 };
 
 describe("remote address", () => {
@@ -94,104 +97,118 @@ describe("remote address", () => {
 
 describe("sync", () => {
   it("pushes the first time, and a second machine pulls what the first wrote", async () => {
-    const { A, B, wa, wb, scenePath } = await twoMachines();
-    expect(B.workspaces.scenes(wb.id).map((s) => s.path)).toEqual([scenePath]);
+    const { A: machineA, B: machineB, wa, wb, scenePath } = await twoMachines();
+    expect(machineB.workspaces.scenes(wb.id).map((item) => item.path)).toEqual([
+      scenePath,
+    ]);
 
-    await commitFile(A.workspaces, wa.id, scenePath, 3, "A edits");
-    expect((await A.sync.sync(wa.id)).outcome).toBe("pushed");
+    await commitFile(machineA.workspaces, wa.id, scenePath, 3, "A edits");
+    expect((await machineA.sync.sync(wa.id)).outcome).toBe("pushed");
 
-    const r = await B.sync.sync(wb.id);
-    expect(r).toEqual({ outcome: "pulled", files: [scenePath] });
+    const result = await machineB.sync.sync(wb.id);
+    expect(result).toEqual({ outcome: "pulled", files: [scenePath] });
     expect(
-      JSON.parse(B.workspaces.readScene(wb.id, scenePath)).elements,
+      JSON.parse(machineB.workspaces.readScene(wb.id, scenePath)).elements,
     ).toHaveLength(3);
     expect(
-      events.find((e) => e.machine === "B" && e.type === "pulled").files,
+      events.find((entry) => entry.machine === "B" && entry.type === "pulled")
+        .files,
     ).toEqual([scenePath]);
-    expect((await B.sync.sync(wb.id)).outcome).toBe("in-sync");
+    expect((await machineB.sync.sync(wb.id)).outcome).toBe("in-sync");
   });
 
   it("without a remote there is nothing to do; paused does nothing at all", async () => {
-    const A = await machine("A", { paused: () => true });
-    const w = await A.workspaces.create({ name: "P", parent: A.dir });
-    expect((await A.sync.sync(w.id)).outcome).toBe("paused");
-    const B = await machine("B");
-    const w2 = await B.workspaces.create({ name: "P", parent: B.dir });
-    expect((await B.sync.sync(w2.id)).outcome).toBe("no-remote");
-    await expect(A.sync.resolve(w.id, "merge")).rejects.toThrow(/paused/);
+    const machineA = await machine("A", { paused: () => true });
+    const workspace = await machineA.workspaces.create({
+      name: "P",
+      parent: machineA.dir,
+    });
+    expect((await machineA.sync.sync(workspace.id)).outcome).toBe("paused");
+    const machineB = await machine("B");
+    const w2 = await machineB.workspaces.create({
+      name: "P",
+      parent: machineB.dir,
+    });
+    expect((await machineB.sync.sync(w2.id)).outcome).toBe("no-remote");
+    await expect(machineA.sync.resolve(workspace.id, "merge")).rejects.toThrow(
+      /paused/,
+    );
   });
 
   it("an unreachable remote is an error with words, not a crash", async () => {
-    const A = await machine("A");
-    const w = await A.workspaces.create({ name: "P", parent: A.dir });
-    await A.sync.setRemote(w.id, path.join(tmp, "nowhere.git"));
-    const r = await A.sync.sync(w.id);
-    expect(r.outcome).toBe("blocked");
-    expect(A.sync.info(w.id).state).toBe("error");
+    const machineA = await machine("A");
+    const workspace = await machineA.workspaces.create({
+      name: "P",
+      parent: machineA.dir,
+    });
+    await machineA.sync.setRemote(workspace.id, path.join(tmp, "nowhere.git"));
+    const result = await machineA.sync.sync(workspace.id);
+    expect(result.outcome).toBe("blocked");
+    expect(machineA.sync.info(workspace.id).state).toBe("error");
   });
 
   it("when both sides moved: stops, pushes nothing, and merging different files works", async () => {
-    const { A, B, wa, wb, scenePath } = await twoMachines();
-    const other = A.workspaces.newScene(wa.id, "other");
+    const { A: machineA, B: machineB, wa, wb, scenePath } = await twoMachines();
+    const other = machineA.workspaces.newScene(wa.id, "other");
     await git.commit(wa.path, "A adds other", [other]);
-    await A.sync.sync(wa.id);
+    await machineA.sync.sync(wa.id);
 
-    const mine = B.workspaces.newScene(wb.id, "mine");
+    const mine = machineB.workspaces.newScene(wb.id, "mine");
     await git.commit(wb.path, "B adds mine", [mine]);
-    const r = await B.sync.sync(wb.id);
-    expect(r.outcome).toBe("diverged");
-    expect(B.sync.info(wb.id).state).toBe("diverged");
+    const result = await machineB.sync.sync(wb.id);
+    expect(result.outcome).toBe("diverged");
+    expect(machineB.sync.info(wb.id).state).toBe("diverged");
     // the remote did not get B's commit
     const onRemote = execFileSync("git", ["log", "--format=%s", "main"], {
       cwd: remote,
     }).toString();
     expect(onRemote).not.toContain("B adds mine");
 
-    const m = await B.sync.resolve(wb.id, "merge");
-    expect(m.outcome).toBe("merged");
+    const merged = await machineB.sync.resolve(wb.id, "merge");
+    expect(merged.outcome).toBe("merged");
     expect(
-      B.workspaces
+      machineB.workspaces
         .scenes(wb.id)
-        .map((s) => s.path)
+        .map((item) => item.path)
         .sort(),
     ).toEqual([mine, other, scenePath].sort());
-    expect((await B.sync.sync(wb.id)).outcome).toBe("pushed");
-    expect((await A.sync.sync(wa.id)).outcome).toBe("pulled");
+    expect((await machineB.sync.sync(wb.id)).outcome).toBe("pushed");
+    expect((await machineA.sync.sync(wa.id)).outcome).toBe("pulled");
     expect(
-      A.workspaces
+      machineA.workspaces
         .scenes(wa.id)
-        .map((s) => s.path)
+        .map((item) => item.path)
         .sort(),
     ).toEqual([mine, other, scenePath].sort());
   });
 
   it("a clash in one file: the merge is undone, and a branch of its own keeps both", async () => {
-    const { A, B, wa, wb, scenePath } = await twoMachines();
-    await commitFile(A.workspaces, wa.id, scenePath, 2, "A edits");
-    await A.sync.sync(wa.id);
-    await commitFile(B.workspaces, wb.id, scenePath, 5, "B edits");
-    expect((await B.sync.sync(wb.id)).outcome).toBe("diverged");
+    const { A: machineA, B: machineB, wa, wb, scenePath } = await twoMachines();
+    await commitFile(machineA.workspaces, wa.id, scenePath, 2, "A edits");
+    await machineA.sync.sync(wa.id);
+    await commitFile(machineB.workspaces, wb.id, scenePath, 5, "B edits");
+    expect((await machineB.sync.sync(wb.id)).outcome).toBe("diverged");
     const headBefore = await git.head(wb.path);
 
-    const m = await B.sync.resolve(wb.id, "merge");
-    expect(m.outcome).toBe("conflict");
-    expect(m.conflicts).toEqual([scenePath]);
+    const merged = await machineB.sync.resolve(wb.id, "merge");
+    expect(merged.outcome).toBe("conflict");
+    expect(merged.conflicts).toEqual([scenePath]);
     // nothing changed: same commit, clean tree, B's version intact
     expect(await git.head(wb.path)).toBe(headBefore);
     expect((await git.status(wb.path)).clean).toBe(true);
     expect(
-      JSON.parse(B.workspaces.readScene(wb.id, scenePath)).elements,
+      JSON.parse(machineB.workspaces.readScene(wb.id, scenePath)).elements,
     ).toHaveLength(5);
-    expect(B.sync.info(wb.id).message).toMatch(/new branch/);
+    expect(machineB.sync.info(wb.id).message).toMatch(/new branch/);
 
-    const b = await B.sync.resolve(wb.id, "branch");
-    expect(b.outcome).toBe("branched");
-    expect(b.branch).toMatch(/^ws\/.+-20261005-1430$/);
-    expect((await git.status(wb.path)).branch).toBe(b.branch);
+    const branched = await machineB.sync.resolve(wb.id, "branch");
+    expect(branched.outcome).toBe("branched");
+    expect(branched.branch).toMatch(/^ws\/.+-20261005-1430$/);
+    expect((await git.status(wb.path)).branch).toBe(branched.branch);
     const branches = execFileSync("git", ["branch", "--list"], {
       cwd: remote,
     }).toString();
-    expect(branches).toContain(b.branch);
+    expect(branches).toContain(branched.branch);
     // main on the remote is still A's
     const mainLog = execFileSync("git", ["log", "--format=%s", "main"], {
       cwd: remote,
@@ -199,7 +216,7 @@ describe("sync", () => {
     expect(mainLog).toContain("A edits");
     expect(mainLog).not.toContain("B edits");
     // the new branch syncs by itself from now on
-    expect((await B.sync.sync(wb.id)).outcome).toBe("in-sync");
+    expect((await machineB.sync.sync(wb.id)).outcome).toBe("in-sync");
   });
 });
 

@@ -1,22 +1,22 @@
-import { EVENT, viewportCoordsToSceneCoords } from "@excalidraw/common";
+import { viewportCoordsToSceneCoords } from "@excalidraw/common";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
-
-import { getFlowMeta, listFlows, partsOf } from "@excalidraw/flow";
 import {
   PLACEHOLDER,
   addLink,
   addPlaceholder,
   fillPlaceholder,
-  flowKeyAt,
-  selfAndAncestors,
+  getFlowMeta,
+  listFlows,
+  partsOf,
   wrapAsFlowElement,
 } from "@excalidraw/flow";
 
-import type App from "./App";
+import { ChangeNotifier } from "./changeNotifier";
+import { listenToGesture, onEscape } from "./gestureListeners";
+import { resolveFlowTarget } from "./appFlow/resolveTarget";
 
-type Point = { x: number; y: number };
-type Rect = { x: number; y: number; w: number; h: number };
+import type { FlowHit, Point, Rect } from "./appFlow/resolveTarget";
+import type App from "./App";
 
 export type FlowLinkState = {
   from: Point;
@@ -27,129 +27,53 @@ export type FlowLinkState = {
   ghost: Rect | null;
 } | null;
 
-type Hit =
-  | { kind: "flow"; key: string; rect: Rect }
-  | { kind: "object"; element: ExcalidrawElement; rect: Rect }
-  | null;
+/** a press that moves less than this (screen px) is a plain click */
+const CLICK_SLOP = 4;
+/** extra reach (screen px) around a handle */
+const HANDLE_SLACK = 4;
 
-const CLICK = 4;
-
-/**
- * Drag the handle of a flow element: release on another flow element to link
- * to it, on any other object to make that a flow element and link to it, on
- * nothing to leave a placeholder box linked to it.
- */
+/** Drag a flow element's handle: release on a flow element or object to link to it, on nothing to leave a placeholder. */
 export class AppFlow {
   private state: FlowLinkState = null;
-  private listeners = new Set<() => void>();
+  private notifier = new ChangeNotifier();
   private teardown: (() => void) | null = null;
 
   constructor(private app: App) {}
 
-  subscribe = (l: () => void) => {
-    this.listeners.add(l);
-    return () => {
-      this.listeners.delete(l);
-    };
-  };
+  subscribe = this.notifier.subscribe;
 
   getSnapshot = () => this.state;
 
   private set(next: FlowLinkState) {
     this.state = next;
-    this.listeners.forEach((l) => l());
+    this.notifier.notify();
   }
 
-  private scenePoint = (e: { clientX: number; clientY: number }) =>
-    viewportCoordsToSceneCoords(e, this.app.state);
+  private scenePoint = (event: { clientX: number; clientY: number }) =>
+    viewportCoordsToSceneCoords(event, this.app.state);
 
-  /** the handle under the pointer, as {flow, key, element} */
-  private handleAt = (p: Point) => {
-    const slack = 4 / this.app.state.zoom.value;
-    for (const el of this.app.scene.getNonDeletedElements()) {
-      const m = getFlowMeta(el);
-      if (m?.kind !== "handle") {
+  /** the handle under the pointer, as {flow, key, centre} */
+  private handleAt = (point: Point) => {
+    const slack = HANDLE_SLACK / this.app.state.zoom.value;
+    for (const element of this.app.scene.getNonDeletedElements()) {
+      const meta = getFlowMeta(element);
+      if (meta?.kind !== "handle") {
         continue;
       }
-      const cx = el.x + el.width / 2;
-      const cy = el.y + el.height / 2;
-      if (Math.hypot(p.x - cx, p.y - cy) <= el.width / 2 + slack) {
-        return { flowId: m.id, key: m.key, center: { x: cx, y: cy } };
+      const centerX = element.x + element.width / 2;
+      const centerY = element.y + element.height / 2;
+      if (
+        Math.hypot(point.x - centerX, point.y - centerY) <=
+        element.width / 2 + slack
+      ) {
+        return {
+          flowId: meta.id,
+          key: meta.key,
+          center: { x: centerX, y: centerY },
+        };
       }
     }
     return null;
-  };
-
-  private resolve = (p: Point, flowId: string, key: string): Hit => {
-    const all = this.app.scene.getElementsIncludingDeleted();
-    const excluded = selfAndAncestors(all, flowId, key);
-    const parts = partsOf(all, flowId);
-    const rectOf = (el: ExcalidrawElement): Rect => ({
-      x: el.x,
-      y: el.y,
-      w: el.width,
-      h: el.height,
-    });
-    const hits = this.app.getElementsAtPosition(p.x, p.y);
-    for (let i = hits.length - 1; i >= 0; i--) {
-      const el = hits[i];
-      if (el.type === "frame" || el.type === "magicframe") {
-        continue;
-      }
-      const at = flowKeyAt(all, el, flowId, excluded);
-      if (at.key) {
-        return {
-          kind: "flow",
-          key: at.key,
-          rect: rectOf(parts.byKey.get(at.key)!),
-        };
-      }
-      if (at.onlyExcluded || el.type === "arrow") {
-        continue;
-      }
-      return { kind: "object", element: el, rect: rectOf(el) };
-    }
-    // the room inside an outline or an unfilled shape: the smallest around
-    let best: { hit: Hit; area: number } | null = null;
-    const consider = (hit: Hit, el: ExcalidrawElement) => {
-      const area = el.width * el.height;
-      if (!best || area < best.area) {
-        best = { hit, area };
-      }
-    };
-    const inside = (el: ExcalidrawElement) =>
-      p.x >= el.x &&
-      p.x <= el.x + el.width &&
-      p.y >= el.y &&
-      p.y <= el.y + el.height;
-    for (const [k, el] of parts.byKey) {
-      if (!excluded.has(k) && inside(el)) {
-        consider({ kind: "flow", key: k, rect: rectOf(el) }, el);
-      }
-    }
-    for (const el of this.app.scene.getNonDeletedElements()) {
-      if (
-        !(
-          el.type === "rectangle" ||
-          el.type === "ellipse" ||
-          el.type === "diamond"
-        ) ||
-        getFlowMeta(el) ||
-        !inside(el)
-      ) {
-        continue;
-      }
-      const at = flowKeyAt(all, el, flowId, excluded);
-      if (at.key) {
-        consider(
-          { kind: "flow", key: at.key, rect: rectOf(parts.byKey.get(at.key)!) },
-          el,
-        );
-      } else if (!at.onlyExcluded) {
-        consider({ kind: "object", element: el, rect: rectOf(el) }, el);
-      }
-    }
-    return (best as { hit: Hit } | null)?.hit ?? null;
   };
 
   handlePointerDown = (event: React.PointerEvent<HTMLElement>): boolean => {
@@ -160,73 +84,63 @@ export class AppFlow {
     ) {
       return false;
     }
-    const start = this.scenePoint(event);
-    const handle = this.handleAt(start);
+    const handle = this.handleAt(this.scenePoint(event));
     if (!handle) {
       return false;
     }
     this.teardown?.();
     const { flowId, key, center } = handle;
-    let hit: Hit = null;
     let moved = false;
-    const update = (e: PointerEvent) => {
-      const p = this.scenePoint(e);
-      hit = this.resolve(p, flowId, key);
+
+    const preview = (moveEvent: PointerEvent) => {
+      const point = this.scenePoint(moveEvent);
+      const hit = resolveFlowTarget(this.app, point, flowId, key);
       this.set({
         from: center,
-        to: p,
+        to: point,
         target: hit ? hit.rect : null,
         ghost: hit
           ? null
           : {
-              x: p.x - PLACEHOLDER.w / 2,
-              y: p.y - PLACEHOLDER.h / 2,
+              x: point.x - PLACEHOLDER.w / 2,
+              y: point.y - PLACEHOLDER.h / 2,
               w: PLACEHOLDER.w,
               h: PLACEHOLDER.h,
             },
       });
     };
-    const onMove = (e: PointerEvent) => {
-      if (
-        !moved &&
-        Math.hypot(e.clientX - event.clientX, e.clientY - event.clientY) < CLICK
-      ) {
-        return;
-      }
-      moved = true;
-      update(e);
-    };
-    const onUp = (e: PointerEvent) => {
-      this.stop();
-      if (!moved) {
-        return;
-      }
-      this.finish(
-        flowId,
-        key,
-        this.scenePoint(e),
-        this.resolve(this.scenePoint(e), flowId, key),
-      );
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+    this.teardown = listenToGesture(this.app.ownerWindow, {
+      onPointerMove: (moveEvent) => {
+        const travelled = Math.hypot(
+          moveEvent.clientX - event.clientX,
+          moveEvent.clientY - event.clientY,
+        );
+        if (!moved && travelled < CLICK_SLOP) {
+          return;
+        }
+        moved = true;
+        preview(moveEvent);
+      },
+      onPointerUp: (upEvent) => {
         this.stop();
-      }
-    };
-    const win = this.app.ownerWindow;
-    win.addEventListener(EVENT.POINTER_MOVE, onMove);
-    win.addEventListener(EVENT.POINTER_UP, onUp);
-    win.addEventListener(EVENT.KEYDOWN, onKey);
-    this.teardown = () => {
-      win.removeEventListener(EVENT.POINTER_MOVE, onMove);
-      win.removeEventListener(EVENT.POINTER_UP, onUp);
-      win.removeEventListener(EVENT.KEYDOWN, onKey);
-    };
+        if (!moved) {
+          return;
+        }
+        const point = this.scenePoint(upEvent);
+        this.finish(
+          flowId,
+          key,
+          point,
+          resolveFlowTarget(this.app, point, flowId, key),
+        );
+      },
+      onKeyDown: onEscape(this.stop),
+    });
     return true;
   };
 
   /** makes the link a release asked for */
-  finish = (flowId: string, key: string, at: Point, hit: Hit) => {
+  finish = (flowId: string, key: string, at: Point, hit: FlowHit) => {
     const scene = this.app.scene;
     let to: string | null = null;
     if (hit?.kind === "flow") {
@@ -274,10 +188,10 @@ export class AppFlow {
     if (group) {
       const members = scene
         .getNonDeletedElements()
-        .filter((e) => e.groupIds.includes(group));
+        .filter((element) => element.groupIds.includes(group));
       this.app.setState({
         selectedElementIds: Object.fromEntries(
-          members.map((e) => [e.id, true]),
+          members.map((element) => [element.id, true]),
         ),
         selectedGroupIds: { [group]: true },
       });

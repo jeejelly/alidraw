@@ -1,19 +1,22 @@
 import { CaptureUpdateAction } from "@excalidraw/element";
 
+import { loadPixels } from "@excalidraw/vector";
+
+import { traceToElements, type TraceOptions } from "@excalidraw/vector";
+
 import type {
   ExcalidrawElement,
   ExcalidrawImageElement,
 } from "@excalidraw/element/types";
 
 import { t } from "../i18n";
-import { loadPixels } from "@excalidraw/vector";
-import { traceToElements, type TraceOptions } from "@excalidraw/vector";
 
 import { register } from "./register";
 
 const imagesOf = (selected: readonly ExcalidrawElement[]) =>
   selected.filter(
-    (e): e is ExcalidrawImageElement => e.type === "image" && !!e.fileId,
+    (element): element is ExcalidrawImageElement =>
+      element.type === "image" && !!element.fileId,
   );
 
 /**
@@ -69,7 +72,7 @@ export const actionVectorizeImage = register<Partial<TraceOptions> | undefined>(
         appState: {
           ...appState,
           selectedElementIds: Object.fromEntries(
-            made.map((e) => [e.id, true as const]),
+            made.map((element) => [element.id, true as const]),
           ),
           toast: {
             message: t("toast.vectorized", { count: made.length }),

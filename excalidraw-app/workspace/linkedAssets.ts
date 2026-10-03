@@ -38,9 +38,9 @@ const wants = (
       continue;
     }
     const own = el.customData?.imageStorage;
-    const m = own === "embedded" || own === "linked" ? own : fallback;
+    const storage = own === "embedded" || own === "linked" ? own : fallback;
     // one image that wants the bytes in the file keeps them there
-    if (m === "linked") {
+    if (storage === "linked") {
       mode = "linked";
     } else {
       return "embedded";
@@ -70,14 +70,14 @@ export const externalizeAssets = async (
     if (!file.dataURL || wants(scene, id, fallback) !== "linked") {
       continue;
     }
-    const m = DATA_URL.exec(file.dataURL);
-    if (!m) {
+    const match = DATA_URL.exec(file.dataURL);
+    if (!match) {
       continue;
     }
     try {
       // content-addressed: the same bytes are never stored twice, and the file
       // is checked to exist on every save, so a link never dangles
-      const { path } = await bridge.writeAsset(workspaceId, m[1], m[3]);
+      const { path } = await bridge.writeAsset(workspaceId, match[1], match[3]);
       delete file.dataURL;
       file.link = path;
       changed = true;

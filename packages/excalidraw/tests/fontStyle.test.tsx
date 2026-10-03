@@ -13,7 +13,7 @@ import { API } from "./helpers/api";
 import { act, render, unmountComponent } from "./test-utils";
 
 unmountComponent();
-const { h } = window;
+const handle = window.h;
 
 describe("bold and italic", () => {
   it("are part of the font string", () => {
@@ -45,46 +45,51 @@ describe("bold and italic", () => {
 
   it("toggle for the whole selection, and the shortcuts reach them", async () => {
     await render(<Excalidraw />);
-    const a = API.createElement({
+    const first = API.createElement({
       type: "text",
       text: "one",
       fontSize: 20,
     } as any);
-    const b = API.createElement({
+    const second = API.createElement({
       type: "text",
       text: "two",
       fontSize: 20,
       x: 200,
     } as any);
-    API.setElements([a, b]);
-    API.setSelectedElements([a, b]);
-    const text = (id: string) => h.elements.find((e) => e.id === id) as any;
-    const width = text(a.id).width;
+    API.setElements([first, second]);
+    API.setSelectedElements([first, second]);
+    const text = (id: string) =>
+      handle.elements.find((element) => element.id === id) as any;
+    const width = text(first.id).width;
 
-    act(() => h.app.actionManager.executeAction(actionToggleBold));
-    expect(text(a.id).fontWeight).toBe(700);
-    expect(text(b.id).fontWeight).toBe(700);
+    act(() => handle.app.actionManager.executeAction(actionToggleBold));
+    expect(text(first.id).fontWeight).toBe(700);
+    expect(text(second.id).fontWeight).toBe(700);
     // the box follows the new font (the measure uses it)
-    expect(text(a.id).width).not.toBe(width);
+    expect(text(first.id).width).not.toBe(width);
     // all of it is bold: off again, and the property goes away
-    act(() => h.app.actionManager.executeAction(actionToggleBold));
-    expect(text(a.id).fontWeight).toBe(400);
+    act(() => handle.app.actionManager.executeAction(actionToggleBold));
+    expect(text(first.id).fontWeight).toBe(400);
 
     // a mixed selection turns on first
-    API.updateElement(b, { fontStyle: "italic" } as any);
-    act(() => h.app.actionManager.executeAction(actionToggleItalic));
-    expect(text(a.id).fontStyle).toBe("italic");
-    expect(text(b.id).fontStyle).toBe("italic");
+    API.updateElement(second, { fontStyle: "italic" } as any);
+    act(() => handle.app.actionManager.executeAction(actionToggleItalic));
+    expect(text(first.id).fontStyle).toBe("italic");
+    expect(text(second.id).fontStyle).toBe("italic");
 
-    const key = (k: string) =>
-      new KeyboardEvent("keydown", { key: k, ctrlKey: true, bubbles: true });
+    const key = (character: string) =>
+      new KeyboardEvent("keydown", {
+        key: character,
+        ctrlKey: true,
+        bubbles: true,
+      });
     expect(actionToggleBold.keyTest!(key("b"))).toBe(true);
     expect(actionToggleItalic.keyTest!(key("I"))).toBe(true);
     expect(actionToggleBold.keyTest!(key("x"))).toBe(false);
   });
 
   it("survive a reload, odd values are dropped, and the SVG says so", async () => {
-    const t = {
+    const textElement = {
       ...API.createElement({
         type: "text",
         text: "hello",
@@ -93,18 +98,18 @@ describe("bold and italic", () => {
       fontWeight: 700,
       fontStyle: "italic",
     } as any;
-    const [restored] = restoreElements([t], null) as any[];
+    const [restored] = restoreElements([textElement], null) as any[];
     expect(restored.fontWeight).toBe(700);
     expect(restored.fontStyle).toBe("italic");
     const [odd] = restoreElements(
-      [{ ...t, fontWeight: 5000, fontStyle: "oblique" } as any],
+      [{ ...textElement, fontWeight: 5000, fontStyle: "oblique" } as any],
       null,
     ) as any[];
     expect(odd.fontWeight).toBeUndefined();
     expect(odd.fontStyle).toBeUndefined();
 
     const svg = await exportToSvg(
-      [t] as any,
+      [textElement] as any,
       { exportBackground: false, viewBackgroundColor: "#fff" } as any,
       null,
     );

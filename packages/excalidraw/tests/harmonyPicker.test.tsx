@@ -1,8 +1,10 @@
 import React from "react";
 
 import { harmony, hexToHsl } from "@excalidraw/color";
-import { Excalidraw } from "../index";
+
 import { getPaletteState } from "@excalidraw/color";
+
+import { Excalidraw } from "../index";
 import { getSymbolTheme } from "../components/inspector/symbols/themeStore";
 
 import { API } from "./helpers/api";
@@ -40,7 +42,9 @@ describe("colour harmony picker", () => {
     // five colours, the base among them
     const chips = screen.getAllByTestId("harmony-chip");
     expect(chips).toHaveLength(5);
-    expect(chips.map((c) => c.getAttribute("aria-label"))).toContain("#e8590c");
+    expect(chips.map((chip) => chip.getAttribute("aria-label"))).toContain(
+      "#e8590c",
+    );
 
     fireEvent.click(screen.getByTestId("harmony-action-dark"));
     const theme = getSymbolTheme();
@@ -93,7 +97,9 @@ describe("colour harmony picker", () => {
     fireEvent.click(screen.getByTestId("harmony-tab-presets"));
     const cards = screen.getAllByTestId("harmony-preset");
     expect(cards.length).toBeGreaterThanOrEqual(12);
-    fireEvent.click(cards.find((c) => c.getAttribute("title") === "Nord")!);
+    fireEvent.click(
+      cards.find((card) => card.getAttribute("title") === "Nord")!,
+    );
     const result = screen.getAllByTestId("harmony-chip");
     expect(result.length).toBe(16);
     fireEvent.click(screen.getByTestId("harmony-action-keep"));

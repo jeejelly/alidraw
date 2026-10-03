@@ -431,13 +431,9 @@ import { AppBucketFill } from "./App.bucketFill";
 import { AppPath } from "./App.path";
 import { AppGuides } from "./App.guides";
 import { AppGizmo } from "./App.gizmo";
-import { getFlowMeta } from "@excalidraw/flow";
-import { flowReplaceTarget, refitFlowElement } from "@excalidraw/flow";
 import { AppFlow } from "./App.flow";
 import { AppStretch } from "./App.stretch";
 import { AppSymbols } from "./App.symbols";
-import { fitIntoBox } from "@excalidraw/symbols";
-import { frameOf } from "@excalidraw/symbols";
 import { AppImport } from "./App.import";
 import { getSymbolTheme } from "./inspector/symbols/themeStore";
 import { FlowLinkOverlay } from "./FlowLinkOverlay";
@@ -446,6 +442,7 @@ import { AppAnchors } from "./App.anchors";
 import { AppLayers } from "./App.layers";
 import { AppCorners } from "./App.corners";
 import { AppKnife } from "./App.knife";
+import { AppLibraryReplace } from "./App.libraryReplace";
 import { AngleHelper } from "./AngleHelper";
 import { Rulers } from "./Rulers";
 import { PalettePanel } from "./PalettePanel";
@@ -779,6 +776,7 @@ class App extends React.Component<AppProps, AppState> {
   layers = new AppLayers(this);
   corners = new AppCorners(this);
   knife = new AppKnife(this);
+  libraryReplace = new AppLibraryReplace(this);
   laserTrails = new LaserTrails(this);
   eraserTrail = new EraserTrail(this);
   lassoTrail = new LassoTrail(this);
@@ -6127,7 +6125,11 @@ class App extends React.Component<AppProps, AppState> {
   // NOTE: Hot path for hit testing, so avoid unnecessary computations
   /** ids of the layers switched off: their objects can't be picked */
   getHiddenLayerIds = () =>
-    new Set(this.state.layers.filter((l) => !l.visible).map((l) => l.id));
+    new Set(
+      this.state.layers
+        .filter((layer) => !layer.visible)
+        .map((layer) => layer.id),
+    );
 
   getElementsAtPosition(
     x: number,
@@ -7823,17 +7825,14 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    // choosing the target of an anchor takes the next click
     if (this.anchors.handlePointerDown(event)) {
       return;
     }
 
-    // the knife draws its cut line
     if (this.knife.handlePointerDown(event)) {
       return;
     }
 
-    // the circle gizmos on the corners of the selected shape
     if (this.corners.handlePointerDown(event)) {
       return;
     }
@@ -7843,22 +7842,18 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    // the handle of a flow element links it to another one
     if (this.flow.handlePointerDown(event)) {
       return;
     }
 
-    // the rotate / skew zones around the selection
     if (this.gizmo.handlePointerDown(event)) {
       return;
     }
 
-    // a guide line under the pointer is dragged before anything else
     if (this.guides.handlePointerDown(event)) {
       return;
     }
 
-    // the pen tool and the point editor of a selected path own their pointer
     if (this.path.handlePointerDown(event)) {
       return;
     }
@@ -12949,9 +12944,9 @@ class App extends React.Component<AppProps, AppState> {
       actionAddToLibrary,
       actionReplaceFromLibrary,
       actionConvertToFlowElement,
-  actionConvertToSymbol,
-  actionTextToVectors,
-  actionVectorizeImage,
+      actionConvertToSymbol,
+      actionTextToVectors,
+      actionVectorizeImage,
       ...zIndexActions,
       CONTEXT_MENU_SEPARATOR,
       actionFlipHorizontal,
@@ -12973,64 +12968,8 @@ class App extends React.Component<AppProps, AppState> {
   };
 
   /** the library item takes the place and size of the selection */
-  public replaceSelectionWithLibraryItem = (item: LibraryItem) => {
-    const selected = this.scene.getSelectedElements({
-      selectedElementIds: this.state.selectedElementIds,
-      includeBoundTextElement: true,
-      includeElementsInFrames: true,
-    });
-    if (!selected.length) {
-      return;
-    }
-    // a flow element keeps its outline, label, handle and links: only what it wraps is replaced
-    const target = flowReplaceTarget(
-      this.scene.getElementsIncludingDeleted(),
-      selected,
-    );
-    const replaced = target ? target.remove : selected;
-    const frame = frameOf(replaced);
-    const fitted = fitIntoBox(item.elements, frame);
-    if (!fitted.length) {
-      return;
-    }
-    const known = new Set(
-      this.scene.getElementsIncludingDeleted().map((e) => e.id),
-    );
-    for (const el of replaced) {
-      this.scene.mutateElement(el as any, { isDeleted: true });
-    }
-    const centre = sceneCoordsToViewportCoords(
-      { sceneX: (frame.x0 + frame.x1) / 2, sceneY: (frame.y0 + frame.y1) / 2 },
-      this.state,
-    );
-    this.addElementsFromPasteOrLibrary({
-      elements: fitted,
-      files: null,
-      position: { clientX: centre.x, clientY: centre.y },
-      retainSeed: false,
-    });
-    if (target) {
-      // the new content joins the flow element's group and the outline hugs it
-      for (const el of this.scene.getNonDeletedElements()) {
-        if (!known.has(el.id)) {
-          this.scene.mutateElement(el as any, {
-            groupIds: [...el.groupIds, ...target.chain],
-          });
-        }
-      }
-      const meta = getFlowMeta(target.outline);
-      if (meta?.placeholder) {
-        this.scene.mutateElement(target.outline as any, {
-          customData: {
-            ...target.outline.customData,
-            flow: { ...meta, placeholder: false },
-          },
-        });
-      }
-      refitFlowElement(this.scene, target.outline);
-    }
-    this.store.scheduleCapture();
-  };
+  public replaceSelectionWithLibraryItem = (item: LibraryItem) =>
+    this.libraryReplace.replaceSelection(item);
 
   public savePointer = (x: number, y: number, button: "up" | "down") => {
     // Pan teardown broadcasts once the viewport has settled. Updates during

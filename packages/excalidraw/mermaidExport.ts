@@ -30,54 +30,56 @@ const textOf = (
 export const elementsToMermaid = (
   elements: readonly ExcalidrawElement[],
 ): { text: string; nodes: number; links: number } => {
-  const live = elements.filter((e) => !e.isDeleted);
-  const map = new Map(live.map((e) => [e.id, e]));
-  const nodes = live.filter((e) => NODE_TYPES.has(e.type));
-  const ids = new Map(nodes.map((n, i) => [n.id, `n${i + 1}`]));
+  const live = elements.filter((element) => !element.isDeleted);
+  const map = new Map(live.map((element) => [element.id, element]));
+  const nodes = live.filter((element) => NODE_TYPES.has(element.type));
+  const ids = new Map(nodes.map((node, index) => [node.id, `n${index + 1}`]));
 
   const lines: string[] = [];
-  for (const n of nodes) {
-    const id = ids.get(n.id)!;
-    const t = label(textOf(n, map));
+  for (const node of nodes) {
+    const id = ids.get(node.id)!;
+    const labelText = label(textOf(node, map));
     lines.push(
-      n.type === "diamond"
-        ? `  ${id}{"${t}"}`
-        : n.type === "ellipse"
-        ? `  ${id}(("${t}"))`
-        : n.roundness
-        ? `  ${id}("${t}")`
-        : `  ${id}["${t}"]`,
+      node.type === "diamond"
+        ? `  ${id}{"${labelText}"}`
+        : node.type === "ellipse"
+        ? `  ${id}(("${labelText}"))`
+        : node.roundness
+        ? `  ${id}("${labelText}")`
+        : `  ${id}["${labelText}"]`,
     );
   }
 
   let links = 0;
   let dx = 0;
   let dy = 0;
-  for (const e of live) {
-    if (e.type !== "arrow" && e.type !== "line") {
+  for (const element of live) {
+    if (element.type !== "arrow" && element.type !== "line") {
       continue;
     }
-    const a = "startBinding" in e ? e.startBinding?.elementId : null;
-    const b = "endBinding" in e ? e.endBinding?.elementId : null;
-    if (!a || !b || !ids.has(a) || !ids.has(b)) {
+    const startId =
+      "startBinding" in element ? element.startBinding?.elementId : null;
+    const endId =
+      "endBinding" in element ? element.endBinding?.elementId : null;
+    if (!startId || !endId || !ids.has(startId) || !ids.has(endId)) {
       continue;
     }
-    const arrow = e.type === "arrow" ? e : null;
+    const arrow = element.type === "arrow" ? element : null;
     const head = !!arrow?.endArrowhead;
     const tail = !!arrow?.startArrowhead;
-    const dashed = e.strokeStyle !== "solid";
+    const dashed = element.strokeStyle !== "solid";
     const link = dashed
       ? `${tail ? "<" : ""}-.${head ? "->" : "-"}`
       : `${tail ? "<" : ""}--${head ? ">" : "-"}`;
-    const text = textOf(e, map).trim();
+    const text = textOf(element, map).trim();
     lines.push(
-      `  ${ids.get(a)} ${link}${text ? `|"${label(text)}"|` : ""} ${ids.get(
-        b,
-      )}`,
+      `  ${ids.get(startId)} ${link}${
+        text ? `|"${label(text)}"|` : ""
+      } ${ids.get(endId)}`,
     );
     links++;
-    const na = map.get(a)!;
-    const nb = map.get(b)!;
+    const na = map.get(startId)!;
+    const nb = map.get(endId)!;
     dx += Math.abs(nb.x + nb.width / 2 - (na.x + na.width / 2));
     dy += Math.abs(nb.y + nb.height / 2 - (na.y + na.height / 2));
   }

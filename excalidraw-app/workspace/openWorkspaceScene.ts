@@ -50,7 +50,7 @@ export const openWorkspaceScene = async (
     api.addFiles(files);
   }
   api.history.clear();
-  const live = data.elements.filter((e) => !e.isDeleted);
+  const live = data.elements.filter((element) => !element.isDeleted);
   if (live.length) {
     api.setViewport({ target: live, fit: "scale-down", animate: false } as any);
   }

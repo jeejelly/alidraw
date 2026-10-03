@@ -1,11 +1,10 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
-
 import { actionCopyAsMermaid } from "../actions";
 import { Excalidraw } from "../index";
 import { elementsToMermaid } from "../mermaidExport";
 
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import { act, fireEvent, render, screen, unmountComponent } from "./test-utils";
 
@@ -16,15 +15,12 @@ vi.mock("../clipboard", async (orig) => ({
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 const labelled = (container: any, text: string) => {
-  const t = API.createElement({
+  const label = API.createElement({
     type: "text",
     text,
     containerId: container.id,
@@ -32,13 +28,13 @@ const labelled = (container: any, text: string) => {
     y: container.y,
   } as any);
   return [
-    { ...container, boundElements: [{ type: "text", id: t.id }] },
-    t,
+    { ...container, boundElements: [{ type: "text", id: label.id }] },
+    label,
   ] as const;
 };
 
 const diagram = () => {
-  const [a, ta] = labelled(
+  const [start, ta] = labelled(
     API.createElement({
       type: "rectangle",
       x: 0,
@@ -48,7 +44,7 @@ const diagram = () => {
     }),
     "Start",
   );
-  const [b, tb] = labelled(
+  const [decision, tb] = labelled(
     API.createElement({
       type: "diamond",
       x: 300,
@@ -58,7 +54,7 @@ const diagram = () => {
     }),
     "OK?",
   );
-  const c = API.createElement({
+  const third = API.createElement({
     type: "ellipse",
     x: 600,
     y: 0,
@@ -73,8 +69,8 @@ const diagram = () => {
       width: 200,
       height: 0,
     }),
-    startBinding: { elementId: a.id, fixedPoint: [1, 0.5], mode: "orbit" },
-    endBinding: { elementId: b.id, fixedPoint: [0, 0.5], mode: "orbit" },
+    startBinding: { elementId: start.id, fixedPoint: [1, 0.5], mode: "orbit" },
+    endBinding: { elementId: decision.id, fixedPoint: [0, 0.5], mode: "orbit" },
     endArrowhead: "arrow",
   } as any;
   const dashed = {
@@ -86,11 +82,15 @@ const diagram = () => {
       height: 0,
       strokeStyle: "dashed",
     }),
-    startBinding: { elementId: b.id, fixedPoint: [1, 0.5], mode: "orbit" },
-    endBinding: { elementId: c.id, fixedPoint: [0, 0.5], mode: "orbit" },
+    startBinding: {
+      elementId: decision.id,
+      fixedPoint: [1, 0.5],
+      mode: "orbit",
+    },
+    endBinding: { elementId: third.id, fixedPoint: [0, 0.5], mode: "orbit" },
     endArrowhead: "arrow",
   } as any;
-  return [a, ta, b, tb, c, arrow, dashed];
+  return [start, ta, decision, tb, third, arrow, dashed];
 };
 
 describe("elements to Mermaid", () => {
@@ -132,7 +132,7 @@ describe("tools in the inspector", () => {
       expect(screen.getByTestId(`tool-${id}`)).toBeTruthy();
     }
     fireEvent.click(screen.getByTestId("tool-bucketfill"));
-    expect(h.state.activeTool.type).toBe("bucketfill");
+    expect(handle.state.activeTool.type).toBe("bucketfill");
 
     fireEvent.click(screen.getByTestId("tools-customize"));
     fireEvent.click(screen.getByTestId("tool-laser"));
@@ -148,17 +148,20 @@ describe("tools in the inspector", () => {
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
     fireEvent.click(screen.getByTestId("tool-mermaid-from"));
-    expect(h.state.openDialog).toMatchObject({ name: "ttd", tab: "mermaid" });
+    expect(handle.state.openDialog).toMatchObject({
+      name: "ttd",
+      tab: "mermaid",
+    });
   });
 
   it("copies the diagram as Mermaid", async () => {
     await render(<Excalidraw />);
     API.setElements(diagram());
     await act(async () => {
-      h.app.actionManager.executeAction(actionCopyAsMermaid);
-      await new Promise((r) => setTimeout(r, 20));
+      handle.app.actionManager.executeAction(actionCopyAsMermaid);
+      await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    expect(h.state.toast?.message).toContain("3 nodes, 2 links");
+    expect(handle.state.toast?.message).toContain("3 nodes, 2 links");
   });
 });
 
@@ -178,6 +181,6 @@ describe("bucket colour", () => {
     fireEvent.change(screen.getByTestId("bucket-color"), {
       target: { value: "#00ff00" },
     });
-    expect(h.state.currentItemBackgroundColor).toBe("#00ff00");
+    expect(handle.state.currentItemBackgroundColor).toBe("#00ff00");
   });
 });

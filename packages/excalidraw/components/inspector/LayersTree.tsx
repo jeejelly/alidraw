@@ -1,11 +1,13 @@
 import { useState } from "react";
 
+import { getSymbolMeta } from "@excalidraw/symbols";
+
+import { COMPONENTS } from "@excalidraw/symbols";
+
 import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
 
 import { t } from "../../i18n";
 import { getLayerId, type Layer } from "../../layers";
-import { getSymbolMeta } from "@excalidraw/symbols";
-import { COMPONENTS } from "@excalidraw/symbols";
 
 import type App from "../App";
 
@@ -60,16 +62,16 @@ export const nestGroups = (
       out.push({ kind: "el", el });
       continue;
     }
-    let g = seen.get(gid);
-    if (!g) {
-      g = { kind: "group", id: gid, members: [], children: [] };
-      seen.set(gid, g);
-      out.push(g);
+    let group = seen.get(gid);
+    if (!group) {
+      group = { kind: "group", id: gid, members: [], children: [] };
+      seen.set(gid, group);
+      out.push(group);
     }
-    g.members.push(el);
+    group.members.push(el);
   }
-  for (const g of seen.values()) {
-    g.children = nestGroups(g.members, depth + 1);
+  for (const group of seen.values()) {
+    group.children = nestGroups(group.members, depth + 1);
   }
   return out;
 };
@@ -77,18 +79,18 @@ export const nestGroups = (
 /** a group's label: the one the user gave it, what a symbol is, or "Group" */
 export const groupLabel = (members: readonly NonDeletedExcalidrawElement[]) => {
   const given = members
-    .map((m) => m.customData?.groupLabel)
-    .find((l) => typeof l === "string" && l);
+    .map((member) => member.customData?.groupLabel)
+    .find((label) => typeof label === "string" && label);
   if (given) {
     return given as string;
   }
   const component = members
-    .map((m) => getSymbolMeta(m)?.component)
+    .map((member) => getSymbolMeta(member)?.component)
     .find(Boolean);
   if (component) {
     return component.startsWith("icon:")
       ? `Icon ${component.slice(5)}`
-      : COMPONENTS.find((c) => c.id === component)?.name ?? "Component";
+      : COMPONENTS.find((def) => def.id === component)?.name ?? "Component";
   }
   return "Group";
 };
@@ -133,8 +135,8 @@ export const LayersTree = ({
     }
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const below = rect.height > 0 && event.clientY > rect.top + rect.height / 2;
-    const target = layers.findIndex((l) => l.id === layer.id);
-    const from = layers.findIndex((l) => l.id === drag.id);
+    const target = layers.findIndex((candidate) => candidate.id === layer.id);
+    const from = layers.findIndex((candidate) => candidate.id === drag.id);
     // the list is top first: the lower half of a row is the slot beneath it
     let index = below ? target : target + 1;
     if (from < index) {
@@ -151,7 +153,7 @@ export const LayersTree = ({
     app.setState((prev) => ({
       selectedElementIds: {
         ...(additive ? prev.selectedElementIds : {}),
-        ...Object.fromEntries(members.map((m) => [m.id, true])),
+        ...Object.fromEntries(members.map((member) => [member.id, true])),
       },
       selectedGroupIds: {
         ...(additive ? prev.selectedGroupIds : {}),
@@ -174,11 +176,13 @@ export const LayersTree = ({
           className="inspector__layer inspector__layer--child"
           style={pad}
           draggable
-          onDragStart={(e) => setDrag(e, { kind: "object", id: el.id })}
-          onClick={(e) => {
+          onDragStart={(dragEvent) =>
+            setDrag(dragEvent, { kind: "object", id: el.id })
+          }
+          onClick={(clickEvent) => {
             app.setState((prev) => ({
               selectedElementIds: {
-                ...(e.shiftKey ? prev.selectedElementIds : {}),
+                ...(clickEvent.shiftKey ? prev.selectedElementIds : {}),
                 [el.id]: true,
               },
               selectedGroupIds: {},
@@ -195,7 +199,9 @@ export const LayersTree = ({
     }
     const open = openGroups.has(node.id);
     const label = groupLabel(node.members);
-    const allSelected = node.members.every((m) => selectedElementIds[m.id]);
+    const allSelected = node.members.every(
+      (member) => selectedElementIds[member.id],
+    );
     return (
       <div key={node.id} data-testid="layer-group" data-group-id={node.id}>
         <div
@@ -205,22 +211,24 @@ export const LayersTree = ({
           className="inspector__layer inspector__layer--child inspector__layer--group"
           style={pad}
           draggable
-          onDragStart={(e) =>
-            setDrag(e, {
+          onDragStart={(dragEvent) =>
+            setDrag(dragEvent, {
               kind: "object",
               id: node.members[0].id,
-              ids: node.members.map((m) => m.id),
+              ids: node.members.map((member) => member.id),
             })
           }
-          onClick={(e) => selectGroup(node.members, node.id, e.shiftKey)}
+          onClick={(clickEvent) =>
+            selectGroup(node.members, node.id, clickEvent.shiftKey)
+          }
         >
           <button
             type="button"
             className="inspector__iconbtn"
             data-testid="layer-group-toggle"
             aria-expanded={open}
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
               setOpenGroups((prev) => {
                 const next = new Set(prev);
                 if (!next.delete(node.id)) {
@@ -239,15 +247,15 @@ export const LayersTree = ({
               data-testid="layer-group-input"
               autoFocus
               defaultValue={label}
-              onClick={(e) => e.stopPropagation()}
-              onBlur={(e) => {
-                const next = e.target.value.trim();
-                for (const m of node.members) {
+              onClick={(clickEvent) => clickEvent.stopPropagation()}
+              onBlur={(blurEvent) => {
+                const next = blurEvent.target.value.trim();
+                for (const member of node.members) {
                   app.scene.mutateElement(
-                    m as any,
+                    member as any,
                     {
                       customData: {
-                        ...m.customData,
+                        ...member.customData,
                         groupLabel: next || undefined,
                       },
                     },
@@ -258,13 +266,13 @@ export const LayersTree = ({
                 app.store.scheduleCapture();
                 setEditingGroup(null);
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  (e.target as HTMLInputElement).blur();
-                } else if (e.key === "Escape") {
+              onKeyDown={(keyEvent) => {
+                if (keyEvent.key === "Enter") {
+                  (keyEvent.target as HTMLInputElement).blur();
+                } else if (keyEvent.key === "Escape") {
                   setEditingGroup(null);
                 }
-                e.stopPropagation();
+                keyEvent.stopPropagation();
               }}
             />
           ) : (
@@ -300,9 +308,11 @@ export const LayersTree = ({
               data-testid="layer-row"
               draggable
               style={{ borderLeftColor: layer.color }}
-              onDragStart={(e) => setDrag(e, { kind: "layer", id: layer.id })}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => dropOnLayer(e, layer)}
+              onDragStart={(dragEvent) =>
+                setDrag(dragEvent, { kind: "layer", id: layer.id })
+              }
+              onDragOver={(dragEvent) => dragEvent.preventDefault()}
+              onDrop={(dragEvent) => dropOnLayer(dragEvent, layer)}
               onClick={() => api.setActive(layer.id)}
             >
               <button
@@ -315,8 +325,8 @@ export const LayersTree = ({
                     ? "labels.layerPanel.hide"
                     : "labels.layerPanel.show",
                 )}
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
                   api.setVisible(layer.id, !layer.visible);
                 }}
               >
@@ -332,8 +342,8 @@ export const LayersTree = ({
                     ? "labels.layerPanel.unlock"
                     : "labels.layerPanel.lock",
                 )}
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
                   api.setLocked(layer.id, !layer.locked);
                 }}
               >
@@ -344,8 +354,8 @@ export const LayersTree = ({
                 className="inspector__iconbtn"
                 data-testid="layer-collapse"
                 aria-expanded={!layer.collapsed}
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
                   api.toggleCollapsed(layer.id);
                 }}
               >
@@ -357,9 +367,9 @@ export const LayersTree = ({
                 data-testid="layer-select"
                 title={t("labels.layerPanel.selectAll")}
                 style={{ background: layer.color }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  api.select(layer.id, e.shiftKey);
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
+                  api.select(layer.id, clickEvent.shiftKey);
                 }}
               />
               {editing === layer.id ? (
@@ -368,18 +378,18 @@ export const LayersTree = ({
                   data-testid="layer-name-input"
                   autoFocus
                   defaultValue={layer.name}
-                  onClick={(e) => e.stopPropagation()}
-                  onBlur={(e) => {
-                    api.rename(layer.id, e.target.value);
+                  onClick={(clickEvent) => clickEvent.stopPropagation()}
+                  onBlur={(blurEvent) => {
+                    api.rename(layer.id, blurEvent.target.value);
                     setEditing(null);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      (e.target as HTMLInputElement).blur();
-                    } else if (e.key === "Escape") {
+                  onKeyDown={(keyEvent) => {
+                    if (keyEvent.key === "Enter") {
+                      (keyEvent.target as HTMLInputElement).blur();
+                    } else if (keyEvent.key === "Escape") {
                       setEditing(null);
                     }
-                    e.stopPropagation();
+                    keyEvent.stopPropagation();
                   }}
                 />
               ) : (
@@ -402,9 +412,9 @@ export const LayersTree = ({
                     type="color"
                     data-testid="layer-fill"
                     value={toHex(fill)}
-                    onChange={(e) =>
+                    onChange={(changeEvent) =>
                       api.setStyle(layer.id, {
-                        backgroundColor: e.target.value,
+                        backgroundColor: changeEvent.target.value,
                       })
                     }
                   />
@@ -415,8 +425,10 @@ export const LayersTree = ({
                     type="color"
                     data-testid="layer-stroke"
                     value={toHex(stroke)}
-                    onChange={(e) =>
-                      api.setStyle(layer.id, { strokeColor: e.target.value })
+                    onChange={(changeEvent) =>
+                      api.setStyle(layer.id, {
+                        strokeColor: changeEvent.target.value,
+                      })
                     }
                   />
                 </label>

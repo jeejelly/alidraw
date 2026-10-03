@@ -42,7 +42,9 @@ export const WorkspaceWatcher = ({
             `"${path}" was updated by what was pulled. Reload it?\n\nChanges on the canvas that are not saved yet will be lost.`,
           )
         ) {
-          openWorkspaceScene(api, active, path).catch((e) => console.error(e));
+          openWorkspaceScene(api, active, path).catch((error) =>
+            console.error(error),
+          );
         }
       }
     });

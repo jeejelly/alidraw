@@ -1,7 +1,6 @@
-/**
- * The user's colour swatches: app-wide, kept in localStorage, with import from
- * .gpl and .ase swatch palettes.
- */
+/** The user's colour swatches and panel layout: app-wide, kept in localStorage. */
+import { normalizeHex } from "./hex";
+
 export type Swatch = Readonly<{ id: string; name: string; color: string }>;
 
 /** docked to the right edge, or floating as a strip / column */
@@ -37,52 +36,26 @@ export const DEFAULT_PALETTE_STATE: PaletteState = {
   hiddenTools: [],
 };
 
-// -----------------------------------------------------------------------------
-// colours
-// -----------------------------------------------------------------------------
-
-const byteToHex = (n: number) =>
-  Math.max(0, Math.min(255, Math.round(n)))
-    .toString(16)
-    .padStart(2, "0");
-
-export const rgbToHex = (r: number, g: number, b: number) =>
-  `#${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`;
-
-/** "#abc" / "#aabbcc" -> "#aabbcc"; null for anything else */
-export const normalizeHex = (value: unknown): string | null => {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());
-  if (!m) {
-    return null;
-  }
-  const h = m[1].toLowerCase();
-  return `#${h.length === 3 ? [...h].map((c) => c + c).join("") : h}`;
-};
-
-// -----------------------------------------------------------------------------
-// state
-// -----------------------------------------------------------------------------
-
 export const sanitizePaletteState = (raw: unknown): PaletteState => {
   const value = (raw ?? {}) as Partial<PaletteState>;
   const seen = new Set<string>();
   const swatches: Swatch[] = [];
-  for (const s of Array.isArray(value.swatches) ? value.swatches : []) {
-    const color = normalizeHex(s?.color);
+  for (const candidate of Array.isArray(value.swatches) ? value.swatches : []) {
+    const color = normalizeHex(candidate?.color);
     if (
       color &&
-      typeof s.id === "string" &&
-      !seen.has(s.id) &&
+      typeof candidate.id === "string" &&
+      !seen.has(candidate.id) &&
       swatches.length < PALETTE_SWATCH_LIMIT
     ) {
-      seen.add(s.id);
+      seen.add(candidate.id);
       swatches.push({
-        id: s.id,
+        id: candidate.id,
         color,
-        name: typeof s.name === "string" ? s.name.slice(0, 80) : color,
+        name:
+          typeof candidate.name === "string"
+            ? candidate.name.slice(0, 80)
+            : color,
       });
     }
   }
@@ -120,7 +93,8 @@ export const sanitizePaletteState = (raw: unknown): PaletteState => {
       ? [
           ...new Set(
             value.hiddenTools.filter(
-              (t): t is string => typeof t === "string" && t.length < 40,
+              (tag): tag is string =>
+                typeof tag === "string" && tag.length < 40,
             ),
           ),
         ]
@@ -186,8 +160,10 @@ export const renameSwatch = (id: string, name: string) => {
   const current = getPaletteState();
   commit({
     ...current,
-    swatches: current.swatches.map((s) =>
-      s.id === id ? { ...s, name: name.trim().slice(0, 80) || s.color } : s,
+    swatches: current.swatches.map((swatch) =>
+      swatch.id === id
+        ? { ...swatch, name: name.trim().slice(0, 80) || swatch.color }
+        : swatch,
     ),
   });
 };
@@ -200,10 +176,14 @@ export const setSwatchColor = (id: string, color: string) => {
   const current = getPaletteState();
   commit({
     ...current,
-    swatches: current.swatches.map((s) =>
-      s.id === id
-        ? { ...s, color: hex, name: s.name === s.color ? hex : s.name }
-        : s,
+    swatches: current.swatches.map((swatch) =>
+      swatch.id === id
+        ? {
+            ...swatch,
+            color: hex,
+            name: swatch.name === swatch.color ? hex : swatch.name,
+          }
+        : swatch,
     ),
   });
 };
@@ -211,19 +191,24 @@ export const setSwatchColor = (id: string, color: string) => {
 /** puts a swatch where another one is: the list is reordered by dragging */
 export const moveSwatch = (id: string, beforeId: string | null) => {
   const current = getPaletteState();
-  const moving = current.swatches.find((s) => s.id === id);
+  const moving = current.swatches.find((swatch) => swatch.id === id);
   if (!moving || id === beforeId) {
     return;
   }
-  const rest = current.swatches.filter((s) => s.id !== id);
-  const at = beforeId ? rest.findIndex((s) => s.id === beforeId) : rest.length;
+  const rest = current.swatches.filter((swatch) => swatch.id !== id);
+  const at = beforeId
+    ? rest.findIndex((swatch) => swatch.id === beforeId)
+    : rest.length;
   rest.splice(at < 0 ? rest.length : at, 0, moving);
   commit({ ...current, swatches: rest });
 };
 
 export const removeSwatch = (id: string) => {
   const current = getPaletteState();
-  commit({ ...current, swatches: current.swatches.filter((s) => s.id !== id) });
+  commit({
+    ...current,
+    swatches: current.swatches.filter((swatch) => swatch.id !== id),
+  });
 };
 
 export const setPaletteLayout = (layout: PaletteLayout) =>
@@ -234,7 +219,7 @@ export const setLayersDetached = (layersDetached: boolean) =>
 
 export const setToolHidden = (id: string, hidden: boolean) => {
   const current = getPaletteState();
-  const rest = current.hiddenTools.filter((t) => t !== id);
+  const rest = current.hiddenTools.filter((tool) => tool !== id);
   commit({ ...current, hiddenTools: hidden ? [...rest, id] : rest });
 };
 
@@ -273,11 +258,13 @@ export const addSwatches = (
   colors: readonly { name: string; color: string }[],
 ): number => {
   const current = getPaletteState();
-  const have = new Set(current.swatches.map((s) => `${s.color}|${s.name}`));
+  const have = new Set(
+    current.swatches.map((swatch) => `${swatch.color}|${swatch.name}`),
+  );
   const added: Swatch[] = [];
-  for (const c of colors) {
-    const hex = normalizeHex(c.color);
-    const name = c.name.trim().slice(0, 80) || hex;
+  for (const entry of colors) {
+    const hex = normalizeHex(entry.color);
+    const name = entry.name.trim().slice(0, 80) || hex;
     if (
       hex &&
       name &&
@@ -292,226 +279,4 @@ export const addSwatches = (
     commit({ ...current, swatches: [...current.swatches, ...added] });
   }
   return added.length;
-};
-
-// -----------------------------------------------------------------------------
-// import
-// -----------------------------------------------------------------------------
-
-export type ImportedColor = { name: string; color: string };
-
-/** .gpl palette: "R G B  name" lines after a "GIMP Palette" header line */
-export const parseGpl = (text: string): ImportedColor[] => {
-  const lines = text.replace(/^﻿/, "").split(/\r?\n/);
-  if (!/^GIMP Palette/i.test(lines[0]?.trim() ?? "")) {
-    return [];
-  }
-  const colors: ImportedColor[] = [];
-  for (const line of lines.slice(1)) {
-    const m = /^\s*(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})(?:\s+(.*))?$/.exec(line);
-    if (m) {
-      const [r, g, b] = [m[1], m[2], m[3]].map(Number);
-      if (r <= 255 && g <= 255 && b <= 255) {
-        const color = rgbToHex(r, g, b);
-        colors.push({ color, name: m[4]?.trim() || color });
-      }
-    }
-  }
-  return colors;
-};
-
-/** ASE swatch files: RGB, Gray and CMYK colour entries (Lab is skipped) */
-export const parseAse = (buffer: ArrayBuffer): ImportedColor[] => {
-  const view = new DataView(buffer);
-  if (buffer.byteLength < 12 || view.getUint32(0) !== 0x41534546) {
-    return [];
-  }
-  const blocks = view.getUint32(8);
-  const colors: ImportedColor[] = [];
-  let offset = 12;
-  for (let i = 0; i < blocks && offset + 6 <= buffer.byteLength; i++) {
-    const type = view.getUint16(offset);
-    const length = view.getUint32(offset + 2);
-    const start = offset + 6;
-    const end = start + length;
-    if (end > buffer.byteLength) {
-      break;
-    }
-    if (type === 0x0001) {
-      let p = start;
-      const nameLength = view.getUint16(p);
-      p += 2;
-      let name = "";
-      for (let k = 0; k < nameLength - 1; k++) {
-        name += String.fromCharCode(view.getUint16(p + k * 2));
-      }
-      p += nameLength * 2;
-      const model = String.fromCharCode(
-        ...[0, 1, 2, 3].map((k) => view.getUint8(p + k)),
-      );
-      p += 4;
-      const f = (k: number) => view.getFloat32(p + k * 4);
-      let rgb: [number, number, number] | null = null;
-      if (model === "RGB ") {
-        rgb = [f(0) * 255, f(1) * 255, f(2) * 255];
-      } else if (model === "Gray") {
-        rgb = [f(0) * 255, f(0) * 255, f(0) * 255];
-      } else if (model === "CMYK") {
-        const k = f(3);
-        rgb = [
-          255 * (1 - f(0)) * (1 - k),
-          255 * (1 - f(1)) * (1 - k),
-          255 * (1 - f(2)) * (1 - k),
-        ];
-      }
-      if (rgb) {
-        const color = rgbToHex(...rgb);
-        colors.push({ name: name.trim() || color, color });
-      }
-    }
-    offset = end;
-  }
-  return colors;
-};
-
-// -----------------------------------------------------------------------------
-// export
-// -----------------------------------------------------------------------------
-
-const rgbOf = (hex: string): [number, number, number] => {
-  const h = normalizeHex(hex) ?? "#000000";
-  return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as [
-    number,
-    number,
-    number,
-  ];
-};
-
-/** a .gpl file: the colours as "R G B  name" lines */
-export const serializeGpl = (
-  colors: readonly ImportedColor[],
-  name = "Palette",
-) =>
-  `GIMP Palette\nName: ${name.replace(/[\r\n]/g, " ")}\nColumns: 8\n#\n${colors
-    .map((c) => {
-      const [r, g, b] = rgbOf(c.color);
-      return `${String(r).padStart(3)} ${String(g).padStart(3)} ${String(
-        b,
-      ).padStart(3)}  ${c.name.replace(/[\r\n]/g, " ")}`;
-    })
-    .join("\n")}\n`;
-
-/** an .ase file: one RGB colour entry per swatch */
-export const serializeAse = (colors: readonly ImportedColor[]): ArrayBuffer => {
-  const entries = colors.map((c) => {
-    const name = c.name.slice(0, 80);
-    // name length counts the end mark; the entry is name, model, three floats, kind
-    const length = 2 + (name.length + 1) * 2 + 4 + 12 + 2;
-    return { name, length, rgb: rgbOf(c.color) };
-  });
-  const total = 12 + entries.reduce((n, e) => n + 6 + e.length, 0);
-  const buffer = new ArrayBuffer(total);
-  const view = new DataView(buffer);
-  view.setUint32(0, 0x41534546);
-  view.setUint16(4, 1);
-  view.setUint16(6, 0);
-  view.setUint32(8, entries.length);
-  let p = 12;
-  for (const e of entries) {
-    view.setUint16(p, 0x0001);
-    view.setUint32(p + 2, e.length);
-    p += 6;
-    view.setUint16(p, e.name.length + 1);
-    p += 2;
-    for (let k = 0; k < e.name.length; k++) {
-      view.setUint16(p + k * 2, e.name.charCodeAt(k));
-    }
-    view.setUint16(p + e.name.length * 2, 0);
-    p += (e.name.length + 1) * 2;
-    for (const [k, ch] of "RGB ".split("").entries()) {
-      view.setUint8(p + k, ch.charCodeAt(0));
-    }
-    p += 4;
-    e.rgb.forEach((v, k) => view.setFloat32(p + k * 4, v / 255));
-    p += 12;
-    // "normal" colour
-    view.setUint16(p, 2);
-    p += 2;
-  }
-  return buffer;
-};
-
-export const parsePaletteFile = async (
-  file: File,
-): Promise<ImportedColor[]> => {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".ase")) {
-    return parseAse(await file.arrayBuffer());
-  }
-  if (name.endsWith(".gpl")) {
-    return parseGpl(await file.text());
-  }
-  return [];
-};
-
-// -----------------------------------------------------------------------------
-// panel snapping
-// -----------------------------------------------------------------------------
-
-export type PanelRect = { x: number; y: number; width: number; height: number };
-
-export const PANEL_SNAP_DISTANCE = 12;
-export const PANEL_MARGIN = 12;
-const PANEL_GAP = 8;
-
-const nearest = (
-  value: number,
-  candidates: readonly number[],
-  limit: number,
-) => {
-  let best = value;
-  let bestD = limit + 1e-9;
-  for (const c of candidates) {
-    const d = Math.abs(c - value);
-    if (d < bestD) {
-      best = c;
-      bestD = d;
-    }
-  }
-  return best;
-};
-
-/**
- * Pulls a dragged panel onto the screen edges (with a margin) and onto its
- * neighbours: side by side, or edge to edge.
- */
-export const snapPanel = (
-  rect: PanelRect,
-  others: readonly PanelRect[],
-  viewport: { width: number; height: number },
-  limit = PANEL_SNAP_DISTANCE,
-): { x: number; y: number; edge: { right: boolean } } => {
-  const xs = [PANEL_MARGIN, viewport.width - rect.width - PANEL_MARGIN];
-  const ys = [PANEL_MARGIN, viewport.height - rect.height - PANEL_MARGIN];
-  for (const o of others) {
-    xs.push(
-      o.x - rect.width - PANEL_GAP, // to its left
-      o.x + o.width + PANEL_GAP, // to its right
-      o.x, // left edges aligned
-      o.x + o.width - rect.width, // right edges aligned
-    );
-    ys.push(
-      o.y, // tops aligned
-      o.y + o.height - rect.height, // bottoms aligned
-      o.y + o.height + PANEL_GAP, // below it
-      o.y - rect.height - PANEL_GAP, // above it
-    );
-  }
-  const x = nearest(rect.x, xs, limit);
-  const y = nearest(rect.y, ys, limit);
-  return {
-    x,
-    y,
-    edge: { right: x === viewport.width - rect.width - PANEL_MARGIN },
-  };
 };

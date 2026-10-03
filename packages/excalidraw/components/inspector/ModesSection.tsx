@@ -35,7 +35,7 @@ const MODES = [
     id: "snap-objects",
     action: actionToggleObjectsSnapMode,
     title: () => t("buttons.objectsSnapMode"),
-    on: (s: App["state"]) => s.objectsSnapModeEnabled,
+    on: (state: App["state"]) => state.objectsSnapModeEnabled,
     // a magnet
     icon: (
       <Svg>
@@ -48,7 +48,7 @@ const MODES = [
     id: "snap-guides",
     action: actionToggleGuidesSnap,
     title: () => t("labels.rulers.snap"),
-    on: (s: App["state"]) => s.guidesSnapEnabled,
+    on: (state: App["state"]) => state.guidesSnapEnabled,
     icon: (
       <Svg>
         <path d="M4 3v6a5 5 0 0 0 10 0V3h-3v6a2 2 0 0 1-4 0V3z" />
@@ -60,7 +60,7 @@ const MODES = [
     id: "lock-guides",
     action: actionToggleGuidesLock,
     title: () => t("labels.rulers.lock"),
-    on: (s: App["state"]) => s.guidesLocked,
+    on: (state: App["state"]) => state.guidesLocked,
     // a padlock over a guide line
     icon: (
       <Svg>
@@ -74,7 +74,7 @@ const MODES = [
     id: "rulers",
     action: actionToggleRulers,
     title: () => t("labels.rulers.toggle"),
-    on: (s: App["state"]) => s.rulersEnabled,
+    on: (state: App["state"]) => state.rulersEnabled,
     icon: (
       <Svg>
         <rect x="2.5" y="8" width="19" height="8" rx="1.5" />
@@ -86,7 +86,7 @@ const MODES = [
     id: "grid",
     action: actionToggleGridMode,
     title: () => t("labels.toggleGrid"),
-    on: (s: App["state"]) => s.gridModeEnabled,
+    on: (state: App["state"]) => state.gridModeEnabled,
     icon: (
       <Svg>
         <path d="M4 4h16v16H4zM4 12h16M12 4v16" />
@@ -97,7 +97,7 @@ const MODES = [
     id: "arrow-binding",
     action: actionToggleArrowBinding,
     title: () => t("labels.arrowBinding"),
-    on: (s: App["state"]) => s.bindingPreference === "enabled",
+    on: (state: App["state"]) => state.bindingPreference === "enabled",
     icon: (
       <Svg>
         <rect x="2.5" y="4" width="7" height="6" rx="1" />
@@ -110,7 +110,7 @@ const MODES = [
     id: "midpoints",
     action: actionToggleMidpointSnapping,
     title: () => t("labels.midpointSnapping"),
-    on: (s: App["state"]) => s.isMidpointSnappingEnabled,
+    on: (state: App["state"]) => state.isMidpointSnappingEnabled,
     icon: (
       <Svg>
         <path d="M3 12h18" />
@@ -123,7 +123,7 @@ const MODES = [
     id: "zen",
     action: actionToggleZenMode,
     title: () => t("buttons.zenMode"),
-    on: (s: App["state"]) => s.zenModeEnabled,
+    on: (state: App["state"]) => state.zenModeEnabled,
     icon: (
       <Svg>
         <circle cx="12" cy="12" r="8.5" />
@@ -137,21 +137,21 @@ const MODES = [
 export const ModesSection = ({ app }: { app: App }) => (
   <Section title={t("labels.palette.modes")} testId="inspector-modes">
     <div className="inspector__row" style={{ gap: 2, flexWrap: "wrap" }}>
-      {MODES.map((m) => {
-        const on = !!m.on(app.state);
+      {MODES.map((mode) => {
+        const on = !!mode.on(app.state);
         return (
           <button
-            key={m.id}
+            key={mode.id}
             type="button"
             className="inspector__iconbtn"
             style={{ width: "2rem", height: "2rem" }}
-            data-testid={`mode-${m.id}`}
-            title={m.title()}
-            aria-label={m.title()}
+            data-testid={`mode-${mode.id}`}
+            title={mode.title()}
+            aria-label={mode.title()}
             aria-pressed={on}
-            onClick={() => app.actionManager.executeAction(m.action, "ui")}
+            onClick={() => app.actionManager.executeAction(mode.action, "ui")}
           >
-            {m.icon}
+            {mode.icon}
           </button>
         );
       })}

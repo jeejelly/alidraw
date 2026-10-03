@@ -1,7 +1,8 @@
+import type { JSONExportData } from "@excalidraw/excalidraw/data/json";
+
 import { FileAutosave } from "./FileAutosave";
 
 import type { AutosaveStatus } from "./autosaveStatus";
-import type { JSONExportData } from "@excalidraw/excalidraw/data/json";
 
 const DELAY = 20_000;
 

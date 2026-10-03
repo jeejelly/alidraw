@@ -17,77 +17,79 @@ export const SymbolPreview = ({
   height: number;
   background?: boolean;
 }) => {
-  const b = boundsOf(shapes);
+  const bounds = boundsOf(shapes);
   const pad = 6;
-  const c = theme.colors;
+  const colors = theme.colors;
   const none = "none";
   return (
     <svg
       width={width}
       height={height}
-      viewBox={`${b.x - pad} ${b.y - pad} ${b.w + pad * 2} ${b.h + pad * 2}`}
+      viewBox={`${bounds.x - pad} ${bounds.y - pad} ${bounds.w + pad * 2} ${
+        bounds.h + pad * 2
+      }`}
       preserveAspectRatio="xMidYMid meet"
       style={{
-        background: background ? c.page : "transparent",
+        background: background ? colors.page : "transparent",
         borderRadius: 6,
       }}
       aria-hidden="true"
     >
-      {shapes.map((s, k) => {
-        if (s.t === "rect") {
-          const r = resolveRadius(s.r, s.h, s.w, theme);
+      {shapes.map((shape, index) => {
+        if (shape.t === "rect") {
+          const radius = resolveRadius(shape.r, shape.h, shape.w, theme);
           return (
             <rect
-              key={k}
-              x={s.x}
-              y={s.y}
-              width={s.w}
-              height={s.h}
-              rx={r}
-              fill={s.f ? c[s.f] : none}
-              stroke={s.s ? c[s.s] : none}
-              strokeWidth={s.sw ?? 1}
-              strokeDasharray={s.dash ? "4 3" : undefined}
+              key={index}
+              x={shape.x}
+              y={shape.y}
+              width={shape.w}
+              height={shape.h}
+              rx={radius}
+              fill={shape.f ? colors[shape.f] : none}
+              stroke={shape.s ? colors[shape.s] : none}
+              strokeWidth={shape.sw ?? 1}
+              strokeDasharray={shape.dash ? "4 3" : undefined}
             />
           );
         }
-        if (s.t === "ellipse") {
+        if (shape.t === "ellipse") {
           return (
             <ellipse
-              key={k}
-              cx={s.x + s.w / 2}
-              cy={s.y + s.h / 2}
-              rx={s.w / 2}
-              ry={s.h / 2}
-              fill={s.f ? c[s.f] : none}
-              stroke={s.s ? c[s.s] : none}
-              strokeWidth={s.sw ?? 1}
+              key={index}
+              cx={shape.x + shape.w / 2}
+              cy={shape.y + shape.h / 2}
+              rx={shape.w / 2}
+              ry={shape.h / 2}
+              fill={shape.f ? colors[shape.f] : none}
+              stroke={shape.s ? colors[shape.s] : none}
+              strokeWidth={shape.sw ?? 1}
             />
           );
         }
-        if (s.t === "line") {
+        if (shape.t === "line") {
           return (
             <polyline
-              key={k}
-              points={s.pts.map((p) => p.join(",")).join(" ")}
+              key={index}
+              points={shape.pts.map((point) => point.join(",")).join(" ")}
               fill="none"
-              stroke={c[s.s ?? "text"]}
-              strokeWidth={s.sw ?? theme.stroke}
+              stroke={colors[shape.s ?? "text"]}
+              strokeWidth={shape.sw ?? theme.stroke}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           );
         }
-        if (s.t === "icon") {
-          const icon = getIcon(s.name);
-          const k2 = s.size / 24;
+        if (shape.t === "icon") {
+          const icon = getIcon(shape.name);
+          const k2 = shape.size / 24;
           return icon ? (
             <path
-              key={k}
+              key={index}
               d={icon.d}
-              transform={`translate(${s.x} ${s.y}) scale(${k2})`}
+              transform={`translate(${shape.x} ${shape.y}) scale(${k2})`}
               fill="none"
-              stroke={c[s.s ?? "text"]}
+              stroke={colors[shape.s ?? "text"]}
               strokeWidth={Math.max(1, theme.stroke * k2) / k2}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -96,16 +98,16 @@ export const SymbolPreview = ({
         }
         return (
           <text
-            key={k}
-            x={s.x}
-            y={s.y}
-            fontSize={s.size}
-            fill={c[s.s]}
-            textAnchor={s.anchor ?? "start"}
+            key={index}
+            x={shape.x}
+            y={shape.y}
+            fontSize={shape.size}
+            fill={colors[shape.s]}
+            textAnchor={shape.anchor ?? "start"}
             dominantBaseline="central"
             fontFamily="Nunito, system-ui, sans-serif"
           >
-            {s.text}
+            {shape.text}
           </text>
         );
       })}

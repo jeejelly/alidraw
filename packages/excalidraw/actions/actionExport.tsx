@@ -253,6 +253,67 @@ function prepareDataForJSONExport(
 // Save actions
 // ---------------------------------------------------------------------------
 
+type ExportedData = ReturnType<typeof prepareDataForJSONExport>["data"];
+
+const saveToNewFile = async (data: ExportedData, filename: string) => {
+  const { fileHandle } = await saveAsJSON({ data, filename, fileHandle: null });
+  return {
+    captureUpdate: CaptureUpdateAction.NEVER,
+    appState: {
+      fileHandle,
+      toast: { message: t("toast.fileSaved"), duration: 1500 },
+    },
+  };
+};
+
+const saveToExistingFile = async (
+  data: ExportedData,
+  fileHandle: FileSystemFileHandle,
+) => {
+  await writeSceneToHandle(await data, fileHandle, { askPermission: true });
+  return {
+    captureUpdate: CaptureUpdateAction.NEVER,
+    appState: {
+      toast: {
+        message: t("toast.fileSavedToFilename").replace(
+          "{filename}",
+          `"${fileHandle.name}"`,
+        ),
+        duration: 1500,
+      },
+    },
+  };
+};
+
+/** the user closed the picker, or the first save failed */
+const dismissedSave = (error: any) => {
+  if (error?.name !== "AbortError") {
+    console.error(error);
+  } else {
+    console.warn(error);
+  }
+  return {
+    captureUpdate: CaptureUpdateAction.NEVER,
+    appState: { toast: null },
+  };
+};
+
+const saveFailure = (error: any, fileHandle: FileSystemFileHandle) => {
+  console.error(error);
+  return {
+    captureUpdate: CaptureUpdateAction.NEVER,
+    appState: {
+      toast: null,
+      errorMessage: (
+        <SaveFailedMessage
+          fileName={fileHandle.name}
+          reason={error?.message ?? String(error)}
+        />
+      ),
+    },
+  };
+};
+
 export const actionSaveToActiveFile = register({
   name: "saveToActiveFile",
   label: "buttons.save",
@@ -272,74 +333,18 @@ export const actionSaveToActiveFile = register({
     onExportInProgress = true;
 
     const fileHandle = appState.fileHandle;
-    const filename = app.getName();
-
     const { abortController, data: exportedDataPromise } =
       prepareDataForJSONExport(elements, appState, app.files, app);
 
-    // No file yet: the first save asks where. Once there is a file, Save writes to it and never
-    // opens a dialog; a failed write says so and offers Save as.
-    if (!fileHandle) {
-      try {
-        const { fileHandle: savedFileHandle } = await saveAsJSON({
-          data: exportedDataPromise,
-          filename,
-          fileHandle: null,
-        });
-        return {
-          captureUpdate: CaptureUpdateAction.NEVER,
-          appState: {
-            fileHandle: savedFileHandle,
-            toast: { message: t("toast.fileSaved"), duration: 1500 },
-          },
-        };
-      } catch (error: any) {
-        abortController.abort();
-        if (error?.name !== "AbortError") {
-          console.error(error);
-        } else {
-          console.warn(error);
-        }
-        return {
-          captureUpdate: CaptureUpdateAction.NEVER,
-          appState: { toast: null },
-        };
-      } finally {
-        onExportInProgress = false;
-      }
-    }
-
     try {
-      await writeSceneToHandle(await exportedDataPromise, fileHandle, {
-        askPermission: true,
-      });
-      return {
-        captureUpdate: CaptureUpdateAction.NEVER,
-        appState: {
-          toast: {
-            message: t("toast.fileSavedToFilename").replace(
-              "{filename}",
-              `"${fileHandle.name}"`,
-            ),
-            duration: 1500,
-          },
-        },
-      };
+      // No file yet: the first save asks where. Once there is a file, Save writes to it and
+      // never opens a dialog; a failed write says so and offers Save as.
+      return fileHandle
+        ? await saveToExistingFile(exportedDataPromise, fileHandle)
+        : await saveToNewFile(exportedDataPromise, app.getName());
     } catch (error: any) {
       abortController.abort();
-      console.error(error);
-      return {
-        captureUpdate: CaptureUpdateAction.NEVER,
-        appState: {
-          toast: null,
-          errorMessage: (
-            <SaveFailedMessage
-              fileName={fileHandle.name}
-              reason={error?.message ?? String(error)}
-            />
-          ),
-        },
-      };
+      return fileHandle ? saveFailure(error, fileHandle) : dismissedSave(error);
     } finally {
       onExportInProgress = false;
     }

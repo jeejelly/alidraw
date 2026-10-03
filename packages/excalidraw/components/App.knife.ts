@@ -1,18 +1,16 @@
-import { EVENT, viewportCoordsToSceneCoords } from "@excalidraw/common";
+import { viewportCoordsToSceneCoords } from "@excalidraw/common";
 
 import { actionKnifeCut } from "../actions/actionKnife";
 import { AngleKeys, resolveAngle, toDegrees } from "../remarkableAngles";
+
+import { listenToGesture, onEscape } from "./gestureListeners";
 
 import type App from "./App";
 
 /** a cut shorter than this many screen px is a stray click */
 const MIN_CUT = 6;
 
-/**
- * The knife tool: drag a line across shapes to cut them along it. The angle
- * helps: a held number key locks 0/15/30/45/60/75/90/120/135/150°, Shift steps
- * by 15°, and the magnet catches the usual angles; Alt is free.
- */
+/** The knife tool: drag a line across shapes to cut along it; angle keys, Shift and the magnet help, Alt is free. */
 export class AppKnife {
   private from: { x: number; y: number } | null = null;
   private keys = new AngleKeys();
@@ -39,33 +37,22 @@ export class AppKnife {
     this.keys.start(this.app.ownerWindow, () => {
       this.app.setState({ angleHelper: { active: this.keys.key } });
     });
-    const win = this.app.ownerWindow;
-    const onMove = (e: PointerEvent) => this.move(e);
-    const onUp = (e: PointerEvent) => this.up(e);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        this.cancel();
-      }
-    };
-    win.addEventListener(EVENT.POINTER_MOVE, onMove);
-    win.addEventListener(EVENT.POINTER_UP, onUp);
-    win.addEventListener(EVENT.KEYDOWN, onKey);
-    this.teardown = () => {
-      win.removeEventListener(EVENT.POINTER_MOVE, onMove);
-      win.removeEventListener(EVENT.POINTER_UP, onUp);
-      win.removeEventListener(EVENT.KEYDOWN, onKey);
-    };
+    this.teardown = listenToGesture(this.app.ownerWindow, {
+      onPointerMove: this.move,
+      onPointerUp: this.up,
+      onKeyDown: onEscape(this.cancel),
+    });
     return true;
   };
 
   /** the end of the line for a pointer, with the angle rules applied */
   private resolve = (
-    p: { x: number; y: number },
+    point: { x: number; y: number },
     mods: { shiftKey: boolean; altKey: boolean },
   ) => {
     const from = this.from!;
-    const dx = p.x - from.x;
-    const dy = p.y - from.y;
+    const dx = point.x - from.x;
+    const dy = point.y - from.y;
     const length = Math.hypot(dx, dy);
     if (length === 0) {
       return { to: from, label: "" };
@@ -79,14 +66,14 @@ export class AppKnife {
       symmetry: Math.PI * 2,
     });
     // a held key chooses the line's angle, not its side
-    let a = angle;
+    let lineAngle = angle;
     if (how === "key") {
       const side = Math.cos(angle - raw) >= 0 ? 0 : Math.PI;
-      a = angle + side;
+      lineAngle = angle + side;
     }
     const to = {
-      x: from.x + Math.cos(a) * length,
-      y: from.y - Math.sin(a) * length,
+      x: from.x + Math.cos(lineAngle) * length,
+      y: from.y - Math.sin(lineAngle) * length,
     };
     const tag =
       how === "key"
@@ -97,7 +84,7 @@ export class AppKnife {
         ? " ⇧"
         : "";
     // a line has no direction: show 0-180
-    const shown = toDegrees(a) % 180;
+    const shown = toDegrees(lineAngle) % 180;
     return { to, label: `${shown}°${tag}` };
   };
 
@@ -105,8 +92,8 @@ export class AppKnife {
     if (!this.from) {
       return;
     }
-    const p = viewportCoordsToSceneCoords(event, this.app.state);
-    const { to, label } = this.resolve(p, event);
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
+    const { to, label } = this.resolve(point, event);
     this.app.setState({ knife: { from: this.from, to, label } });
   };
 
@@ -115,8 +102,8 @@ export class AppKnife {
     if (!from) {
       return;
     }
-    const p = viewportCoordsToSceneCoords(event, this.app.state);
-    const { to } = this.resolve(p, event);
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
+    const { to } = this.resolve(point, event);
     this.end();
     const zoom = this.app.state.zoom.value;
     if (Math.hypot(to.x - from.x, to.y - from.y) * zoom < MIN_CUT) {

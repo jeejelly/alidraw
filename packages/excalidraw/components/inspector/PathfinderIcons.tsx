@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 /** Venn-style glyphs for the boolean operations: two overlapping squares, the
  * part the operation keeps filled, the rest outlined */
-const A = "M3 3H15V15H3Z";
-const B = "M9 9H21V21H9Z";
+const SQUARE_A = "M3 3H15V15H3Z";
+const SQUARE_B = "M9 9H21V21H9Z";
 const A_ONLY = "M3 3H15V9H9V15H3Z";
 const B_ONLY = "M15 9H21V21H9V15H15Z";
 const BOTH = "M9 9H15V15H9Z";
@@ -14,13 +14,13 @@ const GLYPHS: Record<string, ReactNode> = {
   subtract: (
     <>
       <path d={A_ONLY} fill="currentColor" />
-      <path d={B} fill="none" />
+      <path d={SQUARE_B} fill="none" />
     </>
   ),
   intersect: (
     <>
-      <path d={A} fill="none" />
-      <path d={B} fill="none" />
+      <path d={SQUARE_A} fill="none" />
+      <path d={SQUARE_B} fill="none" />
       <path d={BOTH} fill="currentColor" />
     </>
   ),

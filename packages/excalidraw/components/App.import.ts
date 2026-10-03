@@ -3,18 +3,21 @@ import {
   viewportCoordsToSceneCoords,
 } from "@excalidraw/common";
 
-import { fileOpen } from "../data/filesystem";
 import { importSvg } from "@excalidraw/vector";
+
+import { fileOpen } from "../data/filesystem";
 
 import type App from "./App";
 
 export type SvgMode = "shapes" | "image";
 
-const KEY = "excalidraw-import-svg-mode";
+const MODE_STORAGE_KEY = "excalidraw-import-svg-mode";
 
 export const getSvgMode = (): SvgMode => {
   try {
-    return localStorage.getItem(KEY) === "image" ? "image" : "shapes";
+    return localStorage.getItem(MODE_STORAGE_KEY) === "image"
+      ? "image"
+      : "shapes";
   } catch {
     return "shapes";
   }
@@ -22,11 +25,19 @@ export const getSvgMode = (): SvgMode => {
 
 export const setSvgMode = (mode: SvgMode) => {
   try {
-    localStorage.setItem(KEY, mode);
+    localStorage.setItem(MODE_STORAGE_KEY, mode);
   } catch {
     // not kept
   }
 };
+
+const readAsText = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
 
 const isSvg = (file: File) =>
   file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
@@ -40,13 +51,13 @@ export class AppImport {
 
   /** the middle of what is on screen, in scene coordinates */
   private centre = () => {
-    const s = this.app.state;
+    const state = this.app.state;
     return viewportCoordsToSceneCoords(
       {
-        clientX: s.width / 2 + s.offsetLeft,
-        clientY: s.height / 2 + s.offsetTop,
+        clientX: state.width / 2 + state.offsetLeft,
+        clientY: state.height / 2 + state.offsetTop,
       },
-      s,
+      state,
     );
   };
 
@@ -71,38 +82,43 @@ export class AppImport {
     }
   };
 
+  /** @returns the number of shapes added, or null when the file stays a picture */
+  private importSvgAsShapes = async (file: File, notes: Set<string>) => {
+    try {
+      const { elements, skipped } = importSvg(await readAsText(file), {
+        x: 0,
+        y: 0,
+      });
+      skipped.forEach((note) => notes.add(note));
+      if (!elements.length) {
+        return null;
+      }
+      this.app.addElementsFromPasteOrLibrary({
+        elements,
+        files: null,
+        position: "center",
+      });
+      return elements.length;
+    } catch {
+      // not drawable as shapes: kept as a picture
+      return null;
+    }
+  };
+
   importFiles = async (files: File[], mode: SvgMode = getSvgMode()) => {
     const at = this.centre();
     let shapes = 0;
     const pictures: File[] = [];
     const notes = new Set<string>();
     for (const file of files) {
-      if (isSvg(file) && mode === "shapes") {
-        try {
-          const text = await new Promise<string>((resolve, reject) => {
-            const r = new FileReader();
-            r.onload = () => resolve(String(r.result));
-            r.onerror = () => reject(r.error);
-            r.readAsText(file);
-          });
-          const { elements, skipped } = importSvg(text, { x: 0, y: 0 });
-          skipped.forEach((s) => notes.add(s));
-          if (elements.length) {
-            this.app.addElementsFromPasteOrLibrary({
-              elements,
-              files: null,
-              position: "center",
-            });
-            shapes += elements.length;
-          } else {
-            pictures.push(file);
-          }
-        } catch {
-          // not drawable as shapes: kept as a picture
-          pictures.push(file);
-        }
-      } else {
+      const added =
+        isSvg(file) && mode === "shapes"
+          ? await this.importSvgAsShapes(file, notes)
+          : null;
+      if (added === null) {
         pictures.push(file);
+      } else {
+        shapes += added;
       }
     }
     if (pictures.length) {

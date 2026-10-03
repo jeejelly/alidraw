@@ -1,4 +1,4 @@
-import { EVENT, KEYS, viewportCoordsToSceneCoords } from "@excalidraw/common";
+import { KEYS, viewportCoordsToSceneCoords } from "@excalidraw/common";
 
 import {
   canEditCorners,
@@ -7,6 +7,8 @@ import {
   type CornerHandle,
 } from "../corners";
 import { actionConvertShapeToPath } from "../actions/actionPath";
+
+import { listenToGesture } from "./gestureListeners";
 
 import type React from "react";
 
@@ -17,10 +19,8 @@ const HIT_RADIUS = 11;
 type Gesture = { id: string; loop: number; index: number; all: boolean };
 
 /**
- * Live corners: with corner mode on, each straight corner of the selected
- * shape gets a circle gizmo; dragging it along the corner's bisector sets that
- * corner's radius (Shift: every corner). A rectangle or diamond becomes a path
- * (its anchors are its corners) the first time a corner is changed.
+ * Corner mode: dragging a corner's circle along its bisector sets the radius
+ * (Shift: every corner). A rectangle or diamond becomes a path on first change.
  */
 export class AppCorners {
   private gesture: Gesture | null = null;
@@ -31,22 +31,22 @@ export class AppCorners {
   isActive = () => this.gesture !== null;
 
   toggle = () => {
-    this.app.setState((s) => ({ cornerMode: !s.cornerMode }));
+    this.app.setState((state) => ({ cornerMode: !state.cornerMode }));
   };
 
   private target = () => {
-    const s = this.app.state;
+    const state = this.app.state;
     if (
-      !s.cornerMode ||
-      s.activeTool.type !== "selection" ||
-      s.viewModeEnabled ||
-      s.editingPath ||
-      s.editingTextElement ||
-      s.newElement
+      !state.cornerMode ||
+      state.activeTool.type !== "selection" ||
+      state.viewModeEnabled ||
+      state.editingPath ||
+      state.editingTextElement ||
+      state.newElement
     ) {
       return null;
     }
-    const selected = this.app.scene.getSelectedElements(s);
+    const selected = this.app.scene.getSelectedElements(state);
     return selected.length === 1 && canEditCorners(selected[0])
       ? selected[0]
       : null;
@@ -64,18 +64,19 @@ export class AppCorners {
     if (!el || event.button !== 0) {
       return false;
     }
-    const p = viewportCoordsToSceneCoords(event, this.app.state);
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
     const zoom = this.app.state.zoom.value;
     const hit = getCornerHandles(
       el,
       this.app.scene.getNonDeletedElementsMap(),
     ).find(
-      (h) =>
-        Math.hypot(h.center.x - p.x, h.center.y - p.y) <= HIT_RADIUS / zoom ||
-        (h.radius === 0 &&
+      (handle) =>
+        Math.hypot(handle.center.x - point.x, handle.center.y - point.y) <=
+          HIT_RADIUS / zoom ||
+        (handle.radius === 0 &&
           Math.hypot(
-            h.corner.x + h.dir.x * (14 / zoom) - p.x,
-            h.corner.y + h.dir.y * (14 / zoom) - p.y,
+            handle.corner.x + handle.dir.x * (14 / zoom) - point.x,
+            handle.corner.y + handle.dir.y * (14 / zoom) - point.y,
           ) <=
             HIT_RADIUS / zoom),
     );
@@ -97,24 +98,25 @@ export class AppCorners {
   };
 
   private move = (event: PointerEvent) => {
-    const g = this.gesture;
-    if (!g) {
+    const gesture = this.gesture;
+    if (!gesture) {
       return;
     }
-    const handle = this.handlesOf(g.id).find(
-      (h) => h.loop === g.loop && h.index === g.index,
+    const handle = this.handlesOf(gesture.id).find(
+      (candidate) =>
+        candidate.loop === gesture.loop && candidate.index === gesture.index,
     );
     if (!handle) {
       return;
     }
-    const p = viewportCoordsToSceneCoords(event, this.app.state);
-    const radius = Math.round(radiusAt(handle, p));
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
+    const radius = Math.round(radiusAt(handle, point));
     this.app.path.setBevelOf(
-      g.id,
-      event.shiftKey || g.all ? null : g.index,
+      gesture.id,
+      event.shiftKey || gesture.all ? null : gesture.index,
       radius,
       false,
-      g.loop,
+      gesture.loop,
     );
   };
 
@@ -127,13 +129,10 @@ export class AppCorners {
   };
 
   private listen = () => {
-    const win = this.app.ownerWindow;
-    win.addEventListener(EVENT.POINTER_MOVE, this.move);
-    win.addEventListener(EVENT.POINTER_UP, this.finish);
-    this.teardown = () => {
-      win.removeEventListener(EVENT.POINTER_MOVE, this.move);
-      win.removeEventListener(EVENT.POINTER_UP, this.finish);
-    };
+    this.teardown = listenToGesture(this.app.ownerWindow, {
+      onPointerMove: this.move,
+      onPointerUp: this.finish,
+    });
   };
 
   /** @returns true when the key was consumed */

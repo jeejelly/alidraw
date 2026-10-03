@@ -20,11 +20,11 @@ beforeEach(() => {
 });
 afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-const scene = (n = 0) =>
+const scene = (count = 0) =>
   JSON.stringify({
     type: "excalidraw",
     version: 2,
-    elements: Array(n).fill({}),
+    elements: Array(count).fill({}),
     appState: {},
     files: {},
   });
@@ -55,19 +55,20 @@ describe("paths", () => {
 
 describe("workspaces", () => {
   it("creates a named, git-backed workspace and remembers it", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "Checkout flow",
       parent: path.join(tmp, "projects"),
     });
-    expect(w.name).toBe("Checkout flow");
-    expect(fs.existsSync(path.join(w.path, ".git"))).toBe(true);
+    expect(workspace.name).toBe("Checkout flow");
+    expect(fs.existsSync(path.join(workspace.path, ".git"))).toBe(true);
     expect(
-      JSON.parse(fs.readFileSync(path.join(w.path, "workspace.json"), "utf8"))
-        .name,
+      JSON.parse(
+        fs.readFileSync(path.join(workspace.path, "workspace.json"), "utf8"),
+      ).name,
     ).toBe("Checkout flow");
     // the first commit is made, with a neutral identity
-    const history = await git.log(w.path);
-    expect(history.map((h) => h.subject)).toEqual(["Create workspace"]);
+    const history = await git.log(workspace.path);
+    expect(history.map((entry) => entry.subject)).toEqual(["Create workspace"]);
     expect(ws.list().map((x) => x.name)).toEqual(["Checkout flow"]);
     expect(ws.list()[0].settings).toMatchObject({
       autoCommit: true,
@@ -76,22 +77,30 @@ describe("workspaces", () => {
   });
 
   it("can skip git, and refuses a used folder", async () => {
-    const p = path.join(tmp, "projects");
-    const w = await ws.create({ name: "Plain", parent: p, useGit: false });
-    expect(fs.existsSync(path.join(w.path, ".git"))).toBe(false);
+    const projectsDir = path.join(tmp, "projects");
+    const workspace = await ws.create({
+      name: "Plain",
+      parent: projectsDir,
+      useGit: false,
+    });
+    expect(fs.existsSync(path.join(workspace.path, ".git"))).toBe(false);
     await expect(
-      ws.create({ name: "Plain", parent: p, useGit: false }),
+      ws.create({ name: "Plain", parent: projectsDir, useGit: false }),
     ).rejects.toThrow(/not empty/);
-    await expect(ws.create({ name: " ", parent: p })).rejects.toThrow(/name/);
+    await expect(ws.create({ name: " ", parent: projectsDir })).rejects.toThrow(
+      /name/,
+    );
   });
 
   it("opens an existing folder", async () => {
     const dir = path.join(tmp, "projects", "old");
     fs.mkdirSync(dir);
     fs.writeFileSync(path.join(dir, "a.excalidraw"), scene());
-    const w = await ws.open(dir);
-    expect(w.name).toBe("old");
-    expect(ws.scenes(w.id).map((s) => s.path)).toEqual(["a.excalidraw"]);
+    const workspace = await ws.open(dir);
+    expect(workspace.name).toBe("old");
+    expect(ws.scenes(workspace.id).map((item) => item.path)).toEqual([
+      "a.excalidraw",
+    ]);
     // opening again does not duplicate it
     await ws.open(dir);
     expect(ws.list()).toHaveLength(1);
@@ -101,14 +110,14 @@ describe("workspaces", () => {
     const dir = path.join(tmp, "projects", "fresh");
     fs.mkdirSync(dir);
     fs.writeFileSync(path.join(dir, "a.excalidraw"), scene());
-    const w = await ws.open(dir);
+    const workspace = await ws.open(dir);
     expect(fs.existsSync(path.join(dir, ".git"))).toBe(true);
     expect((await git.status(dir)).clean).toBe(true);
-    expect((await git.log(dir)).map((l) => l.subject)).toEqual([
+    expect((await git.log(dir)).map((commit) => commit.subject)).toEqual([
       "Create workspace",
     ]);
     const again = await ws.open(dir);
-    expect(again.id).toBe(w.id);
+    expect(again.id).toBe(workspace.id);
     const plain = path.join(tmp, "projects", "plain");
     fs.mkdirSync(plain);
     await ws.open(plain, { useGit: false });
@@ -116,82 +125,101 @@ describe("workspaces", () => {
   });
 
   it("saves a new scene straight into the workspace, uniquely named", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "S",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.saveNewScene(w.id, "Untitled", scene(1));
-    const b = ws.saveNewScene(w.id, "Untitled", scene(2));
-    expect([a, b]).toEqual(["Untitled.excalidraw", "Untitled-2.excalidraw"]);
-    expect(JSON.parse(ws.readScene(w.id, b)).elements).toHaveLength(2);
-    expect(() => ws.saveNewScene(w.id, "x", "not json")).toThrow();
+    const firstPath = ws.saveNewScene(workspace.id, "Untitled", scene(1));
+    const secondPath = ws.saveNewScene(workspace.id, "Untitled", scene(2));
+    expect([firstPath, secondPath]).toEqual([
+      "Untitled.excalidraw",
+      "Untitled-2.excalidraw",
+    ]);
+    expect(
+      JSON.parse(ws.readScene(workspace.id, secondPath)).elements,
+    ).toHaveLength(2);
+    expect(() => ws.saveNewScene(workspace.id, "x", "not json")).toThrow();
   });
 
   it("lists, creates, reads and writes scenes inside it", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "W",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.newScene(w.id, "Home screen");
-    const b = ws.newScene(w.id, "Home screen");
-    expect([a, b]).toEqual([
+    const firstPath = ws.newScene(workspace.id, "Home screen");
+    const secondPath = ws.newScene(workspace.id, "Home screen");
+    expect([firstPath, secondPath]).toEqual([
       "Home-screen.excalidraw",
       "Home-screen-2.excalidraw",
     ]);
-    const nested = ws.newScene(w.id, "x", "flows/checkout");
+    const nested = ws.newScene(workspace.id, "x", "flows/checkout");
     expect(nested).toBe("flows/checkout/x.excalidraw");
     expect(
       ws
-        .scenes(w.id)
-        .map((s) => s.path)
+        .scenes(workspace.id)
+        .map((item) => item.path)
         .sort(),
-    ).toEqual([a, b, nested].sort());
-    expect(ws.writeScene(w.id, a, scene(3)).bytes).toBeGreaterThan(10);
-    expect(JSON.parse(ws.readScene(w.id, a)).elements).toHaveLength(3);
+    ).toEqual([firstPath, secondPath, nested].sort());
+    expect(
+      ws.writeScene(workspace.id, firstPath, scene(3)).bytes,
+    ).toBeGreaterThan(10);
+    expect(
+      JSON.parse(ws.readScene(workspace.id, firstPath)).elements,
+    ).toHaveLength(3);
   });
 
   it("refuses paths outside, other file types and broken JSON", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "W",
       parent: path.join(tmp, "projects"),
     });
-    expect(() => ws.writeScene(w.id, "../out.excalidraw", scene())).toThrow();
-    expect(() => ws.writeScene(w.id, "notes.txt", scene())).toThrow(/scene/);
-    const a = ws.newScene(w.id, "a");
-    expect(() => ws.writeScene(w.id, a, "{ not json")).toThrow();
-    expect(JSON.parse(ws.readScene(w.id, a)).type).toBe("excalidraw");
-    expect(() => ws.readScene(w.id, ".git/config")).toThrow();
+    expect(() =>
+      ws.writeScene(workspace.id, "../out.excalidraw", scene()),
+    ).toThrow();
+    expect(() => ws.writeScene(workspace.id, "notes.txt", scene())).toThrow(
+      /scene/,
+    );
+    const scenePath = ws.newScene(workspace.id, "a");
+    expect(() =>
+      ws.writeScene(workspace.id, scenePath, "{ not json"),
+    ).toThrow();
+    expect(JSON.parse(ws.readScene(workspace.id, scenePath)).type).toBe(
+      "excalidraw",
+    );
+    expect(() => ws.readScene(workspace.id, ".git/config")).toThrow();
   });
 
   it("reports a missing folder", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "W",
       parent: path.join(tmp, "projects"),
       useGit: false,
     });
-    fs.rmSync(w.path, { recursive: true });
+    fs.rmSync(workspace.path, { recursive: true });
     expect(ws.list()[0].exists).toBe(false);
-    expect(() => ws.scenes(w.id)).toThrow(/missing/);
+    expect(() => ws.scenes(workspace.id)).toThrow(/missing/);
   });
 });
 
 describe("exports", () => {
   it("land in exports/ under their name, replace an earlier export, and cannot escape", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "A",
       parent: path.join(tmp, "projects"),
     });
-    const b64 = (t) => Buffer.from(t).toString("base64");
-    const one = ws.writeExport(w.id, "Poster.png", b64("v1"));
+    const b64 = (text) => Buffer.from(text).toString("base64");
+    const one = ws.writeExport(workspace.id, "Poster.png", b64("v1"));
     expect(one.path).toBe("exports/Poster.png");
-    ws.writeExport(w.id, "Poster.png", b64("v2"));
-    expect(fs.readFileSync(path.join(w.path, one.path), "utf8")).toBe("v2");
+    ws.writeExport(workspace.id, "Poster.png", b64("v2"));
+    expect(fs.readFileSync(path.join(workspace.path, one.path), "utf8")).toBe(
+      "v2",
+    );
     // separators and leading dots are flattened: it stays in exports/
-    const odd = ws.writeExport(w.id, "../../evil.svg", b64("x"));
+    const odd = ws.writeExport(workspace.id, "../../evil.svg", b64("x"));
     expect(odd.path.startsWith("exports/")).toBe(true);
     expect(odd.path.slice("exports/".length)).not.toMatch(/[\\/]/);
     expect(fs.existsSync(path.join(tmp, "evil.svg"))).toBe(false);
-    expect(() => ws.writeExport(w.id, "", b64("x"))).toThrow();
+    expect(() => ws.writeExport(workspace.id, "", b64("x"))).toThrow();
   });
 });
 
@@ -201,25 +229,25 @@ describe("assets", () => {
   );
 
   it("are stored once by content, with an extension from their type", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "A",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.writeAsset(w.id, "image/png", png);
-    const b = ws.writeAsset(w.id, "image/png", png);
-    expect(a.path).toMatch(/^assets\/[0-9a-f]{64}\.png$/);
-    expect(b).toEqual(a);
-    expect(fs.readdirSync(path.join(w.path, "assets"))).toHaveLength(1);
-    expect(ws.readAsset(w.id, a.path)).toBe(png);
+    const firstPath = ws.writeAsset(workspace.id, "image/png", png);
+    const secondPath = ws.writeAsset(workspace.id, "image/png", png);
+    expect(firstPath.path).toMatch(/^assets\/[0-9a-f]{64}\.png$/);
+    expect(secondPath).toEqual(firstPath);
+    expect(fs.readdirSync(path.join(workspace.path, "assets"))).toHaveLength(1);
+    expect(ws.readAsset(workspace.id, firstPath.path)).toBe(png);
     const other = ws.writeAsset(
-      w.id,
+      workspace.id,
       "image/jpeg",
       Buffer.from("jpegbytes").toString("base64"),
     );
     expect(other.path).toMatch(/\.jpg$/);
     expect(
       ws.writeAsset(
-        w.id,
+        workspace.id,
         "application/x-weird",
         Buffer.from("zz").toString("base64"),
       ).path,
@@ -227,11 +255,11 @@ describe("assets", () => {
   });
 
   it("only files under assets/ can be read, and nothing empty is written", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "A",
       parent: path.join(tmp, "projects"),
     });
-    fs.writeFileSync(path.join(w.path, "secret.txt"), "x");
+    fs.writeFileSync(path.join(workspace.path, "secret.txt"), "x");
     for (const bad of [
       "../x",
       "secret.txt",
@@ -239,84 +267,91 @@ describe("assets", () => {
       "assets/short.png",
       ".git/config",
     ]) {
-      expect(() => ws.readAsset(w.id, bad)).toThrow();
+      expect(() => ws.readAsset(workspace.id, bad)).toThrow();
     }
-    expect(() => ws.writeAsset(w.id, "image/png", "")).toThrow(/empty/);
-    expect(() => ws.writeAsset(w.id, 5, png)).toThrow();
+    expect(() => ws.writeAsset(workspace.id, "image/png", "")).toThrow(/empty/);
+    expect(() => ws.writeAsset(workspace.id, 5, png)).toThrow();
   });
 
   it("are committed with the scene's workspace like any file", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "A",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.writeAsset(w.id, "image/png", png);
-    await git.commit(w.path, "add image", [a.path]);
-    expect((await git.status(w.path)).clean).toBe(true);
-    expect((await git.log(w.path)).map((l) => l.subject)).toContain(
-      "add image",
-    );
+    const assetPath = ws.writeAsset(workspace.id, "image/png", png);
+    await git.commit(workspace.path, "add image", [assetPath.path]);
+    expect((await git.status(workspace.path)).clean).toBe(true);
+    expect(
+      (await git.log(workspace.path)).map((commit) => commit.subject),
+    ).toContain("add image");
   });
 
   it("the shared setting for new images lives in workspace.json", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "A",
       parent: path.join(tmp, "projects"),
     });
-    expect(ws.meta(w.id).assets).toBe("embedded");
-    ws.setMeta(w.id, { assets: "linked" });
+    expect(ws.meta(workspace.id).assets).toBe("embedded");
+    ws.setMeta(workspace.id, { assets: "linked" });
     expect(
-      JSON.parse(fs.readFileSync(path.join(w.path, "workspace.json"), "utf8"))
-        .assets,
+      JSON.parse(
+        fs.readFileSync(path.join(workspace.path, "workspace.json"), "utf8"),
+      ).assets,
     ).toBe("linked");
-    expect(ws.meta(w.id).name).toBe("A");
+    expect(ws.meta(workspace.id).name).toBe("A");
   });
 });
 
 describe("git", () => {
   it("commits only what changed, and reads history and old versions", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "G",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.newScene(w.id, "a");
-    expect(await git.commit(w.path, "first", [a])).toMatch(/^[0-9a-f]+$/);
+    const scenePath = ws.newScene(workspace.id, "a");
+    expect(await git.commit(workspace.path, "first", [scenePath])).toMatch(
+      /^[0-9a-f]+$/,
+    );
     // same content: nothing to commit
-    expect(await git.commit(w.path, "again", [a])).toBeNull();
-    ws.writeScene(w.id, a, scene(2));
-    const st = await git.status(w.path);
+    expect(await git.commit(workspace.path, "again", [scenePath])).toBeNull();
+    ws.writeScene(workspace.id, scenePath, scene(2));
+    const st = await git.status(workspace.path);
     expect(st.clean).toBe(false);
-    expect(st.changes.map((c) => c.path)).toEqual([a]);
+    expect(st.changes.map((change) => change.path)).toEqual([scenePath]);
     expect(st.branch).toBe("main");
-    await git.commit(w.path, "second", [a]);
-    const log = await git.log(w.path, a);
-    expect(log.map((l) => l.subject)).toEqual(["second", "first"]);
+    await git.commit(workspace.path, "second", [scenePath]);
+    const log = await git.log(workspace.path, scenePath);
+    expect(log.map((commit) => commit.subject)).toEqual(["second", "first"]);
     // the version before
-    const before = JSON.parse(await git.showFile(w.path, log[1].hash, a));
+    const before = JSON.parse(
+      await git.showFile(workspace.path, log[1].hash, scenePath),
+    );
     expect(before.elements).toHaveLength(0);
-    expect(() => git.showFile(w.path, "--output=x", a)).toThrow(/invalid/);
-    expect((await git.status(w.path)).clean).toBe(true);
+    expect(() => git.showFile(workspace.path, "--output=x", scenePath)).toThrow(
+      /invalid/,
+    );
+    expect((await git.status(workspace.path)).clean).toBe(true);
   });
 
   it("does not commit files it was not told about", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "G",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.newScene(w.id, "a");
-    fs.writeFileSync(path.join(w.path, "other.txt"), "x");
-    await git.commit(w.path, "only a", [a]);
-    const st = await git.status(w.path);
-    expect(st.changes.map((c) => c.path)).toEqual(["other.txt"]);
+    const scenePath = ws.newScene(workspace.id, "a");
+    fs.writeFileSync(path.join(workspace.path, "other.txt"), "x");
+    await git.commit(workspace.path, "only a", [scenePath]);
+    const st = await git.status(workspace.path);
+    expect(st.changes.map((change) => change.path)).toEqual(["other.txt"]);
   });
 
   it("refuses transports that run commands", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "G",
       parent: path.join(tmp, "projects"),
     });
     await expect(
-      git.run(w.path, ["ls-remote", "ext::sh -c 'touch /tmp/pwned'"]),
+      git.run(workspace.path, ["ls-remote", "ext::sh -c 'touch /tmp/pwned'"]),
     ).rejects.toThrow();
     expect(fs.existsSync("/tmp/pwned")).toBe(false);
   });
@@ -328,51 +363,51 @@ describe("auto commit", () => {
     const results = [];
     const auto = new AutoCommit({
       delayFor: () => delay,
-      onResult: (id, r) => results.push(r),
+      onResult: (id, result) => results.push(result),
       setTimer: (fn, ms) => {
-        const t = { fn, ms, cleared: false };
-        timers.push(t);
-        return t;
+        const timer = { fn, ms, cleared: false };
+        timers.push(timer);
+        return timer;
       },
-      clearTimer: (t) => {
-        t.cleared = true;
+      clearTimer: (timer) => {
+        timer.cleared = true;
       },
     });
     return { auto, timers, results };
   };
 
   it("waits for edits to pause, then commits the written files", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "A",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.newScene(w.id, "a");
+    const scenePath = ws.newScene(workspace.id, "a");
     const { auto, timers, results } = harness();
-    auto.touch(w.id, w.path, a);
-    auto.touch(w.id, w.path, a);
+    auto.touch(workspace.id, workspace.path, scenePath);
+    auto.touch(workspace.id, workspace.path, scenePath);
     // each write restarts the wait
-    expect(timers.map((t) => t.cleared)).toEqual([true, false]);
+    expect(timers.map((timer) => timer.cleared)).toEqual([true, false]);
     expect(timers[1].ms).toBe(5000);
-    await auto.flush(w.id);
+    await auto.flush(workspace.id);
     expect(results).toEqual([{ ok: true, hash: expect.any(String) }]);
-    const log = await git.log(w.path);
+    const log = await git.log(workspace.path);
     expect(log[0].subject).toBe("Update a.excalidraw");
-    expect(auto.hasPending(w.id)).toBe(false);
+    expect(auto.hasPending(workspace.id)).toBe(false);
   });
 
   it("does nothing when auto commit is off, or content is unchanged", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "A",
       parent: path.join(tmp, "projects"),
     });
-    const a = ws.newScene(w.id, "a");
+    const scenePath = ws.newScene(workspace.id, "a");
     const off = new AutoCommit({ delayFor: () => null, onResult: () => {} });
-    off.touch(w.id, w.path, a);
-    expect(off.hasPending(w.id)).toBe(false);
+    off.touch(workspace.id, workspace.path, scenePath);
+    expect(off.hasPending(workspace.id)).toBe(false);
     const { auto, results } = harness();
-    await git.commit(w.path, "x", [a]);
-    auto.touch(w.id, w.path, a);
-    await auto.flush(w.id);
+    await git.commit(workspace.path, "x", [scenePath]);
+    auto.touch(workspace.id, workspace.path, scenePath);
+    await auto.flush(workspace.id);
     expect(results).toEqual([{ ok: true, hash: null }]);
   });
 
@@ -387,13 +422,13 @@ describe("app settings", () => {
   it("are kept apart from the workspaces and survive changes to them", async () => {
     expect(ws.registry.appSettings()).toEqual({});
     ws.registry.setAppSettings({ paused: true });
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "K",
       parent: path.join(tmp, "projects"),
       useGit: false,
     });
     expect(ws.registry.appSettings()).toEqual({ paused: true });
-    ws.forget(w.id);
+    ws.forget(workspace.id);
     expect(ws.registry.appSettings()).toEqual({ paused: true });
     ws.registry.setAppSettings({ paused: false });
     expect(ws.registry.appSettings()).toEqual({ paused: false });
@@ -403,47 +438,55 @@ describe("app settings", () => {
 describe("scene management", () => {
   it("renames, duplicates and deletes scenes without overwriting", async () => {
     const parent = path.join(tmp, "projects");
-    const w = await ws.create({ name: "Shop", parent, useGit: false });
-    const a = ws.newScene(w.id, "Alpha");
-    const b = ws.newScene(w.id, "Beta");
-    expect(ws.renameScene(w.id, a, "Gamma delta")).toBe(
+    const workspace = await ws.create({ name: "Shop", parent, useGit: false });
+    const firstPath = ws.newScene(workspace.id, "Alpha");
+    const secondPath = ws.newScene(workspace.id, "Beta");
+    expect(ws.renameScene(workspace.id, firstPath, "Gamma delta")).toBe(
       "Gamma-delta.excalidraw",
     );
     expect(() =>
-      ws.renameScene(w.id, "Gamma-delta.excalidraw", "Beta"),
+      ws.renameScene(workspace.id, "Gamma-delta.excalidraw", "Beta"),
     ).toThrow(/already exists/);
-    expect(() => ws.renameScene(w.id, b, "  ")).toThrow(/name/);
-    expect(() => ws.renameScene(w.id, "../x.excalidraw", "x")).toThrow();
-    const copy = ws.duplicateScene(w.id, b);
+    expect(() => ws.renameScene(workspace.id, secondPath, "  ")).toThrow(
+      /name/,
+    );
+    expect(() =>
+      ws.renameScene(workspace.id, "../x.excalidraw", "x"),
+    ).toThrow();
+    const copy = ws.duplicateScene(workspace.id, secondPath);
     expect(copy).toBe("Beta-copy.excalidraw");
-    expect(ws.duplicateScene(w.id, b)).toBe("Beta-copy-2.excalidraw");
-    ws.deleteScene(w.id, copy);
+    expect(ws.duplicateScene(workspace.id, secondPath)).toBe(
+      "Beta-copy-2.excalidraw",
+    );
+    ws.deleteScene(workspace.id, copy);
     expect(
       ws
-        .scenes(w.id)
-        .map((s) => s.path)
+        .scenes(workspace.id)
+        .map((item) => item.path)
         .sort(),
     ).toEqual([
       "Beta-copy-2.excalidraw",
       "Beta.excalidraw",
       "Gamma-delta.excalidraw",
     ]);
-    expect(() => ws.deleteScene(w.id, "assets/x.png")).toThrow();
+    expect(() => ws.deleteScene(workspace.id, "assets/x.png")).toThrow();
   });
 
   it("lists the pictures kept in assets", async () => {
-    const w = await ws.create({
+    const workspace = await ws.create({
       name: "Pics",
       parent: path.join(tmp, "projects"),
       useGit: false,
     });
-    expect(ws.listAssets(w.id)).toEqual([]);
-    const { path: p } = ws.writeAsset(
-      w.id,
+    expect(ws.listAssets(workspace.id)).toEqual([]);
+    const { path: assetPath } = ws.writeAsset(
+      workspace.id,
       "image/png",
       Buffer.from("png-bytes").toString("base64"),
     );
-    expect(ws.listAssets(w.id).map((a) => a.path)).toEqual([p]);
+    expect(ws.listAssets(workspace.id).map((asset) => asset.path)).toEqual([
+      assetPath,
+    ]);
   });
 });
 
@@ -463,7 +506,7 @@ describe("a workspace inside a bigger repository", () => {
     const folder = path.join(repo, "designs");
 
     const st = await git.status(folder);
-    expect(st.changes.map((c) => c.path).sort()).toEqual([
+    expect(st.changes.map((change) => change.path).sort()).toEqual([
       "a.excalidraw",
       "b.excalidraw",
     ]);
@@ -472,7 +515,7 @@ describe("a workspace inside a bigger repository", () => {
     expect(hash).toBeTruthy();
     // the rest of the repository is untouched
     const rest = await git.status(repo);
-    expect(rest.changes.map((c) => c.path).sort()).toEqual([
+    expect(rest.changes.map((change) => change.path).sort()).toEqual([
       "other.txt",
       "unrelated.md",
     ]);

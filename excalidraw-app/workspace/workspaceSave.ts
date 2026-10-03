@@ -106,14 +106,14 @@ export const installWorkspaceSave = (
     }
     const picked = await bridge.pickFiles(
       active.id,
-      extensions.map((e) => e.replace(/^\./, "")),
+      extensions.map((extension) => extension.replace(/^\./, "")),
       multiple,
     );
     if (!picked) {
       return null;
     }
     return picked.map(({ name, base64 }) => {
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
       return new File([bytes], name);
     });
   });

@@ -1,7 +1,5 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
-
 import { shearPathGeometry, getPathLocalBounds } from "@excalidraw/element";
 import { pointFrom, type LocalPoint } from "@excalidraw/math";
 
@@ -15,6 +13,7 @@ import {
 } from "../gizmo";
 import { Excalidraw } from "../index";
 
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import {
   render,
@@ -26,12 +25,9 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 describe("gizmo zones", () => {
   // a 200 x 100 box: half sizes 100 / 50
@@ -88,11 +84,11 @@ describe("skew math", () => {
   });
 
   it("Shift steps by 15 degrees and the angle is capped", () => {
-    const k = getSkewFactor("s", 50, 100, 50, {
+    const skew = getSkewFactor("s", 50, 100, 50, {
       fromCenter: false,
       snap: true,
     });
-    expect(Math.atan(k)).toBeCloseTo((30 * Math.PI) / 180, 5);
+    expect(Math.atan(skew)).toBeCloseTo((30 * Math.PI) / 180, 5);
     const big = getSkewFactor("s", 1e6, 100, 50, {
       fromCenter: false,
       snap: false,
@@ -102,7 +98,7 @@ describe("skew math", () => {
   });
 
   it("shears points and handle vectors about the chosen line", () => {
-    const g = shearPathGeometry(
+    const geometry = shearPathGeometry(
       {
         width: 100,
         height: 100,
@@ -122,13 +118,13 @@ describe("skew math", () => {
       -50, // the top edge is the fixed one
     );
     // top row stays, bottom row slides by 0.5 * 100
-    expect(g.points[0]).toEqual([0, 0]);
-    expect(g.points[3]).toEqual([50, 100]);
-    expect(g.points[2]).toEqual([150, 100]);
+    expect(geometry.points[0]).toEqual([0, 0]);
+    expect(geometry.points[3]).toEqual([50, 100]);
+    expect(geometry.points[2]).toEqual([150, 100]);
     // a handle pointing down leans with the shear
-    expect(g.handles[0].out).toEqual([5, 10]);
-    const b = getPathLocalBounds({ ...g, closed: true });
-    expect(b[2] - b[0]).toBeGreaterThan(100);
+    expect(geometry.handles[0].out).toEqual([5, 10]);
+    const bounds = getPathLocalBounds({ ...geometry, closed: true });
+    expect(bounds[2] - bounds[0]).toBeGreaterThan(100);
   });
 
   it("only paths and plain shapes can skew", () => {
@@ -146,13 +142,13 @@ describe("skew math", () => {
 });
 
 describe("angle alignment", () => {
-  const deg = (d: number) => (d * Math.PI) / 180;
+  const deg = (degrees: number) => (degrees * Math.PI) / 180;
   const other = { angle: deg(20), x: 500, y: 300 };
 
   it("locks onto another element's axis within a few degrees", () => {
-    const r = snapToAlignment(deg(22), [other]);
-    expect(r.angle).toBeCloseTo(deg(20));
-    expect(r.matches).toEqual([other]);
+    const snap = snapToAlignment(deg(22), [other]);
+    expect(snap.angle).toBeCloseTo(deg(20));
+    expect(snap.matches).toEqual([other]);
   });
 
   it("also matches the perpendicular axis (a quarter turn away)", () => {
@@ -161,15 +157,17 @@ describe("angle alignment", () => {
   });
 
   it("leaves the angle alone beyond the tolerance", () => {
-    const r = snapToAlignment(deg(26), [other]);
-    expect(r.angle).toBeCloseTo(deg(26));
-    expect(r.matches).toEqual([]);
+    const snap = snapToAlignment(deg(26), [other]);
+    expect(snap.angle).toBeCloseTo(deg(26));
+    expect(snap.matches).toEqual([]);
   });
 
   it("picks the nearest of several axes", () => {
-    const a = { angle: deg(10), x: 0, y: 0 };
-    const b = { angle: deg(14), x: 1, y: 1 };
-    expect(snapToAlignment(deg(13), [a, b]).angle).toBeCloseTo(deg(14));
+    const first = { angle: deg(10), x: 0, y: 0 };
+    const second = { angle: deg(14), x: 1, y: 1 };
+    expect(snapToAlignment(deg(13), [first, second]).angle).toBeCloseTo(
+      deg(14),
+    );
   });
 });
 
@@ -223,7 +221,7 @@ describe("gizmo in the editor", () => {
       [325, 225],
       [200 + 200 * Math.cos(target), 150 + 200 * Math.sin(target)],
     );
-    const el = h.elements.find((e) => e.id === id)!;
+    const el = handle.elements.find((element) => element.id === id)!;
     expect(el.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
     expect(el.type).toBe("rectangle");
     expect([el.x, el.y]).toEqual([100, 100]);
@@ -239,28 +237,30 @@ describe("gizmo in the editor", () => {
       height: 80,
       angle: ((20 * Math.PI) / 180) as any,
     });
-    API.setElements([h.elements[0], other]);
+    API.setElements([handle.elements[0], other]);
     // aim for about 21 degrees: close enough to lock onto 20
     const target = (21 * Math.PI) / 180;
     const start = Math.atan2(75, 125);
-    const r = 200;
+    const radius = 200;
     const to: [number, number] = [
-      200 + r * Math.cos(start + target),
-      150 + r * Math.sin(start + target),
+      200 + radius * Math.cos(start + target),
+      150 + radius * Math.sin(start + target),
     ];
     fireEvent.pointerDown(canvas, { clientX: 325, clientY: 225 });
     fireEvent.pointerMove(window, { clientX: to[0], clientY: to[1] });
-    const el = h.elements.find((e) => e.id === id)!;
+    const el = handle.elements.find((element) => element.id === id)!;
     expect((el.angle * 180) / Math.PI).toBeCloseTo(20, 5);
-    expect(h.state.gizmo?.align.length).toBeGreaterThan(0);
+    expect(handle.state.gizmo?.align.length).toBeGreaterThan(0);
     fireEvent.pointerUp(window, { clientX: to[0], clientY: to[1] });
-    expect(h.state.gizmo?.align).toEqual([]);
+    expect(handle.state.gizmo?.align).toEqual([]);
   });
 
   it("Shift rotates in 15 degree steps", async () => {
     const { canvas, id } = await setup();
     drag(canvas, [325, 225], [200, 300], { shiftKey: true });
-    const deg = (h.elements.find((e) => e.id === id)!.angle * 180) / Math.PI;
+    const deg =
+      (handle.elements.find((element) => element.id === id)!.angle * 180) /
+      Math.PI;
     expect(Math.round(deg) % 15).toBe(0);
   });
 
@@ -268,13 +268,16 @@ describe("gizmo in the editor", () => {
     const { canvas, id } = await setup();
     // just below the bottom edge, dragged 50 to the right
     drag(canvas, [200, 225], [250, 225]);
-    const el = h.elements.find((e) => e.id === id) as any;
+    const el = handle.elements.find((element) => element.id === id) as any;
     expect(el.type).toBe("path");
     expect(el.closed).toBe(true);
     // 100 px tall, the bottom edge slid 50: the box is 50 wider
     expect(el.width).toBeCloseTo(250);
     expect(el.height).toBeCloseTo(100);
-    const abs = el.points.map((p: number[]) => [el.x + p[0], el.y + p[1]]);
+    const abs = el.points.map((point: number[]) => [
+      el.x + point[0],
+      el.y + point[1],
+    ]);
     // top edge (the pivot) is where it was
     expect(abs[0]).toEqual([100, 100]);
     expect(abs[1]).toEqual([300, 100]);
@@ -286,8 +289,11 @@ describe("gizmo in the editor", () => {
   it("Alt skews about the centre, so both edges move", async () => {
     const { canvas, id } = await setup();
     drag(canvas, [200, 225], [225, 225], { altKey: true });
-    const el = h.elements.find((e) => e.id === id) as any;
-    const abs = el.points.map((p: number[]) => [el.x + p[0], el.y + p[1]]);
+    const el = handle.elements.find((element) => element.id === id) as any;
+    const abs = el.points.map((point: number[]) => [
+      el.x + point[0],
+      el.y + point[1],
+    ]);
     // lever is half as long: 25 at the bottom, -25 at the top
     expect(abs[2][0] - 300).toBeCloseTo(25);
     expect(abs[0][0] - 100).toBeCloseTo(-25);
@@ -295,24 +301,24 @@ describe("gizmo in the editor", () => {
 
   const setupGroup = async () => {
     await render(<Excalidraw />);
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 100,
       y: 100,
       width: 100,
       height: 100,
     });
-    const b = API.createElement({
+    const second = API.createElement({
       type: "rectangle",
       x: 300,
       y: 100,
       width: 100,
       height: 100,
     });
-    API.setElements([a, b]);
-    API.setSelectedElements([a, b]);
+    API.setElements([first, second]);
+    API.setSelectedElements([first, second]);
     return {
-      ids: [a.id, b.id],
+      ids: [first.id, second.id],
       canvas: document.querySelector("canvas.interactive")!,
     };
   };
@@ -327,25 +333,27 @@ describe("gizmo in the editor", () => {
       [425, 225],
       [250 + 250 * Math.cos(target), 150 + 250 * Math.sin(target)],
     );
-    const [a, b] = ids.map((id) => h.elements.find((e) => e.id === id)!);
-    expect(a.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
-    expect(b.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
+    const [first, second] = ids.map(
+      (id) => handle.elements.find((element) => element.id === id)!,
+    );
+    expect(first.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
+    expect(second.angle).toBeCloseTo((25 * Math.PI) / 180, 3);
     // the centres turned about (250, 150)
     const rot = (x: number, y: number) => {
-      const t = (25 * Math.PI) / 180;
+      const turn = (25 * Math.PI) / 180;
       const dx = x - 250;
       const dy = y - 150;
       return [
-        250 + dx * Math.cos(t) - dy * Math.sin(t),
-        150 + dx * Math.sin(t) + dy * Math.cos(t),
+        250 + dx * Math.cos(turn) - dy * Math.sin(turn),
+        150 + dx * Math.sin(turn) + dy * Math.cos(turn),
       ];
     };
     const [ax, ay] = rot(150, 150);
     const [bx, by] = rot(350, 150);
-    expect(a.x + 50).toBeCloseTo(ax, 2);
-    expect(a.y + 50).toBeCloseTo(ay, 2);
-    expect(b.x + 50).toBeCloseTo(bx, 2);
-    expect(b.y + 50).toBeCloseTo(by, 2);
+    expect(first.x + 50).toBeCloseTo(ax, 2);
+    expect(first.y + 50).toBeCloseTo(ay, 2);
+    expect(second.x + 50).toBeCloseTo(bx, 2);
+    expect(second.y + 50).toBeCloseTo(by, 2);
   });
 
   it("Escape in the middle of turning a group puts everything back", async () => {
@@ -353,10 +361,10 @@ describe("gizmo in the editor", () => {
     fireEvent.pointerDown(canvas, { clientX: 425, clientY: 225 });
     fireEvent.pointerMove(window, { clientX: 300, clientY: 400 });
     fireEvent.keyDown(window, { key: "Escape" });
-    for (const [i, id] of ids.entries()) {
-      const el = h.elements.find((e) => e.id === id)!;
+    for (const [index, id] of ids.entries()) {
+      const el = handle.elements.find((element) => element.id === id)!;
       expect(el.angle).toBe(0);
-      expect([el.x, el.y]).toEqual([i ? 300 : 100, 100]);
+      expect([el.x, el.y]).toEqual([index ? 300 : 100, 100]);
     }
   });
 
@@ -364,11 +372,14 @@ describe("gizmo in the editor", () => {
     const { canvas, ids } = await setupGroup();
     // below the bottom edge's middle, 50 to the right
     drag(canvas, [250, 225], [300, 225]);
-    for (const [i, id] of ids.entries()) {
-      const el = h.elements.find((e) => e.id === id) as any;
+    for (const [index, id] of ids.entries()) {
+      const el = handle.elements.find((element) => element.id === id) as any;
       expect(el.type).toBe("path");
-      const abs = el.points.map((p: number[]) => [el.x + p[0], el.y + p[1]]);
-      const left = i ? 300 : 100;
+      const abs = el.points.map((point: number[]) => [
+        el.x + point[0],
+        el.y + point[1],
+      ]);
+      const left = index ? 300 : 100;
       // the top edge is the pivot, the bottom slid by 50
       expect(abs[0][0]).toBeCloseTo(left);
       expect(abs[2][0]).toBeCloseTo(left + 100 + 50);
@@ -380,8 +391,8 @@ describe("gizmo in the editor", () => {
     const { canvas } = await setup();
     fireEvent.pointerDown(canvas, { clientX: 325, clientY: 225 });
     fireEvent.pointerUp(window, { clientX: 325, clientY: 225 });
-    expect(h.state.selectedElementIds).toEqual({});
-    expect(h.elements[0].angle).toBe(0);
+    expect(handle.state.selectedElementIds).toEqual({});
+    expect(handle.elements[0].angle).toBe(0);
   });
 
   it("Escape in the middle of a skew restores the shape", async () => {
@@ -390,7 +401,7 @@ describe("gizmo in the editor", () => {
     fireEvent.pointerMove(window, { clientX: 260, clientY: 225 });
     fireEvent.keyDown(window, { key: "Escape" });
     fireEvent.pointerUp(window, { clientX: 260, clientY: 225 });
-    const el = h.elements.find((e) => e.id === id) as any;
+    const el = handle.elements.find((element) => element.id === id) as any;
     expect(el.width).toBeCloseTo(200);
     expect(el.points[0]).toEqual([0, 0]);
   });

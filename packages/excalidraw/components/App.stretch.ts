@@ -1,10 +1,9 @@
-import { EVENT, KEYS, viewportCoordsToSceneCoords } from "@excalidraw/common";
+import { KEYS, viewportCoordsToSceneCoords } from "@excalidraw/common";
+
 import {
   getCommonBounds,
   getTransformHandleTypeFromCoords,
 } from "@excalidraw/element";
-
-import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import {
   frameOf,
@@ -18,6 +17,13 @@ import {
   type Pin,
 } from "@excalidraw/symbols";
 
+import type { Bounds } from "@excalidraw/common";
+
+import type { ExcalidrawElement } from "@excalidraw/element/types";
+
+import { ChangeNotifier } from "./changeNotifier";
+import { listenToGesture, onEscape } from "./gestureListeners";
+
 import type App from "./App";
 
 export type StretchState = {
@@ -25,8 +31,10 @@ export type StretchState = {
   guides: Guide[];
 };
 
+type Edges = { l: boolean; r: boolean; t: boolean; b: boolean };
+
 const IDLE: StretchState = { frame: null, guides: [] };
-const KEYS_OF_GEOMETRY = [
+const GEOMETRY_KEYS = [
   "x",
   "y",
   "width",
@@ -36,40 +44,77 @@ const KEYS_OF_GEOMETRY = [
   "contours",
 ] as const;
 
-/**
- * Ctrl + drag on a handle of a component stretches it as a real component:
- * what spans grows, what is pinned to an end keeps its distance from it. The
- * frame flashes when an edge lines up with another component.
- */
+/** a component cannot be stretched smaller than this, in scene px */
+const MIN_SIZE = 24;
+/** how close (screen px) the pointer must be to an edge to grab it */
+const EDGE_GRAB_DISTANCE = 8;
+/** how close (screen px) an edge must be to another component to snap to it */
+const SNAP_DISTANCE = 6;
+
+/** Ctrl + drag stretches a component: what spans grows, what is pinned keeps its distance. */
 export class AppStretch {
   private state: StretchState = IDLE;
-  private listeners = new Set<() => void>();
+  private notifier = new ChangeNotifier();
   private teardown: (() => void) | null = null;
   private gesture: {
     members: ExcalidrawElement[];
     base: ExcalidrawElement[];
     pins: Map<string, Pin>;
     from: Frame;
-    edges: { l: boolean; r: boolean; t: boolean; b: boolean };
+    edges: Edges;
     start: { x: number; y: number };
     others: ExcalidrawElement[];
   } | null = null;
 
   constructor(private app: App) {}
 
-  subscribe = (l: () => void) => {
-    this.listeners.add(l);
-    return () => {
-      this.listeners.delete(l);
-    };
-  };
+  subscribe = this.notifier.subscribe;
 
   getSnapshot = () => this.state;
 
   private set(next: StretchState) {
     this.state = next;
-    this.listeners.forEach((l) => l());
+    this.notifier.notify();
   }
+
+  /** @returns the edges under the pointer, else those of the transform handle there (null: none) */
+  private grabbedEdges = (
+    bounds: Bounds,
+    point: { x: number; y: number },
+    event: React.PointerEvent<HTMLElement>,
+  ): Edges | null => {
+    const { zoom } = this.app.state;
+    const [minX, minY, maxX, maxY] = bounds;
+    const tolerance = EDGE_GRAB_DISTANCE / zoom.value;
+    const inX = point.x >= minX - tolerance && point.x <= maxX + tolerance;
+    const inY = point.y >= minY - tolerance && point.y <= maxY + tolerance;
+    const edges = {
+      l: inY && Math.abs(point.x - minX) <= tolerance,
+      r: inY && Math.abs(point.x - maxX) <= tolerance,
+      t: inX && Math.abs(point.y - minY) <= tolerance,
+      b: inX && Math.abs(point.y - maxY) <= tolerance,
+    };
+    if (edges.l || edges.r || edges.t || edges.b) {
+      return edges;
+    }
+    const handle = getTransformHandleTypeFromCoords(
+      bounds,
+      point.x,
+      point.y,
+      zoom,
+      event.pointerType as any,
+      this.app.editorInterface,
+    );
+    if (!handle || handle === "rotation") {
+      return null;
+    }
+    return {
+      l: handle.includes("w"),
+      r: handle.includes("e"),
+      t: handle.includes("n"),
+      b: handle.includes("s"),
+    };
+  };
 
   handlePointerDown = (event: React.PointerEvent<HTMLElement>): boolean => {
     if (
@@ -87,134 +132,106 @@ export class AppStretch {
     if (!symbol) {
       return false;
     }
-    const s = this.app.state;
-    const p = viewportCoordsToSceneCoords(event, s);
-    // the handles, or anywhere along an edge: small components have no side handles
-    const [bx0, by0, bx1, by1] = getCommonBounds(symbol.members);
-    const tol = 8 / s.zoom.value;
-    const inX = p.x >= bx0 - tol && p.x <= bx1 + tol;
-    const inY = p.y >= by0 - tol && p.y <= by1 + tol;
-    let edges = {
-      l: inY && Math.abs(p.x - bx0) <= tol,
-      r: inY && Math.abs(p.x - bx1) <= tol,
-      t: inX && Math.abs(p.y - by0) <= tol,
-      b: inX && Math.abs(p.y - by1) <= tol,
-    };
-    if (!edges.l && !edges.r && !edges.t && !edges.b) {
-      const handle = getTransformHandleTypeFromCoords(
-        [bx0, by0, bx1, by1],
-        p.x,
-        p.y,
-        s.zoom,
-        event.pointerType as any,
-        this.app.editorInterface,
-      );
-      if (!handle || handle === "rotation") {
-        return false;
-      }
-      edges = {
-        l: handle.includes("w"),
-        r: handle.includes("e"),
-        t: handle.includes("n"),
-        b: handle.includes("s"),
-      };
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
+    const edges = this.grabbedEdges(
+      getCommonBounds(symbol.members),
+      point,
+      event,
+    );
+    if (!edges) {
+      return false;
     }
     const from = frameOf(symbol.members);
     this.gesture = {
       members: symbol.members,
-      base: symbol.members.map((e) => ({ ...e })),
+      base: symbol.members.map((member) => ({ ...member })),
       pins: inferPins(symbol.members, from, getLayout(symbol.members)),
       from,
       edges,
-      start: p,
-      others: all.filter((e) => !symbol.members.includes(e)),
+      start: point,
+      others: all.filter((element) => !symbol.members.includes(element)),
     };
     this.set({ frame: from, guides: [] });
-    this.listen();
+    this.teardown = listenToGesture(this.app.ownerWindow, {
+      onPointerMove: this.move,
+      onPointerUp: () => this.finish(false),
+      onKeyDown: onEscape(() => this.finish(true)),
+    });
     event.preventDefault();
     event.stopPropagation();
     return true;
   };
 
   private move = (event: PointerEvent) => {
-    const g = this.gesture;
-    if (!g) {
+    const { gesture } = this;
+    if (!gesture) {
       return;
     }
-    const p = viewportCoordsToSceneCoords(event, this.app.state);
-    const dx = p.x - g.start.x;
-    const dy = p.y - g.start.y;
-    const MIN = 24;
-    let next: Frame = {
-      x0: g.edges.l ? Math.min(g.from.x0 + dx, g.from.x1 - MIN) : g.from.x0,
-      x1: g.edges.r ? Math.max(g.from.x1 + dx, g.from.x0 + MIN) : g.from.x1,
-      y0: g.edges.t ? Math.min(g.from.y0 + dy, g.from.y1 - MIN) : g.from.y0,
-      y1: g.edges.b ? Math.max(g.from.y1 + dy, g.from.y0 + MIN) : g.from.y1,
+    const point = viewportCoordsToSceneCoords(event, this.app.state);
+    const dx = point.x - gesture.start.x;
+    const dy = point.y - gesture.start.y;
+    const { from, edges } = gesture;
+    const stretched: Frame = {
+      x0: edges.l ? Math.min(from.x0 + dx, from.x1 - MIN_SIZE) : from.x0,
+      x1: edges.r ? Math.max(from.x1 + dx, from.x0 + MIN_SIZE) : from.x1,
+      y0: edges.t ? Math.min(from.y0 + dy, from.y1 - MIN_SIZE) : from.y0,
+      y1: edges.b ? Math.max(from.y1 + dy, from.y0 + MIN_SIZE) : from.y1,
     };
     const snapped = snapFrame(
-      next,
-      g.edges,
-      g.others,
-      6 / this.app.state.zoom.value,
+      stretched,
+      edges,
+      gesture.others,
+      SNAP_DISTANCE / this.app.state.zoom.value,
     );
-    next = snapped.frame;
-    const updates = stretchUpdates(g.base, g.pins, g.from, next);
-    for (const el of g.members) {
-      const u = updates.get(el.id);
-      if (u) {
-        this.app.scene.mutateElement(el as any, u, {
+    const updates = stretchUpdates(
+      gesture.base,
+      gesture.pins,
+      from,
+      snapped.frame,
+    );
+    for (const member of gesture.members) {
+      const update = updates.get(member.id);
+      if (update) {
+        this.app.scene.mutateElement(member as any, update, {
           informMutation: false,
           isDragging: true,
         });
       }
     }
     this.app.scene.triggerUpdate();
-    this.set({ frame: next, guides: snapped.guides });
+    this.set({ frame: snapped.frame, guides: snapped.guides });
+  };
+
+  /** puts every member back to the geometry it had when the gesture began */
+  private restore = (gesture: NonNullable<AppStretch["gesture"]>) => {
+    gesture.members.forEach((member, index) => {
+      const original: Record<string, any> = {};
+      for (const key of GEOMETRY_KEYS) {
+        if (key in gesture.base[index]) {
+          original[key] = (gesture.base[index] as any)[key];
+        }
+      }
+      this.app.scene.mutateElement(member as any, original, {
+        informMutation: false,
+        isDragging: false,
+      });
+    });
+    this.app.scene.triggerUpdate();
   };
 
   private finish = (cancel: boolean) => {
-    const g = this.gesture;
+    const { gesture } = this;
     this.teardown?.();
     this.teardown = null;
     this.gesture = null;
-    if (g) {
+    if (gesture) {
       if (cancel) {
-        g.members.forEach((el, i) => {
-          const original: Record<string, any> = {};
-          for (const k of KEYS_OF_GEOMETRY) {
-            if (k in g.base[i]) {
-              original[k] = (g.base[i] as any)[k];
-            }
-          }
-          this.app.scene.mutateElement(el as any, original, {
-            informMutation: false,
-            isDragging: false,
-          });
-        });
-        this.app.scene.triggerUpdate();
+        this.restore(gesture);
       } else {
         this.app.store.scheduleCapture();
       }
     }
     this.set(IDLE);
-  };
-
-  private listen = () => {
-    const win = this.app.ownerWindow;
-    const onUp = () => this.finish(false);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        this.finish(true);
-      }
-    };
-    win.addEventListener(EVENT.POINTER_MOVE, this.move);
-    win.addEventListener(EVENT.POINTER_UP, onUp);
-    win.addEventListener(EVENT.KEYDOWN, onKey);
-    this.teardown = () => {
-      win.removeEventListener(EVENT.POINTER_MOVE, this.move);
-      win.removeEventListener(EVENT.POINTER_UP, onUp);
-      win.removeEventListener(EVENT.KEYDOWN, onKey);
-    };
   };
 
   destroy = () => {

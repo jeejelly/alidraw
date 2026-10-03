@@ -6,11 +6,6 @@ import React from "react";
 
 import { getCommonBounds } from "@excalidraw/element";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
-
-import { Excalidraw } from "../../index";
-import { serializeAsJSON } from "../../data/json";
-import { exportToSvg } from "../../scene/export";
 import { getFlowMeta, readFlow } from "@excalidraw/flow";
 import { serializeFlow } from "@excalidraw/flow";
 import {
@@ -22,9 +17,17 @@ import { COMPONENTS, defaultsOf, type Values } from "@excalidraw/symbols";
 import { ILLUSTRATIONS } from "@excalidraw/symbols";
 import { importSvg } from "@excalidraw/vector";
 import { generateResponsiveSceneCode } from "@excalidraw/symbols";
-import { setSymbolTheme } from "../../components/inspector/symbols/themeStore";
+
 import { THEMES, type SymbolTheme } from "@excalidraw/symbols";
 
+import type { ExcalidrawElement } from "@excalidraw/element/types";
+
+import { setSymbolTheme } from "../../components/inspector/symbols/themeStore";
+import { exportToSvg } from "../../scene/export";
+import { Excalidraw } from "../../index";
+import { serializeAsJSON } from "../../data/json";
+
+import { liveElements } from "../helpers/fixtures";
 import { API } from "../helpers/api";
 import {
   act,
@@ -37,36 +40,30 @@ import {
 } from "../test-utils";
 
 /**
- * A fixture that designs "Crumbly", a social network about eating cookies, as a
- * website and a phone app, using only what the app offers: the symbols library
- * (themed, parametric components), its way of inserting them, the flow elements
- * (convert, drag the handle to link), the Flow tab's Mermaid text and the code
- * export. No element is written by hand.
- *
- * Run with WRITE_FIXTURE=1 to leave the result in docs/fixtures/crumbly/:
- *   WRITE_FIXTURE=1 yarn vitest run packages/excalidraw/tests/fixtures
+ * Designs "Crumbly" (a cookie social network: website plus phone app) using only
+ * app features: symbols, flow elements, Flow tab text and code export.
+ * Run with WRITE_FIXTURE=1 to write the result to docs/fixtures/crumbly/.
  */
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 const FLOW = "Crumbly";
 
 /** the app's own default look: white sheets, coral accent, round shapes */
-const COOKIE: SymbolTheme = THEMES.find((t) => t.name === "Pop")!;
+const COOKIE: SymbolTheme = THEMES.find((theme) => theme.name === "Pop")!;
 /** the canvas behind the screens */
 const BACKDROP = "#20202e";
 
 type Part = [component: string, x: number, y: number, values?: Values];
 
-const live = () => h.elements.filter((e) => !e.isDeleted);
 const centerOf = (els: readonly ExcalidrawElement[]) => {
   const [x1, y1, x2, y2] = getCommonBounds(els);
   return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
 };
-const client = (p: { x: number; y: number }) => ({
-  clientX: p.x + h.state.scrollX + h.state.offsetLeft,
-  clientY: p.y + h.state.scrollY + h.state.offsetTop,
+const client = (point: { x: number; y: number }) => ({
+  clientX: point.x + handle.state.scrollX + handle.state.offsetLeft,
+  clientY: point.y + handle.state.scrollY + handle.state.offsetTop,
 });
 
 /** the symbols of a screen, from the library, inserted the way the panel does */
@@ -79,28 +76,37 @@ const insertScreen = (
 ) => {
   const drawings = arts.flatMap(
     ([id, x, y, size]) =>
-      importSvg(ILLUSTRATIONS.find((i) => i.id === id)!.svg, { x, y }, size)
-        .elements,
+      importSvg(
+        ILLUSTRATIONS.find((illustration) => illustration.id === id)!.svg,
+        { x, y },
+        size,
+      ).elements,
   );
   const elements = parts.flatMap(([id, x, y, values]) => {
-    const def = COMPONENTS.find((c) => c.id === id)!;
-    const v = { ...defaultsOf(def), ...values };
-    return buildElements(def.shapes(COOKIE, v), COOKIE, { x, y }, id, v);
+    const def = COMPONENTS.find((component) => component.id === id)!;
+    const merged = { ...defaultsOf(def), ...values };
+    return buildElements(
+      def.shapes(COOKIE, merged),
+      COOKIE,
+      { x, y },
+      id,
+      merged,
+    );
   });
   elements.push(...(drawings as any));
-  const known = new Set(live().map((e) => e.id));
+  const known = new Set(liveElements().map((element) => element.id));
   act(() => {
-    h.app.addElementsFromPasteOrLibrary({
+    handle.app.addElementsFromPasteOrLibrary({
       elements,
       files: null,
       position: client(at),
     });
   });
-  const made = live().filter((e) => !known.has(e.id));
+  const made = liveElements().filter((element) => !known.has(element.id));
   return {
     all: made,
     of: (component: string) =>
-      made.filter((e) => getSymbolMeta(e)?.component === component),
+      made.filter((element) => getSymbolMeta(element)?.component === component),
   };
 };
 
@@ -108,15 +114,17 @@ const convert = (els: readonly ExcalidrawElement[], label: string) => {
   API.setSelectedElements(els as any);
   let key: string | null = null;
   act(() => {
-    key = h.app.flow.convertSelection(FLOW, label);
+    key = handle.app.flow.convertSelection(FLOW, label);
   });
   expect(key).toBeTruthy();
   return key as unknown as string;
 };
 
 const handleOf = (key: string) => {
-  const el = live().find(
-    (e) => getFlowMeta(e)?.kind === "handle" && getFlowMeta(e)!.key === key,
+  const el = liveElements().find(
+    (element) =>
+      getFlowMeta(element)?.kind === "handle" &&
+      getFlowMeta(element)!.key === key,
   )!;
   return { x: el.x + el.width / 2, y: el.y + el.height / 2 };
 };
@@ -131,7 +139,7 @@ const link = (fromKey: string, to: { x: number; y: number }) => {
 
 const settle = () =>
   act(async () => {
-    await new Promise((r) => setTimeout(r, 650));
+    await new Promise((resolve) => setTimeout(resolve, 650));
   });
 
 describe("Crumbly: a social network about eating cookies", () => {
@@ -148,7 +156,7 @@ describe("Crumbly: a social network about eating cookies", () => {
     setSymbolTheme(COOKIE);
     API.setAppState({ viewBackgroundColor: BACKDROP });
 
-    // -- the phone app --------------------------------------------------------
+    // the phone app
     const feed = insertScreen(
       [
         ["phone", 0, 0],
@@ -254,7 +262,7 @@ describe("Crumbly: a social network about eating cookies", () => {
       { x: 1040, y: 0 },
     );
 
-    // -- the website ---------------------------------------------------------
+    // the website
     const web = insertScreen(
       [
         ["browser", 0, 0],
@@ -287,7 +295,7 @@ describe("Crumbly: a social network about eating cookies", () => {
       { x: 520, y: 900 },
       [["jar", 24, 380, 110]],
     );
-    // -- first and last screens of the app: the welcome and the thanks -----
+    // first and last screens of the app: the welcome and the thanks
     const welcome = insertScreen(
       [
         ["phone", 0, 0],
@@ -322,38 +330,38 @@ describe("Crumbly: a social network about eating cookies", () => {
       { x: 1560, y: 0 },
       [["hands", 30, 190, 300]],
     );
-    for (const s of [feed, compose, profile, web, welcome, thanks]) {
-      expect(s.all.length).toBeGreaterThan(8);
+    for (const mockup of [feed, compose, profile, web, welcome, thanks]) {
+      expect(mockup.all.length).toBeGreaterThan(8);
     }
     // everything is a real symbol: groups with settings, in the cookie colours
     expect(
       new Set(
-        live()
-          .map((e) => getSymbolMeta(e)?.component)
+        liveElements()
+          .map((element) => getSymbolMeta(element)?.component)
           .filter(Boolean),
       ).size,
     ).toBeGreaterThanOrEqual(10);
     // parts stay inside their phone
     const overflowing: string[] = [];
-    for (const s of [feed, compose, profile, welcome, thanks]) {
-      const [qx1, qy1, qx2, qy2] = getCommonBounds(s.of("phone"));
+    for (const mockup of [feed, compose, profile, welcome, thanks]) {
+      const [qx1, qy1, qx2, qy2] = getCommonBounds(mockup.of("phone"));
       const groups = new Map<string, ExcalidrawElement[]>();
-      for (const e of s.all) {
-        const g = symbolGroupOf(e) ?? e.id;
-        groups.set(g, [...(groups.get(g) ?? []), e]);
+      for (const element of mockup.all) {
+        const groupKey = symbolGroupOf(element) ?? element.id;
+        groups.set(groupKey, [...(groups.get(groupKey) ?? []), element]);
       }
       for (const members of groups.values()) {
-        const [a, b, c, d] = getCommonBounds(members);
+        const [minX, minY, maxX, maxY] = getCommonBounds(members);
         const name = getSymbolMeta(members[0])?.component;
         if (
           name !== "phone" &&
-          (a < qx1 - 1 || c > qx2 + 1 || b < qy1 - 1 || d > qy2 + 1)
+          (minX < qx1 - 1 || maxX > qx2 + 1 || minY < qy1 - 1 || maxY > qy2 + 1)
         ) {
           overflowing.push(name ?? "?");
         }
       }
-      const [px1, py1, px2, py2] = getCommonBounds(s.of("phone"));
-      const [x1, y1, x2, y2] = getCommonBounds(s.all);
+      const [px1, py1, px2, py2] = getCommonBounds(mockup.of("phone"));
+      const [x1, y1, x2, y2] = getCommonBounds(mockup.all);
       expect([
         x1 >= px1 - 1,
         x2 <= px2 + 1,
@@ -374,7 +382,7 @@ describe("Crumbly: a social network about eating cookies", () => {
     // nothing sticks out of its phone
     expect(overflowing).toEqual([]);
 
-    // -- flow elements: buttons first, then the screens that hold them -------
+    // flow elements: buttons first, then the screens that hold them
     const newCrumb = convert(feed.of("fab"), "New crumb");
     const share = convert(compose.of("button"), "Share");
     const profileTab = convert(feed.of("navigation-bar"), "Profile tab");
@@ -382,54 +390,56 @@ describe("Crumbly: a social network about eating cookies", () => {
     const letsBake = convert(welcome.of("button"), "Let's bake");
     const cont = convert(thanks.of("button"), "Continue");
     const feedKey = convert(
-      live().filter(
-        (e) =>
-          feed.all.some((f) => f.id === e.id) ||
-          getFlowMeta(e)?.key === newCrumb ||
-          getFlowMeta(e)?.key === profileTab,
+      liveElements().filter(
+        (element) =>
+          feed.all.some((member) => member.id === element.id) ||
+          getFlowMeta(element)?.key === newCrumb ||
+          getFlowMeta(element)?.key === profileTab,
       ),
       "Feed",
     );
     const composeKey = convert(
-      live().filter(
-        (e) =>
-          compose.all.some((f) => f.id === e.id) ||
-          getFlowMeta(e)?.key === share,
+      liveElements().filter(
+        (element) =>
+          compose.all.some((member) => member.id === element.id) ||
+          getFlowMeta(element)?.key === share,
       ),
       "Compose",
     );
     const profileKey = convert(profile.all, "Profile");
     convert(
-      live().filter(
-        (e) =>
-          welcome.all.some((f) => f.id === e.id) ||
-          getFlowMeta(e)?.key === letsBake,
+      liveElements().filter(
+        (element) =>
+          welcome.all.some((member) => member.id === element.id) ||
+          getFlowMeta(element)?.key === letsBake,
       ),
       "Welcome",
     );
     const thanksKey = convert(
-      live().filter(
-        (e) =>
-          thanks.all.some((f) => f.id === e.id) || getFlowMeta(e)?.key === cont,
+      liveElements().filter(
+        (element) =>
+          thanks.all.some((member) => member.id === element.id) ||
+          getFlowMeta(element)?.key === cont,
       ),
       "Thank you",
     );
     convert(
-      live().filter(
-        (e) =>
-          web.all.some((f) => f.id === e.id) || getFlowMeta(e)?.key === getApp,
+      liveElements().filter(
+        (element) =>
+          web.all.some((member) => member.id === element.id) ||
+          getFlowMeta(element)?.key === getApp,
       ),
       "Web feed",
     );
 
-    // -- links, dragged from handle to screen --------------------------------
+    // links, dragged from handle to screen
     link(newCrumb, centerOf(compose.of("phone")));
     link(share, centerOf(thanks.of("phone")));
     link(cont, centerOf(feed.of("phone")));
     link(letsBake, centerOf(feed.of("phone")));
     link(profileTab, centerOf(profile.of("phone")));
     link(getApp, centerOf(feed.of("phone")));
-    let text = serializeFlow(readFlow(h.elements, FLOW));
+    let text = serializeFlow(readFlow(handle.elements, FLOW));
     expect(text).toMatch(/subgraph feed\["Feed"\]/);
     expect(text).toMatch(
       /subgraph feed\["Feed"\]\n\s+new_crumb\["New crumb"\]\n\s+profile_tab\["Profile tab"\]/,
@@ -441,10 +451,12 @@ describe("Crumbly: a social network about eating cookies", () => {
     expect(text).toContain(`${profileTab} --> ${profileKey}`);
     expect(text).toContain(`${getApp} --> ${feedKey}`);
 
-    // -- the Flow tab: label a link in the Mermaid text, the design stays ----
+    // the Flow tab: label a link in the Mermaid text, the design stays
     fireEvent.click(screen.getByTestId("inspector-tab-flow"));
     const source = screen.getByTestId("flow-source") as HTMLTextAreaElement;
-    const before = live().find((e) => e.id === feed.of("card")[0].id)!;
+    const before = liveElements().find(
+      (element) => element.id === feed.of("card")[0].id,
+    )!;
     fireEvent.change(source, {
       target: {
         value: source.value.replace(
@@ -454,9 +466,9 @@ describe("Crumbly: a social network about eating cookies", () => {
       },
     });
     await settle();
-    text = serializeFlow(readFlow(h.elements, FLOW));
+    text = serializeFlow(readFlow(handle.elements, FLOW));
     expect(text).toContain(`${newCrumb} -->|"tap"| ${composeKey}`);
-    const after = live().find((e) => e.id === before.id)!;
+    const after = liveElements().find((element) => element.id === before.id)!;
     expect([after.x, after.y, after.width]).toEqual([
       before.x,
       before.y,
@@ -464,9 +476,9 @@ describe("Crumbly: a social network about eating cookies", () => {
     ]);
     expect(symbolGroupOf(after)).toBeTruthy();
 
-    // -- the whole thing as code ---------------------------------------------
+    // the whole thing as code
     const code = generateResponsiveSceneCode(
-      live().filter((e) => !getFlowMeta(e)),
+      liveElements().filter((element) => !getFlowMeta(element)),
       COOKIE,
     )!;
     expect(code.html).toContain("Crumbly");
@@ -480,10 +492,10 @@ describe("Crumbly: a social network about eating cookies", () => {
       fs.writeFileSync(path.join(dir, "Crumbly.kt"), code.compose);
       fs.writeFileSync(
         path.join(dir, "crumbly.excalidraw"),
-        serializeAsJSON(h.elements, h.state, {}, "local"),
+        serializeAsJSON(handle.elements, handle.state, {}, "local"),
       );
       const svg = await exportToSvg(
-        live() as any,
+        liveElements() as any,
         {
           exportBackground: true,
           viewBackgroundColor: BACKDROP,

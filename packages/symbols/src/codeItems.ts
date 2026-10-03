@@ -12,18 +12,18 @@ export const collectCodeItems = (
 ): CodeItem[] => {
   const groups = new Map<string, ExcalidrawElement[]>();
   for (const el of elements) {
-    const m = getSymbolMeta(el);
-    const g = symbolGroupOf(el);
-    if (m?.component && g && !el.isDeleted) {
-      groups.set(g, [...(groups.get(g) ?? []), el]);
+    const meta = getSymbolMeta(el);
+    const group = symbolGroupOf(el);
+    if (meta?.component && group && !el.isDeleted) {
+      groups.set(group, [...(groups.get(group) ?? []), el]);
     }
   }
   return [...groups.values()].map((members) => {
-    const m = getSymbolMeta(members[0])!;
+    const meta = getSymbolMeta(members[0])!;
     const [x0, y0, x1, y1] = getCommonBounds(members);
     return {
-      component: m.component!,
-      values: m.values ?? {},
+      component: meta.component!,
+      values: meta.values ?? {},
       width: x1 - x0,
       height: y1 - y0,
       x: x0,

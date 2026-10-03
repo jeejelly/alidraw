@@ -12,12 +12,17 @@ export const FlowLinkOverlay = ({ app }: { app: App }) => {
   }
   const at = (x: number, y: number) =>
     sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, app.state);
-  const a = at(link.from.x, link.from.y);
-  const b = at(link.to.x, link.to.y);
-  const box = (r: { x: number; y: number; w: number; h: number }) => {
-    const p = at(r.x, r.y);
-    const q = at(r.x + r.w, r.y + r.h);
-    return { left: p.x, top: p.y, width: q.x - p.x, height: q.y - p.y };
+  const start = at(link.from.x, link.from.y);
+  const end = at(link.to.x, link.to.y);
+  const box = (rect: { x: number; y: number; w: number; h: number }) => {
+    const topLeft = at(rect.x, rect.y);
+    const bottomRight = at(rect.x + rect.w, rect.y + rect.h);
+    return {
+      left: topLeft.x,
+      top: topLeft.y,
+      width: bottomRight.x - topLeft.x,
+      height: bottomRight.y - topLeft.y,
+    };
   };
   return (
     <div
@@ -27,15 +32,15 @@ export const FlowLinkOverlay = ({ app }: { app: App }) => {
     >
       <svg>
         <line
-          x1={a.x}
-          y1={a.y}
-          x2={b.x}
-          y2={b.y}
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
           stroke="#e0449b"
           strokeWidth={2}
           strokeDasharray="6 4"
         />
-        <circle cx={b.x} cy={b.y} r={4} fill="#e0449b" />
+        <circle cx={end.x} cy={end.y} r={4} fill="#e0449b" />
       </svg>
       {link.target && (
         <div

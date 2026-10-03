@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-const png = (n) => Buffer.from(`image-${n}`).toString("base64");
+const png = (number) => Buffer.from(`image-${number}`).toString("base64");
 
 describe("secrets manifest", () => {
   it("never stores a password in clear and needs the passphrase", () => {
@@ -87,7 +87,7 @@ const folderConnect =
 const setup = (connect, paused = { v: false }) => {
   return ws
     .create({ name: "P", parent: path.join(tmp, "proj"), useGit: false })
-    .then((e) => {
+    .then((project) => {
       const backup = new Backup({
         workspaces: ws,
         registry,
@@ -96,7 +96,7 @@ const setup = (connect, paused = { v: false }) => {
         connect,
         delayMs: 5,
       });
-      return { id: e.id, backup, paused };
+      return { id: project.id, backup, paused };
     });
 };
 
@@ -110,11 +110,11 @@ describe("backup", () => {
     ws.writeAsset(id, "image/png", png(1));
     ws.writeAsset(id, "image/png", png(2));
 
-    let r = await backup.backupNow(id);
-    expect(r).toMatchObject({ outcome: "done", uploaded: 2, failed: [] });
-    r = await backup.backupNow(id);
-    expect(r).toMatchObject({ uploaded: 0, already: 2 });
-    expect(log.filter((l) => l.startsWith("put"))).toHaveLength(2);
+    let result = await backup.backupNow(id);
+    expect(result).toMatchObject({ outcome: "done", uploaded: 2, failed: [] });
+    result = await backup.backupNow(id);
+    expect(result).toMatchObject({ uploaded: 0, already: 2 });
+    expect(log.filter((line) => line.startsWith("put"))).toHaveLength(2);
   });
 
   it("fetches a missing asset and checks it against its name", async () => {
@@ -140,13 +140,13 @@ describe("backup", () => {
     const { id, backup } = await setup(folderConnect(dir));
     secrets.create("correct horse battery");
     backup.setConfig(id, { protocol: "sftp", host: "h", user: "u" }, "pw");
-    const a = ws.writeAsset(id, "image/png", png(4)).path;
-    const b = ws.writeAsset(id, "image/jpeg", png(5)).path;
+    const firstPath = ws.writeAsset(id, "image/png", png(4)).path;
+    const secondPath = ws.writeAsset(id, "image/jpeg", png(5)).path;
     await backup.backupNow(id);
-    fs.rmSync(path.join(ws.root(id), a));
-    fs.rmSync(path.join(ws.root(id), b));
+    fs.rmSync(path.join(ws.root(id), firstPath));
+    fs.rmSync(path.join(ws.root(id), secondPath));
     expect(await backup.fetchAll(id)).toMatchObject({ downloaded: 2 });
-    expect(ws.readAsset(id, a)).toBe(png(4));
+    expect(ws.readAsset(id, firstPath)).toBe(png(4));
   });
 
   it("does nothing while paused, locked, or without a server", async () => {
@@ -236,26 +236,33 @@ describe("backup", () => {
 describe("secrets in the OS keychain", () => {
   const keychain = {
     available: () => true,
-    encrypt: (t) => Buffer.from(`os:${t}`),
-    decrypt: (b) => b.toString().replace(/^os:/, ""),
+    encrypt: (text) => Buffer.from(`os:${text}`),
+    decrypt: (buffer) => buffer.toString().replace(/^os:/, ""),
   };
   it("keeps passwords without a passphrase and opens by itself", () => {
-    const a = new Secrets(path.join(tmp, "data"), keychain);
-    a.createWithKeychain();
-    a.setPassword("w", "kc-secret");
-    expect(a.status()).toMatchObject({ mode: "keychain", unlocked: true });
-    expect(fs.readFileSync(a.file, "utf8")).not.toContain("kc-secret");
-    const b = new Secrets(path.join(tmp, "data"), keychain);
-    expect(b.status().unlocked).toBe(false);
-    b.unlock();
-    expect(b.getPassword("w")).toBe("kc-secret");
+    const firstSecrets = new Secrets(path.join(tmp, "data"), keychain);
+    firstSecrets.createWithKeychain();
+    firstSecrets.setPassword("w", "kc-secret");
+    expect(firstSecrets.status()).toMatchObject({
+      mode: "keychain",
+      unlocked: true,
+    });
+    expect(fs.readFileSync(firstSecrets.file, "utf8")).not.toContain(
+      "kc-secret",
+    );
+    const secondSecrets = new Secrets(path.join(tmp, "data"), keychain);
+    expect(secondSecrets.status().unlocked).toBe(false);
+    secondSecrets.unlock();
+    expect(secondSecrets.getPassword("w")).toBe("kc-secret");
   });
   it("is refused where there is no keychain", () => {
-    const a = new Secrets(path.join(tmp, "data"), {
+    const passphraseSecrets = new Secrets(path.join(tmp, "data"), {
       ...keychain,
       available: () => false,
     });
-    expect(() => a.createWithKeychain()).toThrow(/not available/);
+    expect(() => passphraseSecrets.createWithKeychain()).toThrow(
+      /not available/,
+    );
     expect(new Secrets(path.join(tmp, "data")).keychainAvailable()).toBe(false);
   });
 });

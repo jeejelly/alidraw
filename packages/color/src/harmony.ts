@@ -3,83 +3,7 @@
  * palettes offer them), and a whole symbol theme built from one: a base colour
  * and a rule give a family of colours that go together.
  */
-import { rgbToHex } from "./swatches";
-
-export type HSL = { h: number; s: number; l: number };
-
-const clamp = (n: number, a: number, b: number) => Math.min(b, Math.max(a, n));
-const wrap = (h: number) => ((h % 360) + 360) % 360;
-
-export const hexToRgb = (hex: string): [number, number, number] => {
-  let v = hex.replace("#", "").trim();
-  if (v.length === 3) {
-    v = v
-      .split("")
-      .map((c) => c + c)
-      .join("");
-  }
-  const n = parseInt(v.slice(0, 6), 16);
-  return Number.isFinite(n)
-    ? [(n >> 16) & 255, (n >> 8) & 255, n & 255]
-    : [0, 0, 0];
-};
-
-export const hexToHsl = (hex: string): HSL => {
-  const [r, g, b] = hexToRgb(hex).map((x) => x / 255);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const d = max - min;
-  if (!d) {
-    return { h: 0, s: 0, l: l * 100 };
-  }
-  const s = d / (1 - Math.abs(2 * l - 1));
-  let h =
-    max === r
-      ? ((g - b) / d) % 6
-      : max === g
-      ? (b - r) / d + 2
-      : (r - g) / d + 4;
-  h *= 60;
-  return { h: wrap(h), s: s * 100, l: l * 100 };
-};
-
-export const hslToHex = ({ h: hue, s, l }: HSL) => {
-  const h = wrap(hue);
-  const S = clamp(s, 0, 100) / 100;
-  const L = clamp(l, 0, 100) / 100;
-  const c = (1 - Math.abs(2 * L - 1)) * S;
-  const x = c * (1 - Math.abs(((wrap(h) / 60) % 2) - 1));
-  const m = L - c / 2;
-  const [r, g, b] =
-    h < 60
-      ? [c, x, 0]
-      : h < 120
-      ? [x, c, 0]
-      : h < 180
-      ? [0, c, x]
-      : h < 240
-      ? [0, x, c]
-      : h < 300
-      ? [x, 0, c]
-      : [c, 0, x];
-  return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
-};
-
-/** relative luminance (WCAG) */
-export const luminance = (hex: string) => {
-  const [r, g, b] = hexToRgb(hex).map((v) => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-/** WCAG contrast ratio, 1 to 21 */
-export const contrast = (a: string, b: string) => {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-};
+import { clamp, contrast, hexToHsl, hslToHex, type HSL } from "./colorSpaces";
 
 export type HarmonyRule =
   | "analogous"
@@ -224,21 +148,21 @@ export const harmony = (
   base: string,
   rule: HarmonyRule,
 ): { colors: string[]; index: number } => {
-  const b = hexToHsl(base);
+  const baseHsl = hexToHsl(base);
   const { steps, base: index } = STEPS[rule];
   if (rule === "shades") {
-    const colors = [14, 32, b.l, 68, 88].map((l, i) =>
-      i === 2 ? base : hslToHex({ ...b, l }),
+    const colors = [14, 32, baseHsl.l, 68, 88].map((lightness, position) =>
+      position === 2 ? base : hslToHex({ ...baseHsl, l: lightness }),
     );
     return { colors, index };
   }
-  const colors = steps.map(([dh, ds, dl], i) =>
-    i === index && !dh && ds === 1 && !dl
+  const colors = steps.map(([dh, ds, dl], position) =>
+    position === index && !dh && ds === 1 && !dl
       ? base
       : hslToHex({
-          h: b.h + dh,
-          s: clamp(b.s * ds, 0, 100),
-          l: clamp(b.l + dl, 6, 94),
+          h: baseHsl.h + dh,
+          s: clamp(baseHsl.s * ds, 0, 100),
+          l: clamp(baseHsl.l + dl, 6, 94),
         }),
   );
   return { colors, index };
@@ -247,10 +171,6 @@ export const harmony = (
 /** the hue offsets of the colours (for the handles on the wheel) */
 export const harmonyAngles = (rule: HarmonyRule) =>
   STEPS[rule].steps.map(([dh]) => dh);
-
-// -----------------------------------------------------------------------------
-// a whole theme from a harmony
-// -----------------------------------------------------------------------------
 
 export type ThemeColors = {
   page: string;
@@ -268,12 +188,12 @@ export type ThemeColors = {
 const closestHue = (colors: string[], hue: number, within: number) => {
   let best: string | null = null;
   let gap = within;
-  for (const c of colors) {
-    const hsl = hexToHsl(c);
-    const d = Math.abs(((hsl.h - hue + 540) % 360) - 180);
-    if (hsl.s > 25 && d < gap) {
-      gap = d;
-      best = c;
+  for (const color of colors) {
+    const hsl = hexToHsl(color);
+    const distance = Math.abs(((hsl.h - hue + 540) % 360) - 180);
+    if (hsl.s > 25 && distance < gap) {
+      gap = distance;
+      best = color;
     }
   }
   return best;
@@ -294,18 +214,22 @@ export const themeFromHarmony = (
   rule: HarmonyRule,
   mode: "light" | "dark" = "light",
 ): ThemeColors => {
-  const b = hexToHsl(base);
+  const baseHsl = hexToHsl(base);
   const family = harmony(base, rule).colors;
-  const tint = clamp(b.s * 0.3, 4, 24);
+  const tint = clamp(baseHsl.s * 0.3, 4, 24);
   const dark = mode === "dark";
-  const neutral = (l: number, s = tint) => hslToHex({ h: b.h, s, l });
+  const neutral = (lightness: number, saturation = tint) =>
+    hslToHex({ h: baseHsl.h, s: saturation, l: lightness });
   // the accent stays recognisably the base, moved only as far as legibility needs
   let accent = base;
   const wantsLight = dark ? 52 : 0;
-  if (dark && b.l < wantsLight) {
-    accent = hslToHex({ ...b, l: wantsLight });
+  if (dark && baseHsl.l < wantsLight) {
+    accent = hslToHex({ ...baseHsl, l: wantsLight });
   }
-  const pop = { s: clamp(Math.max(b.s, 55), 0, 90), l: clamp(b.l, 42, 58) };
+  const pop = {
+    s: clamp(Math.max(baseHsl.s, 55), 0, 90),
+    l: clamp(baseHsl.l, 42, 58),
+  };
   const green = closestHue(family, 140, 50) ?? hslToHex({ h: 150, ...pop });
   const red = closestHue(family, 5, 45) ?? hslToHex({ h: 4, ...pop });
   const page = dark ? neutral(9) : neutral(96);
@@ -325,344 +249,11 @@ export const themeFromHarmony = (
   };
 };
 
-// -----------------------------------------------------------------------------
-// ready-made palettes
-// -----------------------------------------------------------------------------
-
-export type PalettePreset = {
-  id: string;
-  name: string;
-  colors: string[];
-  tags: string;
-};
-
-/** common, freely usable palettes (values of open palettes such as Material, Tailwind, Solarized, Nord) */
-export const PALETTE_PRESETS: readonly PalettePreset[] = [
-  {
-    id: "material",
-    name: "Material 500",
-    tags: "google android",
-    colors: [
-      "#f44336",
-      "#e91e63",
-      "#9c27b0",
-      "#673ab7",
-      "#3f51b5",
-      "#2196f3",
-      "#03a9f4",
-      "#00bcd4",
-      "#009688",
-      "#4caf50",
-      "#8bc34a",
-      "#cddc39",
-      "#ffeb3b",
-      "#ffc107",
-      "#ff9800",
-      "#ff5722",
-    ],
-  },
-  {
-    id: "tailwind",
-    name: "Tailwind 500",
-    tags: "web css",
-    colors: [
-      "#ef4444",
-      "#f97316",
-      "#f59e0b",
-      "#eab308",
-      "#84cc16",
-      "#22c55e",
-      "#10b981",
-      "#14b8a6",
-      "#06b6d4",
-      "#0ea5e9",
-      "#3b82f6",
-      "#6366f1",
-      "#8b5cf6",
-      "#a855f7",
-      "#d946ef",
-      "#ec4899",
-    ],
-  },
-  {
-    id: "flat",
-    name: "Flat UI",
-    tags: "flat classic",
-    colors: [
-      "#1abc9c",
-      "#2ecc71",
-      "#3498db",
-      "#9b59b6",
-      "#34495e",
-      "#f1c40f",
-      "#e67e22",
-      "#e74c3c",
-      "#ecf0f1",
-      "#95a5a6",
-    ],
-  },
-  {
-    id: "pastel",
-    name: "Pastel",
-    tags: "soft light",
-    colors: [
-      "#ffd1dc",
-      "#ffdfba",
-      "#fff5ba",
-      "#c9f2c7",
-      "#bae1ff",
-      "#d7baff",
-      "#f5c2e7",
-      "#b5ead7",
-    ],
-  },
-  {
-    id: "earth",
-    name: "Earth",
-    tags: "natural warm",
-    colors: [
-      "#3d2b1f",
-      "#6f4e37",
-      "#a0785a",
-      "#c8a27a",
-      "#e8d5b5",
-      "#7a8450",
-      "#4f5d2f",
-      "#b5651d",
-    ],
-  },
-  {
-    id: "ocean",
-    name: "Ocean",
-    tags: "blue sea",
-    colors: [
-      "#03045e",
-      "#023e8a",
-      "#0077b6",
-      "#0096c7",
-      "#00b4d8",
-      "#48cae4",
-      "#90e0ef",
-      "#caf0f8",
-    ],
-  },
-  {
-    id: "forest",
-    name: "Forest",
-    tags: "green nature",
-    colors: [
-      "#081c15",
-      "#1b4332",
-      "#2d6a4f",
-      "#40916c",
-      "#52b788",
-      "#74c69d",
-      "#95d5b2",
-      "#d8f3dc",
-    ],
-  },
-  {
-    id: "sunset",
-    name: "Sunset",
-    tags: "warm orange",
-    colors: [
-      "#2b1055",
-      "#7597de",
-      "#d4508b",
-      "#ff6b57",
-      "#ff9e57",
-      "#ffd166",
-      "#fff1c1",
-    ],
-  },
-  {
-    id: "candy",
-    name: "Candy",
-    tags: "bright fun",
-    colors: [
-      "#ff6b6b",
-      "#feca57",
-      "#48dbfb",
-      "#ff9ff3",
-      "#54a0ff",
-      "#5f27cd",
-      "#1dd1a1",
-      "#ff9f43",
-    ],
-  },
-  {
-    id: "neon",
-    name: "Neon",
-    tags: "vivid dark",
-    colors: [
-      "#0d0221",
-      "#261447",
-      "#ff2a6d",
-      "#05d9e8",
-      "#d1f7ff",
-      "#f9c80e",
-      "#7d4cdb",
-    ],
-  },
-  {
-    id: "mono",
-    name: "Greys",
-    tags: "neutral",
-    colors: [
-      "#0b0b0f",
-      "#23232b",
-      "#3c3c46",
-      "#5b5b66",
-      "#8a8a95",
-      "#b8b8c2",
-      "#dcdce2",
-      "#f4f4f7",
-    ],
-  },
-  {
-    id: "solarized",
-    name: "Solarized",
-    tags: "code",
-    colors: [
-      "#002b36",
-      "#073642",
-      "#586e75",
-      "#839496",
-      "#eee8d5",
-      "#fdf6e3",
-      "#b58900",
-      "#cb4b16",
-      "#dc322f",
-      "#d33682",
-      "#6c71c4",
-      "#268bd2",
-      "#2aa198",
-      "#859900",
-    ],
-  },
-  {
-    id: "nord",
-    name: "Nord",
-    tags: "code cool",
-    colors: [
-      "#2e3440",
-      "#3b4252",
-      "#434c5e",
-      "#4c566a",
-      "#d8dee9",
-      "#e5e9f0",
-      "#eceff4",
-      "#8fbcbb",
-      "#88c0d0",
-      "#81a1c1",
-      "#5e81ac",
-      "#bf616a",
-      "#d08770",
-      "#ebcb8b",
-      "#a3be8c",
-      "#b48ead",
-    ],
-  },
-  {
-    id: "dracula",
-    name: "Dracula",
-    tags: "code dark",
-    colors: [
-      "#282a36",
-      "#44475a",
-      "#f8f8f2",
-      "#6272a4",
-      "#8be9fd",
-      "#50fa7b",
-      "#ffb86c",
-      "#ff79c6",
-      "#bd93f9",
-      "#ff5555",
-      "#f1fa8c",
-    ],
-  },
-  {
-    id: "retro",
-    name: "Retro",
-    tags: "vintage",
-    colors: [
-      "#264653",
-      "#2a9d8f",
-      "#e9c46a",
-      "#f4a261",
-      "#e76f51",
-      "#fefae0",
-      "#bc6c25",
-    ],
-  },
-  {
-    id: "banking",
-    name: "Fintech",
-    tags: "app modern coral",
-    colors: [
-      "#20202e",
-      "#6c5ce7",
-      "#ff6b57",
-      "#1fcf9b",
-      "#4f8dff",
-      "#f5c542",
-      "#f4f5fb",
-      "#ffffff",
-    ],
-  },
-];
-
 /** the colour of a palette that stands out most (the best accent) */
 export const mostVivid = (colors: readonly string[]) =>
-  [...colors].sort((a, b) => {
-    const A = hexToHsl(a);
-    const B = hexToHsl(b);
-    const mid = (x: HSL) => 1 - Math.abs(x.l - 50) / 50;
-    return B.s * mid(B) - A.s * mid(A);
+  [...colors].sort((first, second) => {
+    const firstHsl = hexToHsl(first);
+    const secondHsl = hexToHsl(second);
+    const mid = (hsl: HSL) => 1 - Math.abs(hsl.l - 50) / 50;
+    return secondHsl.s * mid(secondHsl) - firstHsl.s * mid(firstHsl);
   })[0];
-
-// -----------------------------------------------------------------------------
-// HSV, what a colour wheel is drawn in
-// -----------------------------------------------------------------------------
-
-export type HSV = { h: number; s: number; v: number };
-
-export const hexToHsv = (hex: string): HSV => {
-  const [r, g, b] = hexToRgb(hex).map((x) => x / 255);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const d = max - min;
-  let h = 0;
-  if (d) {
-    h =
-      max === r
-        ? ((g - b) / d) % 6
-        : max === g
-        ? (b - r) / d + 2
-        : (r - g) / d + 4;
-    h = wrap(h * 60);
-  }
-  return { h, s: max ? (d / max) * 100 : 0, v: max * 100 };
-};
-
-export const hsvToHex = ({ h, s, v }: HSV) => {
-  const S = clamp(s, 0, 100) / 100;
-  const V = clamp(v, 0, 100) / 100;
-  const c = V * S;
-  const hh = wrap(h) / 60;
-  const x = c * (1 - Math.abs((hh % 2) - 1));
-  const m = V - c;
-  const [r, g, b] =
-    hh < 1
-      ? [c, x, 0]
-      : hh < 2
-      ? [x, c, 0]
-      : hh < 3
-      ? [0, c, x]
-      : hh < 4
-      ? [0, x, c]
-      : hh < 5
-      ? [x, 0, c]
-      : [c, 0, x];
-  return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
-};

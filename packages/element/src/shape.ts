@@ -1149,9 +1149,9 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
     case "path": {
       const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
       const center = pointFrom<Point>(cx, cy);
-      const polyline = flattenPath(element).map((p) =>
+      const polyline = flattenPath(element).map((point) =>
         pointRotateRads(
-          pointFrom<Point>(p[0] + element.x, p[1] + element.y),
+          pointFrom<Point>(point[0] + element.x, point[1] + element.y),
           center,
           element.angle,
         ),

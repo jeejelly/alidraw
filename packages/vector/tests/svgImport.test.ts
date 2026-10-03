@@ -28,9 +28,9 @@ describe("svg colours and transforms", () => {
     expect(parseTransform("translate(10 5) scale(2)")).toEqual([
       2, 0, 0, 2, 10, 5,
     ]);
-    const r = parseTransform("rotate(90)");
-    expect(Math.round(r[0])).toBe(0);
-    expect(Math.round(r[1])).toBe(1);
+    const rotation = parseTransform("rotate(90)");
+    expect(Math.round(rotation[0])).toBe(0);
+    expect(Math.round(rotation[1])).toBe(1);
   });
 });
 
@@ -45,10 +45,12 @@ describe("importing an svg as shapes", () => {
          <text x="5" y="48" font-size="8" fill="#111">Hello</text>`,
       ),
     );
-    const types = elements.map((e) => e.type).sort();
+    const types = elements.map((element) => element.type).sort();
     expect(types).toEqual(["ellipse", "line", "path", "rectangle", "text"]);
-    expect(new Set(elements.map((e) => e.groupIds[0])).size).toBe(1);
-    const rect = elements.find((e) => e.type === "rectangle")!;
+    expect(new Set(elements.map((element) => element.groupIds[0])).size).toBe(
+      1,
+    );
+    const rect = elements.find((element) => element.type === "rectangle")!;
     expect(rect).toMatchObject({
       x: 10,
       y: 5,
@@ -56,7 +58,7 @@ describe("importing an svg as shapes", () => {
       height: 20,
       backgroundColor: "#ff0000",
     });
-    const dot = elements.find((e) => e.type === "ellipse")!;
+    const dot = elements.find((element) => element.type === "ellipse")!;
     expect(dot).toMatchObject({
       width: 20,
       backgroundColor: "#0000ff",
@@ -99,9 +101,9 @@ describe("importing an svg as shapes", () => {
       svg(`<path fill="#000" d="M0 0H40V40H0Z M10 10V30H30V10Z"/>`),
     );
     expect(elements).toHaveLength(1);
-    const p = elements[0] as any;
-    expect(p.type).toBe("path");
-    expect(p.contours).toHaveLength(1);
+    const path = elements[0] as any;
+    expect(path.type).toBe("path");
+    expect(path.contours).toHaveLength(1);
   });
 
   it("turns a rotated rectangle into a path, and says what it left out", () => {

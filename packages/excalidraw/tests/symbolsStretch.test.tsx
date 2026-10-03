@@ -1,10 +1,7 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
 import { getCommonBounds } from "@excalidraw/element";
 
-import { actionReplaceFromLibrary } from "../actions";
-import { Excalidraw } from "../index";
 import { fitIntoBox } from "@excalidraw/symbols";
 import { buildElements } from "@excalidraw/symbols";
 import { collectCodeItems } from "@excalidraw/symbols";
@@ -19,6 +16,10 @@ import {
 } from "@excalidraw/symbols";
 import { THEMES } from "@excalidraw/symbols";
 
+import { Excalidraw } from "../index";
+import { actionReplaceFromLibrary } from "../actions";
+
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import {
   act,
@@ -32,16 +33,13 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 const night = THEMES[2];
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 const make = (id: string, at = { x: 100, y: 100 }, values?: any) => {
-  const def = COMPONENTS.find((c) => c.id === id)!;
+  const def = COMPONENTS.find((component) => component.id === id)!;
   return buildElements(
     def.shapes(night, { ...defaultsOf(def), ...values }),
     night,
@@ -52,7 +50,7 @@ const make = (id: string, at = { x: 100, y: 100 }, values?: any) => {
 };
 
 const byText = (els: any[], text: string) =>
-  els.find((e) => e.type === "text" && e.text === text);
+  els.find((element) => element.type === "text" && element.text === text);
 
 describe("stretching a component", () => {
   it("grows what spans and keeps the ends where they are", () => {
@@ -62,17 +60,21 @@ describe("stretching a component", () => {
     const to = { ...from, x1: from.x1 + 100 };
     const up = stretchUpdates(els, pins, from, to);
     // the card background spans: it gets wider by 100
-    const bg = els.reduce((a, e) => (e.width > a.width ? e : a));
+    const bg = els.reduce((first, element) =>
+      element.width > first.width ? element : first,
+    );
     expect(up.get(bg.id)!.width ?? up.get(bg.id)!.width).toBe(bg.width + 100);
     // the title stays at the left, the buttons keep their distance from the right
     const title = byText(els, "Chocolate with milk");
     expect(up.get(title.id)!.x).toBe(title.x);
-    const buttons = els.filter((e) => e.type === "path" && e.width === 40);
+    const buttons = els.filter(
+      (element) => element.type === "path" && element.width === 40,
+    );
     expect(buttons.length).toBeGreaterThanOrEqual(3);
-    for (const b of buttons) {
-      expect(up.get(b.id)!.x).toBe(b.x + 100);
+    for (const button of buttons) {
+      expect(up.get(button.id)!.x).toBe(button.x + 100);
       // and are not distorted
-      expect(up.get(b.id)!.width ?? b.width).toBe(b.width);
+      expect(up.get(button.id)!.width ?? button.width).toBe(button.width);
     }
   });
 
@@ -81,22 +83,22 @@ describe("stretching a component", () => {
     const from = frameOf(els);
     const pins = inferPins(els, from, getLayout(els));
     const up = stretchUpdates(els, pins, from, { ...from, x1: from.x1 + 60 });
-    const pill = els.find((e) => e.type === "path") as any;
-    const u = up.get(pill.id)!;
-    expect(u.handles[0].radius).toBe(pill.handles[0].radius);
-    expect(Math.round(u.width)).toBe(Math.round(pill.width + 60));
-    expect(Math.round(u.height)).toBe(Math.round(pill.height));
+    const pill = els.find((element) => element.type === "path") as any;
+    const update = up.get(pill.id)!;
+    expect(update.handles[0].radius).toBe(pill.handles[0].radius);
+    expect(Math.round(update.width)).toBe(Math.round(pill.width + 60));
+    expect(Math.round(update.height)).toBe(Math.round(pill.height));
   });
 
   it("the layout choice decides where loose parts go", () => {
     const els = make("tabs");
     const from = frameOf(els);
     const to = { ...from, x1: from.x1 + 90 };
-    const move = (h: any) => {
-      const pins = inferPins(els, from, { h, v: "auto" });
+    const move = (horizontal: any) => {
+      const pins = inferPins(els, from, { h: horizontal, v: "auto" });
       const up = stretchUpdates(els, pins, from, to);
-      const t = byText(els, "All");
-      return up.get(t.id)!.x - t.x;
+      const label = byText(els, "All");
+      return up.get(label.id)!.x - label.x;
     };
     expect(move("left")).toBe(0);
     expect(move("right")).toBe(90);
@@ -106,21 +108,21 @@ describe("stretching a component", () => {
   });
 
   it("snaps an edge to another component and says which line lit up", () => {
-    const a = make("button", { x: 0, y: 0 });
+    const first = make("button", { x: 0, y: 0 });
     const other = make("button", { x: 0, y: 100 });
-    const from = frameOf(a);
-    const next = { ...from, x1: from.x1 + 97 }; // near 140 + 100 = 240? other ends at 140
-    const o = frameOf(other);
-    const near = { ...from, x1: o.x1 + 3 };
-    const r = snapFrame(
+    const from = frameOf(first);
+    const next = { ...from, x1: from.x1 + 97 };
+    const otherFrame = frameOf(other);
+    const near = { ...from, x1: otherFrame.x1 + 3 };
+    const snapped = snapFrame(
       near,
       { l: false, r: true, t: false, b: false },
       other,
       6,
     );
-    expect(r.frame.x1).toBe(o.x1);
-    expect(r.guides).toHaveLength(1);
-    expect(r.guides[0]).toMatchObject({ axis: "x", pos: o.x1 });
+    expect(snapped.frame.x1).toBe(otherFrame.x1);
+    expect(snapped.guides).toHaveLength(1);
+    expect(snapped.guides[0]).toMatchObject({ axis: "x", pos: otherFrame.x1 });
     const far = snapFrame(
       next,
       { l: false, r: true, t: false, b: false },
@@ -156,8 +158,8 @@ describe("Ctrl + drag on the canvas", () => {
     const bounds = getCommonBounds(els);
     // anywhere along the right edge of the component
     const from = [
-      bounds[2] + h.state.offsetLeft,
-      (bounds[1] + bounds[3]) / 2 + h.state.offsetTop,
+      bounds[2] + handle.state.offsetLeft,
+      (bounds[1] + bounds[3]) / 2 + handle.state.offsetTop,
     ];
 
     fireEvent.pointerDown(canvas, {
@@ -174,7 +176,9 @@ describe("Ctrl + drag on the canvas", () => {
     expect(screen.getByTestId("stretch-overlay")).toBeTruthy();
     expect(screen.getAllByTestId("stretch-guide").length).toBeGreaterThan(0);
     const pill = () =>
-      h.elements.find((e) => e.type === "path" && e.width > 100) as any;
+      handle.elements.find(
+        (element) => element.type === "path" && element.width > 100,
+      ) as any;
     expect(Math.round(pill().width)).toBe(200);
     fireEvent.pointerUp(window, { clientX: from[0] + 62, clientY: from[1] });
     expect(screen.queryByTestId("stretch-overlay")).toBeNull();
@@ -198,7 +202,7 @@ describe("Ctrl + drag on the canvas", () => {
   it("without Ctrl the usual resize runs, and a plain rectangle is untouched", async () => {
     const utils = await render(<Excalidraw />);
     expect(utils.container.querySelector("canvas.interactive")).toBeTruthy();
-    expect(h.app.stretch.getSnapshot().frame).toBeNull();
+    expect(handle.app.stretch.getSnapshot().frame).toBeNull();
     act(() => undefined);
   });
 });
@@ -231,63 +235,74 @@ describe("symbols standing in for shapes", () => {
 
   it("replaces a shape with a component that carries its text, and keeps the shape as an anchor", async () => {
     const { box } = await setup();
-    const n = h.app.symbols.replace("button", { look: "primary" }, night);
-    expect(n).toBe(1);
-    const live = h.elements.filter((e) => !e.isDeleted);
+    const replaced = handle.app.symbols.replace(
+      "button",
+      { look: "primary" },
+      night,
+    );
+    expect(replaced).toBe(1);
+    const live = handle.elements.filter((element) => !element.isDeleted);
     const texts = live.filter(
-      (e: any) => e.type === "text" && e.text === "Add to cart",
+      (element: any) =>
+        element.type === "text" && element.text === "Add to cart",
     );
     // the symbol's own label, plus the anchor's hidden one
     expect(texts.length).toBe(2);
-    const anchor = live.find((e) => e.id === box.id) as any;
+    const anchor = live.find((element) => element.id === box.id) as any;
     expect(anchor.strokeColor).toBe("transparent");
     expect(anchor.customData.symbol.anchor).toBe(true);
     // the symbol fills the shape's box
-    const pill = live.find((e) => e.type === "path") as any;
+    const pill = live.find((element) => element.type === "path") as any;
     expect(Math.round(pill.width)).toBe(220);
     expect(Math.round(pill.height)).toBe(56);
-    expect(new Set(live.map((e) => e.groupIds[0])).size).toBe(1);
+    expect(new Set(live.map((element) => element.groupIds[0])).size).toBe(1);
   });
 
   it("redraws the symbol when the text of the shape changes", async () => {
     const { box, label } = await setup();
-    h.app.symbols.replace("button", {}, night);
+    handle.app.symbols.replace("button", {}, night);
     act(() => {
-      h.app.scene.mutateElement(
-        h.elements.find((e) => e.id === label.id) as any,
+      handle.app.scene.mutateElement(
+        handle.elements.find((element) => element.id === label.id) as any,
         { text: "Pay now", originalText: "Pay now" },
       );
     });
-    h.app.symbols.sync();
-    const live = h.elements.filter((e) => !e.isDeleted);
+    handle.app.symbols.sync();
+    const live = handle.elements.filter((element) => !element.isDeleted);
     expect(
       live.some(
-        (e: any) =>
-          e.type === "text" && e.text === "Pay now" && e.id !== label.id,
+        (element: any) =>
+          element.type === "text" &&
+          element.text === "Pay now" &&
+          element.id !== label.id,
       ),
     ).toBe(true);
     expect(
       live.filter(
-        (e: any) =>
-          e.type === "text" && e.text === "Add to cart" && e.id !== label.id,
+        (element: any) =>
+          element.type === "text" &&
+          element.text === "Add to cart" &&
+          element.id !== label.id,
       ),
     ).toHaveLength(0);
-    expect(live.some((e) => e.id === box.id)).toBe(true);
+    expect(live.some((element) => element.id === box.id)).toBe(true);
   });
 
   it("locks a background to the clipping zone", () => {
-    const els = make("card").map((e) => e);
-    const inner = els.find((e) => e.type === "rectangle" && e.height === 80)!;
-    const marked = els.map((e) =>
-      e.id === inner.id
+    const els = make("card").map((element) => element);
+    const inner = els.find(
+      (element) => element.type === "rectangle" && element.height === 80,
+    )!;
+    const marked = els.map((element) =>
+      element.id === inner.id
         ? {
-            ...e,
+            ...element,
             customData: {
-              ...e.customData,
-              symbol: { ...e.customData!.symbol, cover: true },
+              ...element.customData,
+              symbol: { ...element.customData!.symbol, cover: true },
             },
           }
-        : e,
+        : element,
     );
     const from = frameOf(marked);
     const pins = inferPins(marked, from, getLayout(marked));
@@ -306,9 +321,9 @@ describe("copies of a symbol", () => {
   it("a duplicate, or an item back from the library, is its own component", () => {
     const original = make("button", { x: 0, y: 0 });
     // what duplicating does: new ids and new groups, the stored meta stays as it was
-    const copy = original.map((e, k) => ({
-      ...e,
-      id: `copy${k}`,
+    const copy = original.map((element, index) => ({
+      ...element,
+      id: `copy${index}`,
       groupIds: ["fresh-group"],
     }));
     const all = [...original, ...copy] as any[];
@@ -334,19 +349,24 @@ describe("replacing from the library", () => {
       Math.round(frame.y1),
     ]).toEqual([500, 500, 800, 560]);
     // the corners stay round: the pill grew, it did not scale
-    const pill = fitted.find((e) => e.type === "path") as any;
+    const pill = fitted.find((element) => element.type === "path") as any;
     expect(pill.handles[0].radius).toBe(20);
   });
 
   it("scales other shapes in proportion and centres them", () => {
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 100,
       height: 50,
     } as any);
-    const fitted = fitIntoBox([a] as any, { x0: 0, y0: 0, x1: 400, y1: 400 });
+    const fitted = fitIntoBox([first] as any, {
+      x0: 0,
+      y0: 0,
+      x1: 400,
+      y1: 400,
+    });
     expect(fitted[0]).toMatchObject({ width: 400, height: 200, x: 0, y: 100 });
   });
 
@@ -363,7 +383,7 @@ describe("replacing from the library", () => {
     API.setSelectedElements([old] as any);
     const item = make("toggle", { x: 0, y: 0 });
     await act(async () => {
-      await h.app.library.setLibrary([
+      await handle.app.library.setLibrary([
         {
           id: "lib1",
           status: "unpublished",
@@ -372,15 +392,15 @@ describe("replacing from the library", () => {
         },
       ]);
     });
-    act(() => h.app.actionManager.executeAction(actionReplaceFromLibrary));
-    expect(h.state.openDialog).toEqual({ name: "libraryReplace" });
+    act(() => handle.app.actionManager.executeAction(actionReplaceFromLibrary));
+    expect(handle.state.openDialog).toEqual({ name: "libraryReplace" });
     const choice = await screen.findByTestId("library-replace-item");
     fireEvent.click(choice);
-    const live = h.elements.filter((e) => !e.isDeleted);
-    expect(live.some((e) => e.id === old.id)).toBe(false);
+    const live = handle.elements.filter((element) => !element.isDeleted);
+    expect(live.some((element) => element.id === old.id)).toBe(false);
     expect(live.length).toBe(item.length);
     const frame = frameOf(live as any);
     expect(Math.round(frame.x1 - frame.x0)).toBe(200);
-    expect(h.state.openDialog).toBeNull();
+    expect(handle.state.openDialog).toBeNull();
   });
 });

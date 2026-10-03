@@ -1,13 +1,7 @@
 /**
- * The transform gizmo around the selection: one element in its own frame, or
- * several (a group) in the frame of their common box (origin at its centre,
- * axes turned with the element):
- *
- *   rotate zones: just outside each corner  — drag to turn around the centre
- *   skew zones:   just outside each edge    — drag along the edge to shear
- *
- * Resizing keeps the usual handles; these zones sit outside them, and the
- * modifiers (Shift: 15° steps, Alt: from the centre) work as in other design tools.
+ * Rotate zones (outside each corner) and skew zones (outside each edge) around the selection,
+ * in the frame of the element or of the common box of several (origin at its centre).
+ * Shift steps by 15°, Alt works from the centre.
  */
 import { getCommonBounds, getElementAbsoluteCoords } from "@excalidraw/element";
 
@@ -29,14 +23,14 @@ export const GIZMO_OUTER = 34;
 /** the existing rotation handle lives above the top edge's middle */
 const TOP_CENTER_CLEARANCE = 26;
 
-export const sameZone = (a: GizmoZone | null, b: GizmoZone | null) =>
-  a === b ||
-  (!!a &&
-    !!b &&
-    a.kind === b.kind &&
-    (a.kind === "rotate"
-      ? a.corner === (b as typeof a).corner
-      : a.edge === (b as typeof a).edge));
+export const sameZone = (first: GizmoZone | null, second: GizmoZone | null) =>
+  first === second ||
+  (!!first &&
+    !!second &&
+    first.kind === second.kind &&
+    (first.kind === "rotate"
+      ? first.corner === (second as typeof first).corner
+      : first.edge === (second as typeof first).edge));
 
 /**
  * @param x,y   pointer, relative to the element's centre, in its frame
@@ -55,7 +49,7 @@ export const getGizmoZone = (
   const outer = GIZMO_OUTER / zoom;
   const dx = Math.abs(x) - hw;
   const dy = Math.abs(y) - hh;
-  const inBand = (d: number) => d > inner && d < outer;
+  const inBand = (distance: number) => distance > inner && distance < outer;
 
   // corners: out past both edges
   if (dx > inner * 0.35 && dy > inner * 0.35 && dx < outer && dy < outer) {
@@ -131,12 +125,12 @@ export const getSkewFactor = (
   }
   // the grabbed edge's side decides the direction
   const sign = edge === "s" || edge === "e" ? 1 : -1;
-  let a = Math.atan((sign * drag) / lever);
-  a = Math.max(-SKEW_LIMIT, Math.min(SKEW_LIMIT, a));
+  let skew = Math.atan((sign * drag) / lever);
+  skew = Math.max(-SKEW_LIMIT, Math.min(SKEW_LIMIT, skew));
   if (snap) {
-    a = Math.round(a / STEP) * STEP;
+    skew = Math.round(skew / STEP) * STEP;
   }
-  return Math.tan(a);
+  return Math.tan(skew);
 };
 
 export const skewPivot = (
@@ -161,11 +155,7 @@ export const skewPivot = (
   }
 };
 
-export const snapAngle = (a: number) => Math.round(a / STEP) * STEP;
-
-// -----------------------------------------------------------------------------
-// eligibility
-// -----------------------------------------------------------------------------
+export const snapAngle = (angle: number) => Math.round(angle / STEP) * STEP;
 
 type GizmoElement = {
   type: string;
@@ -193,10 +183,6 @@ export const canSkewWithGizmo = (element: GizmoElement) =>
       element.type === "ellipse") &&
       !(element.boundElements?.length ?? 0)));
 
-// -----------------------------------------------------------------------------
-// angle alignment
-// -----------------------------------------------------------------------------
-
 export type AlignCandidate = {
   /** the angle of an axis to line up with */
   angle: number;
@@ -222,28 +208,24 @@ export const snapToAlignment = (
 ): { angle: number; matches: AlignCandidate[] } => {
   let best = angle;
   let bestD = tolerance + 1e-9;
-  for (const c of candidates) {
-    const turns = Math.round((angle - c.angle) / QUARTER);
-    const target = c.angle + turns * QUARTER;
-    const d = Math.abs(target - angle);
-    if (d < bestD) {
+  for (const candidate of candidates) {
+    const turns = Math.round((angle - candidate.angle) / QUARTER);
+    const target = candidate.angle + turns * QUARTER;
+    const delta = Math.abs(target - angle);
+    if (delta < bestD) {
       best = target;
-      bestD = d;
+      bestD = delta;
     }
   }
   if (bestD > tolerance) {
     return { angle, matches: [] };
   }
-  const matches = candidates.filter((c) => {
-    const turns = Math.round((best - c.angle) / QUARTER);
-    return Math.abs(c.angle + turns * QUARTER - best) < 1e-6;
+  const matches = candidates.filter((candidate) => {
+    const turns = Math.round((best - candidate.angle) / QUARTER);
+    return Math.abs(candidate.angle + turns * QUARTER - best) < 1e-6;
   });
   return { angle: best, matches };
 };
-
-// -----------------------------------------------------------------------------
-// what the gizmo surrounds
-// -----------------------------------------------------------------------------
 
 /** the box the zones sit around: centre, half sizes, and its turn */
 export type GizmoFrame = {
@@ -272,11 +254,13 @@ export const getGizmoTarget = (
 ): GizmoTarget | null => {
   if (
     !selected.length ||
-    !selected.every((e) => canRotateWithGizmo(e as any))
+    !selected.every((element) => canRotateWithGizmo(element as any))
   ) {
     return null;
   }
-  const skewable = selected.every((e) => canSkewWithGizmo(e as any));
+  const skewable = selected.every((element) =>
+    canSkewWithGizmo(element as any),
+  );
   if (selected.length === 1) {
     const [x1, y1, x2, y2, cx, cy] = getElementAbsoluteCoords(
       selected[0],

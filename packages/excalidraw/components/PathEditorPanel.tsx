@@ -31,7 +31,7 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
   // the element is mutated in place, so re-read it when the scene changes
   const [, setTick] = useState(0);
   useEffect(() => {
-    const unsubscribe = app.scene.onUpdate(() => setTick((n) => n + 1));
+    const unsubscribe = app.scene.onUpdate(() => setTick((count) => count + 1));
     return () => {
       try {
         unsubscribe();
@@ -48,6 +48,9 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
   }
   const selected = editing.selectedPoint;
   const inHole = (editing.loop ?? 0) > 0;
+  const closeToggleDisabled =
+    !!element.contours?.length ||
+    (!element.closed && element.points.length < 3);
   const mode =
     selected != null
       ? getPathLoopView(element, editing.loop ?? 0).handles[selected]?.mode
@@ -72,16 +75,16 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
         pointerEvents: "all",
       }}
     >
-      {MODES.map((m) => (
+      {MODES.map((pointMode) => (
         <button
-          key={m}
+          key={pointMode}
           type="button"
-          data-testid={`path-point-${m}`}
+          data-testid={`path-point-${pointMode}`}
           disabled={selected == null}
-          style={buttonStyle(mode === m, selected == null)}
-          onClick={() => app.path.setPointMode(m)}
+          style={buttonStyle(mode === pointMode, selected == null)}
+          onClick={() => app.path.setPointMode(pointMode)}
         >
-          {t(`labels.path.${m}`)}
+          {t(`labels.path.${pointMode}`)}
         </button>
       ))}
       <button
@@ -96,15 +99,8 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
       <button
         type="button"
         data-testid="path-toggle-closed"
-        style={buttonStyle(
-          false,
-          !!element.contours?.length ||
-            (!element.closed && element.points.length < 3),
-        )}
-        disabled={
-          !!element.contours?.length ||
-          (!element.closed && element.points.length < 3)
-        }
+        style={buttonStyle(false, closeToggleDisabled)}
+        disabled={closeToggleDisabled}
         onClick={() => app.path.toggleClosed()}
       >
         {t(element.closed ? "labels.path.openPath" : "labels.path.closePath")}

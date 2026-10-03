@@ -1,6 +1,5 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
 import { pointFrom, type LocalPoint } from "@excalidraw/math";
 
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
@@ -10,6 +9,7 @@ import { restoreAppState } from "../data/restore";
 import { formatRulerValue, getGuideSnap, getRulerStep } from "../guides";
 import { Excalidraw } from "../index";
 
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import {
   render,
@@ -23,12 +23,9 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 describe("guide math", () => {
   const guides = [
@@ -47,7 +44,7 @@ describe("guide math", () => {
     );
     expect(snap.x).toBe(5);
     expect(snap.y).toBe(0);
-    expect(snap.guides.map((g) => g.id)).toEqual(["a"]);
+    expect(snap.guides.map((guide) => guide.id)).toEqual(["a"]);
   });
 
   it("does not snap beyond the distance, which shrinks with zoom", () => {
@@ -104,17 +101,17 @@ describe("rulers and guides", () => {
   it("drags a guide off a ruler, to a whole px, deleting it back on the ruler", async () => {
     await render(<Excalidraw />);
     API.executeAction(actionToggleRulers);
-    expect(h.state.rulersEnabled).toBe(true);
+    expect(handle.state.rulersEnabled).toBe(true);
     const ruler = document.querySelector('[data-testid="ruler-left"]')!;
 
     fireEvent.pointerDown(ruler, { clientX: 5, clientY: 300 });
     fireEvent.pointerMove(window, { clientX: 250.4, clientY: 300 });
-    expect(h.state.guides).toHaveLength(1);
+    expect(handle.state.guides).toHaveLength(1);
     expect(
       document.querySelector('[data-testid="guide-readout"]'),
     ).not.toBeNull();
     fireEvent.pointerUp(window, { clientX: 250.4, clientY: 300 });
-    expect(h.state.guides).toEqual([
+    expect(handle.state.guides).toEqual([
       expect.objectContaining({ axis: "x", position: 250 }),
     ]);
 
@@ -123,7 +120,7 @@ describe("rulers and guides", () => {
     fireEvent.pointerDown(canvas, { clientX: 250, clientY: 400 });
     fireEvent.pointerMove(window, { clientX: 8, clientY: 400 });
     fireEvent.pointerUp(window, { clientX: 8, clientY: 400 });
-    expect(h.state.guides).toEqual([]);
+    expect(handle.state.guides).toEqual([]);
   });
 
   it("types the exact position of a guide in an in-app input", async () => {
@@ -132,9 +129,9 @@ describe("rulers and guides", () => {
       rulersEnabled: true,
       guides: [{ id: "g", axis: "x", position: 300 }],
     });
-    const { scrollX, offsetLeft } = h.state;
+    const { scrollX, offsetLeft } = handle.state;
     act(() => {
-      h.app.guides.handleDoubleClick({
+      handle.app.guides.handleDoubleClick({
         clientX: 300 + scrollX + offsetLeft,
         clientY: 400,
       });
@@ -145,12 +142,12 @@ describe("rulers and guides", () => {
     expect(input.value).toBe("300");
     fireEvent.change(input, { target: { value: "42" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(h.state.guides).toEqual([{ id: "g", axis: "x", position: 42 }]);
+    expect(handle.state.guides).toEqual([{ id: "g", axis: "x", position: 42 }]);
     expect(screen.queryByTestId("guide-input")).toBeNull();
 
     // Escape leaves it alone
     act(() => {
-      h.app.guides.handleDoubleClick({
+      handle.app.guides.handleDoubleClick({
         clientX: 42 + scrollX + offsetLeft,
         clientY: 400,
       });
@@ -158,7 +155,7 @@ describe("rulers and guides", () => {
     const again = await screen.findByTestId("guide-input");
     fireEvent.change(again, { target: { value: "7" } });
     fireEvent.keyDown(again, { key: "Escape" });
-    expect(h.state.guides[0].position).toBe(42);
+    expect(handle.state.guides[0].position).toBe(42);
   });
 
   const setupRect = () => {
@@ -189,16 +186,20 @@ describe("rulers and guides", () => {
     const rect = setupRect();
     // right edge would land on 300; the guide at 303 attracts it
     drag([150, 150], [250, 150]);
-    expect(h.elements.find((e) => e.id === rect.id)!.x).toBe(203);
+    expect(handle.elements.find((element) => element.id === rect.id)!.x).toBe(
+      203,
+    );
   });
 
   it("the magnet can be turned off", async () => {
     await render(<Excalidraw />);
     const rect = setupRect();
     API.executeAction(actionToggleGuidesSnap);
-    expect(h.state.guidesSnapEnabled).toBe(false);
+    expect(handle.state.guidesSnapEnabled).toBe(false);
     drag([150, 150], [250, 150]);
-    expect(h.elements.find((e) => e.id === rect.id)!.x).toBe(200);
+    expect(handle.elements.find((element) => element.id === rect.id)!.x).toBe(
+      200,
+    );
   });
 
   it("an anchor of a path snaps to a guide while it is edited", async () => {
@@ -223,7 +224,7 @@ describe("rulers and guides", () => {
     fireEvent.pointerDown(canvas, { clientX: 200, clientY: 100 });
     fireEvent.pointerMove(window, { clientX: 298, clientY: 100 });
     fireEvent.pointerUp(window, { clientX: 298, clientY: 100 });
-    const el = h.elements[0] as ExcalidrawPathElement;
+    const el = handle.elements[0] as ExcalidrawPathElement;
     expect(el.x + el.points[1][0]).toBeCloseTo(303);
   });
 });

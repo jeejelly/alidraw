@@ -1,6 +1,5 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
 import { pointFrom, type LocalPoint } from "@excalidraw/math";
 
 import type {
@@ -14,19 +13,17 @@ import { serializeAsJSON } from "../data/json";
 import { Excalidraw } from "../index";
 import { exportToSvg } from "../scene/export";
 
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import { act, render, unmountComponent } from "./test-utils";
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
-const P = (x: number, y: number) => pointFrom<LocalPoint>(x, y);
+const localPoint = (x: number, y: number) => pointFrom<LocalPoint>(x, y);
 
 /** what a user's file holds: every feature of this work in one scene */
 const buildScene = () => {
@@ -34,15 +31,20 @@ const buildScene = () => {
     type: "path",
     x: 40,
     y: 60,
-    points: [P(0, 0), P(120, 0), P(120, 80), P(0, 80)],
+    points: [
+      localPoint(0, 0),
+      localPoint(120, 0),
+      localPoint(120, 80),
+      localPoint(0, 80),
+    ],
     strokeColor: "#ff0000",
   }) as unknown as ExcalidrawPathElement;
   const withHandles = {
     ...path,
     handles: [
-      { mode: "smooth", in: P(-20, 0), out: P(20, 0) },
-      { mode: "corner", in: P(-5, 0), out: P(5, 5) }, // hidden tangents kept
-      { mode: "broken", in: P(0, -10), out: null },
+      { mode: "smooth", in: localPoint(-20, 0), out: localPoint(20, 0) },
+      { mode: "corner", in: localPoint(-5, 0), out: localPoint(5, 5) }, // hidden tangents kept
+      { mode: "broken", in: localPoint(0, -10), out: null },
       { mode: "corner", in: null, out: null },
     ],
     closed: true,
@@ -80,7 +82,7 @@ const buildScene = () => {
 };
 
 const appStateWith = (extra: Record<string, unknown>) => ({
-  ...h.state,
+  ...handle.state,
   ...extra,
 });
 
@@ -105,20 +107,25 @@ describe("saving and reopening", () => {
 
     // what is written
     const written = file.elements as any[];
-    const p = written.find((e) => e.type === "path");
-    expect(p.closed).toBe(true);
-    expect(p.handles[0]).toEqual({
+    const pathElement = written.find((element) => element.type === "path");
+    expect(pathElement.closed).toBe(true);
+    expect(pathElement.handles[0]).toEqual({
       mode: "smooth",
       in: [-20, 0],
       out: [20, 0],
     });
-    expect(p.handles[1]).toEqual({ mode: "corner", in: [-5, 0], out: [5, 5] });
-    expect(written.find((e) => e.customData?.anchor?.to).customData.other).toBe(
-      "kept",
-    );
-    expect(written.find((e) => e.type === "text").fontFamilyName).toBe(
-      "Fira Sans",
-    );
+    expect(pathElement.handles[1]).toEqual({
+      mode: "corner",
+      in: [-5, 0],
+      out: [5, 5],
+    });
+    expect(
+      written.find((element) => element.customData?.anchor?.to).customData
+        .other,
+    ).toBe("kept");
+    expect(
+      written.find((element) => element.type === "text").fontFamilyName,
+    ).toBe("Fira Sans");
     expect(file.appState.guides).toEqual([
       { id: "g1", axis: "x", position: 123 },
     ]);
@@ -132,12 +139,12 @@ describe("saving and reopening", () => {
 
     // reopened
     const restored = restoreElements(file.elements, null) as any[];
-    const rp = restored.find((e) => e.type === "path");
-    expect(rp.handles).toEqual(p.handles);
-    expect(rp.points).toEqual(p.points);
+    const rp = restored.find((element) => element.type === "path");
+    expect(rp.handles).toEqual(pathElement.handles);
+    expect(rp.points).toEqual(pathElement.points);
     expect(rp.closed).toBe(true);
     expect(rp.angle).toBeCloseTo(0.5);
-    const rf = restored.find((e) => e.customData?.anchor?.to);
+    const rf = restored.find((element) => element.customData?.anchor?.to);
     expect(rf.customData.anchor).toEqual({
       to: rp.id,
       from: "tr",
@@ -145,7 +152,7 @@ describe("saving and reopening", () => {
       dx: 16,
       dy: 0,
     });
-    const rt = restored.find((e) => e.type === "text");
+    const rt = restored.find((element) => element.type === "text");
     expect(rt.fontFamilyName).toBe("Fira Sans");
     expect(rt.fontUnit).toBe("dp");
     const state = restoreAppState(file.appState, null);
@@ -172,7 +179,7 @@ describe("saving and reopening", () => {
     );
     const loaded = await loadFromBlob(blob, null, null);
     const lp = loaded.elements.find(
-      (e) => e.type === "path",
+      (element) => element.type === "path",
     ) as ExcalidrawPathElement;
     expect(lp.handles).toHaveLength(4);
     expect(lp.handles[2]).toEqual({ mode: "broken", in: [0, -10], out: null });
@@ -181,7 +188,9 @@ describe("saving and reopening", () => {
     ]);
     // and it opens in the editor
     API.updateScene({ elements: loaded.elements as any });
-    expect(h.elements.filter((e) => e.type === "path")).toHaveLength(1);
+    expect(
+      handle.elements.filter((element) => element.type === "path"),
+    ).toHaveLength(1);
   });
 
   it("a file from before these features opens exactly as it did", async () => {
@@ -193,12 +202,12 @@ describe("saving and reopening", () => {
       width: 30,
       height: 40,
     });
-    const json = serializeAsJSON([rect], h.state as any, {}, "local");
+    const json = serializeAsJSON([rect], handle.state as any, {}, "local");
     const file = JSON.parse(json);
     delete file.appState.guides;
     delete file.appState.gridSize;
-    const [r] = restoreElements(file.elements, null);
-    expect(r).toMatchObject({
+    const [rectangle] = restoreElements(file.elements, null);
+    expect(rectangle).toMatchObject({
       type: "rectangle",
       x: 1,
       y: 2,
@@ -233,14 +242,14 @@ describe("saving and reopening", () => {
 
   it("duplicating an anchored pair keeps the copy anchored to the copy", async () => {
     await render(<Excalidraw />);
-    const a = API.createElement({
+    const first = API.createElement({
       type: "rectangle",
       x: 0,
       y: 0,
       width: 50,
       height: 50,
     });
-    const b = {
+    const second = {
       ...API.createElement({
         type: "rectangle",
         x: 200,
@@ -249,21 +258,25 @@ describe("saving and reopening", () => {
         height: 50,
       }),
       customData: {
-        anchor: { to: a.id, from: "tr", at: "tl", dx: 150, dy: 0 },
+        anchor: { to: first.id, from: "tr", at: "tl", dx: 150, dy: 0 },
       },
     };
-    API.setElements([a, b]);
-    API.setSelectedElements([a, b] as any);
+    API.setElements([first, second]);
+    API.setSelectedElements([first, second] as any);
     act(() => {
-      h.app.actionManager.executeAction(
-        h.app.actionManager.actions.duplicateSelection,
+      handle.app.actionManager.executeAction(
+        handle.app.actionManager.actions.duplicateSelection,
       );
     });
-    const live = h.elements.filter((e) => !e.isDeleted);
+    const live = handle.elements.filter((element) => !element.isDeleted);
     expect(live).toHaveLength(4);
-    const copies = live.filter((e) => e.id !== a.id && e.id !== b.id);
-    const copyB = copies.find((e) => (e as any).customData?.anchor) as any;
-    const copyA = copies.find((e) => e !== copyB)!;
+    const copies = live.filter(
+      (element) => element.id !== first.id && element.id !== second.id,
+    );
+    const copyB = copies.find(
+      (element) => (element as any).customData?.anchor,
+    ) as any;
+    const copyA = copies.find((element) => element !== copyB)!;
     // follows its own copy, not the original
     expect(copyB.customData.anchor.to).toBe(copyA.id);
   });

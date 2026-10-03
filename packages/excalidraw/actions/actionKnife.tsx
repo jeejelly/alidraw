@@ -3,10 +3,8 @@ import {
   CaptureUpdateAction,
   cutOutlines,
   getOutline,
-  getPathUpdate,
   isPathfinderOperand,
   newElementWith,
-  newPathElement,
 } from "@excalidraw/element";
 
 import type {
@@ -14,6 +12,7 @@ import type {
   ExcalidrawPathElement,
 } from "@excalidraw/element/types";
 
+import { asClosedPath } from "./pathShape";
 import { register } from "./register";
 
 export type KnifeCut = { from: [number, number]; to: [number, number] };
@@ -32,70 +31,43 @@ export const actionKnifeCut = register<KnifeCut>({
       return false;
     }
     const selected = new Set(
-      app.scene.getSelectedElements(appState).map((el) => el.id),
+      app.scene.getSelectedElements(appState).map((element) => element.id),
     );
     const targets = elements.filter(
-      (el) =>
-        isPathfinderOperand(el) &&
-        !el.locked &&
-        (selected.size === 0 || selected.has(el.id)),
+      (element) =>
+        isPathfinderOperand(element) &&
+        !element.locked &&
+        (selected.size === 0 || selected.has(element.id)),
     );
     if (!targets.length) {
       return false;
     }
     const cuts = await cutOutlines(
-      targets.map((el) => getOutline(el)!),
+      targets.map((element) => getOutline(element)!),
       value.from,
       value.to,
     );
     const pieces = new Map<string, ExcalidrawPathElement[]>();
-    targets.forEach((el, i) => {
-      const parts = cuts[i];
+    targets.forEach((target, index) => {
+      const parts = cuts[index];
       if (!parts) {
         return;
       }
       pieces.set(
-        el.id,
-        parts.map((loop) => {
-          const frame = {
-            ...el,
-            type: "path",
-            x: 0,
-            y: 0,
-            angle: 0,
-            width: 0,
-            height: 0,
-            closed: true,
-            contours: undefined,
-            ...loop,
-          } as unknown as ExcalidrawPathElement;
-          return newPathElement({
-            strokeColor: el.strokeColor,
-            backgroundColor: el.backgroundColor,
-            fillStyle: el.fillStyle,
-            strokeWidth: el.strokeWidth,
-            strokeStyle: el.strokeStyle,
-            roughness: el.roughness,
-            opacity: el.opacity,
-            roundness: null,
-            groupIds: el.groupIds,
-            frameId: el.frameId,
-            ...getPathUpdate(frame, loop),
-            closed: true,
-          }) as ExcalidrawPathElement;
-        }),
+        target.id,
+        parts.map((loop) => asClosedPath(target, loop)),
       );
     });
     if (!pieces.size) {
       return false;
     }
     const next: ExcalidrawElement[] = [];
-    for (const el of elements) {
-      const parts = pieces.get(el.id);
+    for (const element of elements) {
+      const parts = pieces.get(element.id);
       if (parts) {
-        next.push(newElementWith(el, { isDeleted: true }), ...parts);
+        next.push(newElementWith(element, { isDeleted: true }), ...parts);
       } else {
-        next.push(el);
+        next.push(element);
       }
     }
     return {
@@ -107,7 +79,7 @@ export const actionKnifeCut = register<KnifeCut>({
           ? appState.activeTool
           : updateActiveTool(appState, { type: "selection" }),
         selectedElementIds: Object.fromEntries(
-          [...pieces.values()].flat().map((p) => [p.id, true]),
+          [...pieces.values()].flat().map((piece) => [piece.id, true]),
         ),
         selectedGroupIds: {},
       },

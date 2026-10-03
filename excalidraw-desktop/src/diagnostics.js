@@ -27,7 +27,7 @@ const createLogger = (file, out = console) => {
     }
   };
   const log = Object.fromEntries(
-    LEVELS.map((level) => [level, (m) => write(level, String(m))]),
+    LEVELS.map((level) => [level, (message) => write(level, String(message))]),
   );
   log.file = file;
   return log;
@@ -38,9 +38,11 @@ const describe = (error) =>
 
 /** uncaught errors and rejected promises of the main process */
 const watchProcess = (log, proc = process) => {
-  proc.on("uncaughtException", (e) => log.error(`uncaught: ${describe(e)}`));
-  proc.on("unhandledRejection", (e) =>
-    log.error(`unhandled rejection: ${describe(e)}`),
+  proc.on("uncaughtException", (error) =>
+    log.error(`uncaught: ${describe(error)}`),
+  );
+  proc.on("unhandledRejection", (error) =>
+    log.error(`unhandled rejection: ${describe(error)}`),
   );
 };
 
@@ -50,7 +52,7 @@ const watchWindow = (log, window) => {
   // Electron 35+ passes one event object, older ones positional arguments
   wc.on("console-message", (...args) => {
     const first = args[0];
-    const e =
+    const consoleEvent =
       first && typeof first === "object" && "message" in first
         ? first
         : {
@@ -60,14 +62,14 @@ const watchWindow = (log, window) => {
             sourceId: args[4],
           };
     const level =
-      typeof e.level === "string"
-        ? e.level
-        : ["debug", "info", "warning", "error"][e.level] ?? "info";
+      typeof consoleEvent.level === "string"
+        ? consoleEvent.level
+        : ["debug", "info", "warning", "error"][consoleEvent.level] ?? "info";
     if (level === "warning" || level === "error") {
       log[level === "warning" ? "warn" : "error"](
-        `page: ${e.message} (${String(e.sourceId || "")
+        `page: ${consoleEvent.message} (${String(consoleEvent.sourceId || "")
           .split("/")
-          .pop()}:${e.lineNumber})`,
+          .pop()}:${consoleEvent.lineNumber})`,
       );
     }
   });

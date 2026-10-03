@@ -8,12 +8,8 @@ import { getSymbolMeta, symbolGroupOf } from "./build";
 import type { SymbolMeta } from "./build";
 
 /**
- * A custom symbol: something drawn, converted into a reusable component. The
- * drawing stays what it is (ordinary elements, so stretching, layout, the
- * library and code export work); what is added is a group and a list of
- * parameters, each one a property of some of its parts: a fill, an outline, a
- * text, an opacity, visibility. The parameters live in the elements, so a copy,
- * a library item or a file carries them along.
+ * A custom symbol: a drawing kept as ordinary elements plus a group and a list
+ * of parameters. The parameters live in the elements, so copies carry them.
  */
 export const CUSTOM_PREFIX = "custom:";
 
@@ -49,8 +45,8 @@ export const isCustom = (el: {
   customData?: ExcalidrawElement["customData"];
 }) => !!getSymbolMeta(el)?.component?.startsWith(CUSTOM_PREFIX);
 
-const area = (e: ExcalidrawElement) => e.width * e.height;
-const solid = (c: string) => !!c && c !== "transparent";
+const area = (element: ExcalidrawElement) => element.width * element.height;
+const solid = (color: string) => !!color && color !== "transparent";
 
 const PROP_LABEL: Record<CustomProp, string> = {
   backgroundColor: "Fill",
@@ -101,28 +97,29 @@ export const makeParam = (
   ...(prop === "strokeWidth" ? { min: 0, max: 20 } : {}),
 });
 
-/**
- * The parameters a drawing suggests: the fill that covers the most, the
- * outline most parts share, the text colour, and each text (up to eight).
- */
+/** Suggested parameters: the dominant fill, the shared outline, the text colour and each text (up to eight). */
 export const detectParams = (
   parts: readonly ExcalidrawElement[],
 ): CustomParam[] => {
   const params: CustomParam[] = [];
   const shapes = parts
-    .map((e, i) => ({ e, i }))
-    .filter(({ e }) => e.type !== "text" && e.type !== "arrow");
+    .map((element, index) => ({ e: element, i: index }))
+    .filter(
+      ({ e: element }) => element.type !== "text" && element.type !== "arrow",
+    );
   // the fill that spans the largest area: the symbol's "background"
   const fills = new Map<string, { area: number; idx: number[] }>();
-  for (const { e, i } of shapes) {
-    if (solid(e.backgroundColor)) {
-      const f = fills.get(e.backgroundColor) ?? { area: 0, idx: [] };
-      f.area += area(e);
-      f.idx.push(i);
-      fills.set(e.backgroundColor, f);
+  for (const { e: element, i: index } of shapes) {
+    if (solid(element.backgroundColor)) {
+      const fill = fills.get(element.backgroundColor) ?? { area: 0, idx: [] };
+      fill.area += area(element);
+      fill.idx.push(index);
+      fills.set(element.backgroundColor, fill);
     }
   }
-  const ranked = [...fills.entries()].sort((a, b) => b[1].area - a[1].area);
+  const ranked = [...fills.entries()].sort(
+    (first, second) => second[1].area - first[1].area,
+  );
   if (ranked.length) {
     params.push(
       makeParam(
@@ -140,13 +137,16 @@ export const detectParams = (
     );
   }
   const strokes = new Map<string, number[]>();
-  for (const { e, i } of shapes) {
-    if (solid(e.strokeColor) && e.strokeWidth > 0) {
-      strokes.set(e.strokeColor, [...(strokes.get(e.strokeColor) ?? []), i]);
+  for (const { e: element, i: index } of shapes) {
+    if (solid(element.strokeColor) && element.strokeWidth > 0) {
+      strokes.set(element.strokeColor, [
+        ...(strokes.get(element.strokeColor) ?? []),
+        index,
+      ]);
     }
   }
   const outline = [...strokes.entries()].sort(
-    (a, b) => b[1].length - a[1].length,
+    (first, second) => second[1].length - first[1].length,
   )[0];
   if (outline) {
     params.push(
@@ -154,8 +154,8 @@ export const detectParams = (
     );
   }
   const texts = parts
-    .map((e, i) => ({ e, i }))
-    .filter(({ e }) => e.type === "text");
+    .map((element, index) => ({ e: element, i: index }))
+    .filter(({ e: element }) => element.type === "text");
   if (texts.length) {
     params.push(
       makeParam(
@@ -163,25 +163,25 @@ export const detectParams = (
         "Text colour",
         "strokeColor",
         parts,
-        texts.map(({ i }) => i),
+        texts.map(({ i: index }) => index),
       ),
     );
   }
   // reading order: top to bottom, left to right
   [...texts]
-    .sort((a, b) => a.e.y - b.e.y || a.e.x - b.e.x)
+    .sort((first, second) => first.e.y - second.e.y || first.e.x - second.e.x)
     .slice(0, 8)
-    .forEach(({ i }, n) => {
-      const text = String((parts[i] as any).text)
+    .forEach(({ i: index }, order) => {
+      const text = String((parts[index] as any).text)
         .split("\n")[0]
         .slice(0, 24);
       params.push(
         makeParam(
-          `text${n + 1}`,
-          texts.length > 1 ? `Text ${n + 1}` : "Text",
+          `text${order + 1}`,
+          texts.length > 1 ? `Text ${order + 1}` : "Text",
           "text",
           parts,
-          [i],
+          [index],
         ),
       );
       void text;
@@ -191,21 +191,17 @@ export const detectParams = (
 
 /** a key not used by the parameters yet */
 export const freshKey = (params: readonly CustomParam[], base: string) => {
-  const used = new Set(params.map((p) => p.key));
+  const used = new Set(params.map((param) => param.key));
   let key = base;
-  for (let n = 2; used.has(key); n++) {
-    key = `${base}${n}`;
+  for (let suffix = 2; used.has(key); suffix++) {
+    key = `${base}${suffix}`;
   }
   return key;
 };
 
 export const labelFor = (prop: CustomProp) => PROP_LABEL[prop];
 
-/**
- * The elements as a custom symbol: tagged with a group, their position in the
- * symbol and the parameters. Nothing else about them changes.
- * @returns the tagged copies, in the order given, and the group
- */
+/** Tags the elements with a group, their part index and the parameters; returns the copies and the group. */
 export const makeCustomSymbol = (
   elements: readonly ExcalidrawElement[],
   name: string,
@@ -213,8 +209,10 @@ export const makeCustomSymbol = (
 ) => {
   const group = randomId();
   const id = `${CUSTOM_PREFIX}${randomId().slice(0, 8)}`;
-  const values = Object.fromEntries(params.map((p) => [p.key, p.value]));
-  const tagged = elements.map((e, part) => {
+  const values = Object.fromEntries(
+    params.map((param) => [param.key, param.value]),
+  );
+  const tagged = elements.map((element, part) => {
     const meta: CustomMeta = {
       group,
       component: id,
@@ -224,10 +222,10 @@ export const makeCustomSymbol = (
       ...(part === 0 ? { params } : {}),
     };
     return {
-      ...e,
+      ...element,
       // the symbol's own group is the innermost one
-      groupIds: [group, ...e.groupIds],
-      customData: { ...e.customData, symbol: meta },
+      groupIds: [group, ...element.groupIds],
+      customData: { ...element.customData, symbol: meta },
     } as ExcalidrawElement;
   });
   return { elements: tagged, group, id, params };
@@ -236,12 +234,12 @@ export const makeCustomSymbol = (
 /** the parts of a symbol in order, and its parameters */
 export const customOf = (members: readonly ExcalidrawElement[]) => {
   const sorted = [...members].sort(
-    (a, b) =>
-      ((getSymbolMeta(a) as CustomMeta | null)?.part ?? 0) -
-      ((getSymbolMeta(b) as CustomMeta | null)?.part ?? 0),
+    (first, second) =>
+      ((getSymbolMeta(first) as CustomMeta | null)?.part ?? 0) -
+      ((getSymbolMeta(second) as CustomMeta | null)?.part ?? 0),
   );
   const root = sorted.find(
-    (e) => (getSymbolMeta(e) as CustomMeta | null)?.params,
+    (element) => (getSymbolMeta(element) as CustomMeta | null)?.params,
   );
   const meta = root ? (getSymbolMeta(root) as CustomMeta) : null;
   return {
@@ -260,9 +258,9 @@ export const paramUpdates = (
   value: string | number | boolean,
 ) => {
   const byPart = new Map(
-    members.map((e) => [
-      (getSymbolMeta(e) as CustomMeta | null)?.part ?? -1,
-      e,
+    members.map((element) => [
+      (getSymbolMeta(element) as CustomMeta | null)?.part ?? -1,
+      element,
     ]),
   );
   const updates = new Map<string, Record<string, unknown>>();
@@ -271,26 +269,26 @@ export const paramUpdates = (
     if (!el) {
       continue;
     }
-    const u = updates.get(el.id) ?? {};
+    const update = updates.get(el.id) ?? {};
     switch (prop) {
       case "text":
         if (el.type === "text") {
-          u.text = String(value);
-          u.originalText = String(value);
+          update.text = String(value);
+          update.originalText = String(value);
         }
         break;
       case "visible":
         // hidden parts keep their opacity in the symbol's values, shown ones get it back
-        u.opacity = value ? 100 : 0;
+        update.opacity = value ? 100 : 0;
         break;
       case "opacity":
       case "strokeWidth":
-        u[prop] = Number(value);
+        update[prop] = Number(value);
         break;
       default:
-        u[prop] = String(value);
+        update[prop] = String(value);
     }
-    updates.set(el.id, u);
+    updates.set(el.id, update);
   }
   return updates;
 };
@@ -302,7 +300,9 @@ export const membersOf = (
 ) => {
   const group = symbolGroupOf(el);
   return group
-    ? all.filter((e) => !e.isDeleted && symbolGroupOf(e) === group)
+    ? all.filter(
+        (element) => !element.isDeleted && symbolGroupOf(element) === group,
+      )
     : [];
 };
 

@@ -11,9 +11,9 @@ const sink = () => {
   return {
     lines,
     out: {
-      log: (l) => lines.push(l),
-      warn: (l) => lines.push(l),
-      error: (l) => lines.push(l),
+      log: (line) => lines.push(line),
+      warn: (line) => lines.push(line),
+      error: (line) => lines.push(line),
     },
   };
 };
@@ -50,7 +50,9 @@ it("a window's page errors and failed loads are reported", () => {
   const log = createLogger(null, out);
   const handlers = {};
   const window = {
-    webContents: { on: (n, f) => (handlers[n] = f) },
+    webContents: {
+      on: (eventName, handler) => (handlers[eventName] = handler),
+    },
     on: () => {},
   };
   watchWindow(log, window);

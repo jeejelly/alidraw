@@ -64,10 +64,7 @@ export const fileOpen = async <M extends boolean | undefined = false>(opts: {
   return (await normalizeFile(files)) as RetType;
 };
 
-/**
- * A host (the desktop app) can take over picking files to read: `undefined`
- * leaves it to the browser's picker, `null` is a cancel, files are the choice.
- */
+/** Host picker for files to read: `undefined` defers to the browser, `null` cancels. */
 type FileOpenProvider = (opts: {
   extensions: string[];
   description: string;
@@ -80,26 +77,19 @@ export const setFileOpenProvider = (provider: FileOpenProvider | null) => {
   fileOpenProvider = provider;
 };
 
-/**
- * A host can also take over the Open command of the menu (and Ctrl+O): it
- * shows its own way to open something and returns true, or false to leave it to
- * the default (a warning, then the file picker).
- */
+/** Host takeover of the Open command: returns true once it has opened something itself. */
 let sceneOpenProvider: (() => boolean) | null = null;
 
 export const setSceneOpenProvider = (provider: (() => boolean) | null) => {
   sceneOpenProvider = provider;
 };
 
-/** @returns true when the host opened something itself */
 export const openSceneThroughHost = () =>
   sceneOpenProvider ? sceneOpenProvider() : false;
 
 /**
- * A host (the desktop app) can take over saving a file: no file dialog, it
- * decides where the file goes (a workspace folder). For a scene file it returns
- * a handle for later saves; for an export (image, swatches…) null once written,
- * or `undefined` to leave it to the default.
+ * Host takeover of saving: a handle for later saves (scene files), `null` once an export
+ * is written, or `undefined` to defer to the default.
  */
 type FileSaveProvider = (
   blob: Blob | Promise<Blob>,
@@ -119,8 +109,10 @@ type HostCapabilities = { linkedImages: boolean };
 
 let hostCapabilities: HostCapabilities = { linkedImages: false };
 
-export const setHostCapabilities = (c: Partial<HostCapabilities>) => {
-  hostCapabilities = { ...hostCapabilities, ...c };
+export const setHostCapabilities = (
+  capabilities: Partial<HostCapabilities>,
+) => {
+  hostCapabilities = { ...hostCapabilities, ...capabilities };
 };
 
 export const getHostCapabilities = () => hostCapabilities;
@@ -138,37 +130,26 @@ export const fileSave = (
     fileHandle?: FileSystemFileHandle | null;
   },
 ) => {
-  if (fileSaveProvider) {
-    const provider = fileSaveProvider;
-    return (async () => {
-      const handled = await provider(blob, opts);
-      if (handled !== undefined) {
-        return handled as any;
-      }
-      return _fileSave(
-        blob,
-        {
-          fileName: `${opts.name}.${opts.extension}`,
-          description: opts.description,
-          extensions: [`.${opts.extension}`],
-          mimeTypes: opts.mimeTypes,
-        },
-        opts.fileHandle,
-        false,
-      );
-    })();
+  const saveToDisk = () =>
+    _fileSave(
+      blob,
+      {
+        fileName: `${opts.name}.${opts.extension}`,
+        description: opts.description,
+        extensions: [`.${opts.extension}`],
+        mimeTypes: opts.mimeTypes,
+      },
+      opts.fileHandle,
+      false,
+    );
+  const provider = fileSaveProvider;
+  if (!provider) {
+    return saveToDisk();
   }
-  return _fileSave(
-    blob,
-    {
-      fileName: `${opts.name}.${opts.extension}`,
-      description: opts.description,
-      extensions: [`.${opts.extension}`],
-      mimeTypes: opts.mimeTypes,
-    },
-    opts.fileHandle,
-    false,
-  );
+  return (async () => {
+    const handled = await provider(blob, opts);
+    return handled !== undefined ? (handled as any) : saveToDisk();
+  })();
 };
 
 export { nativeFileSystemSupported };

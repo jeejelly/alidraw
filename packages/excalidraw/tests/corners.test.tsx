@@ -1,11 +1,12 @@
 import React from "react";
 
-import { KEYS, ROUNDNESS, reseed } from "@excalidraw/common";
+import { KEYS, ROUNDNESS } from "@excalidraw/common";
 
 import { actionConvertShapeToPath } from "../actions";
 import { getCornerHandles, radiusAt } from "../corners";
 import { Excalidraw } from "../index";
 
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import { Keyboard } from "./helpers/ui";
 import {
@@ -20,12 +21,9 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 const rect = (extra: { roundness?: { type: number; value?: number } } = {}) => {
   const { roundness, ...rest } = extra;
@@ -44,13 +42,16 @@ const rect = (extra: { roundness?: { type: number; value?: number } } = {}) => {
 describe("live corners geometry", () => {
   it("a rectangle has four corners, the grab point on the bisector", async () => {
     await render(<Excalidraw />);
-    const r = rect({
+    const rectangle = rect({
       roundness: { type: ROUNDNESS.ADAPTIVE_RADIUS, value: 20 },
     });
-    API.setElements([r]);
-    const hs = getCornerHandles(r, h.app.scene.getNonDeletedElementsMap());
+    API.setElements([rectangle]);
+    const hs = getCornerHandles(
+      rectangle,
+      handle.app.scene.getNonDeletedElementsMap(),
+    );
     expect(hs).toHaveLength(4);
-    const tl = hs.find((c) => c.index === 0)!;
+    const tl = hs.find((corner) => corner.index === 0)!;
     expect(tl.corner).toEqual({ x: 100, y: 100 });
     expect(tl.radius).toBe(20);
     // the centre of the rounding circle is r from both sides
@@ -64,16 +65,16 @@ describe("live corners geometry", () => {
 
   it("skips curved corners", async () => {
     await render(<Excalidraw />);
-    const e = API.createElement({
+    const element = API.createElement({
       type: "ellipse",
       x: 0,
       y: 0,
       width: 100,
       height: 100,
     });
-    API.setElements([e]);
+    API.setElements([element]);
     expect(
-      getCornerHandles(e, h.app.scene.getNonDeletedElementsMap()),
+      getCornerHandles(element, handle.app.scene.getNonDeletedElementsMap()),
     ).toHaveLength(0);
   });
 });
@@ -89,50 +90,52 @@ describe("live corners in the editor", () => {
   const setup = async () => {
     const utils = await render(<Excalidraw handleKeyboardGlobally />);
     API.setAppState({ paletteOpen: true });
-    const r = rect();
-    API.setElements([r]);
-    API.setSelectedElements([r]);
+    const rectangle = rect();
+    API.setElements([rectangle]);
+    API.setSelectedElements([rectangle]);
     return {
       canvas: utils.container.querySelector("canvas.interactive")!,
-      id: r.id,
+      id: rectangle.id,
     };
   };
 
   it("the palette button and Shift+B toggle the mode, Escape leaves it", async () => {
     await setup();
     fireEvent.click(screen.getByTestId("corner-mode"));
-    expect(h.state.cornerMode).toBe(true);
+    expect(handle.state.cornerMode).toBe(true);
     Keyboard.keyPress(KEYS.ESCAPE);
-    expect(h.state.cornerMode).toBe(false);
+    expect(handle.state.cornerMode).toBe(false);
     Keyboard.withModifierKeys({ shift: true }, () => {
       Keyboard.codePress("KeyB");
     });
-    expect(h.state.cornerMode).toBe(true);
+    expect(handle.state.cornerMode).toBe(true);
   });
 
   it("dragging a corner's circle rounds that corner only, and turns the shape into a path", async () => {
     const { canvas, id } = await setup();
-    act(() => h.app.corners.toggle());
+    act(() => handle.app.corners.toggle());
     // the grab point of the top-left corner, 14px along the diagonal
-    const g = 14 / Math.SQRT2;
-    fireEvent.pointerDown(canvas, { clientX: 100 + g, clientY: 100 + g });
+    const grab = 14 / Math.SQRT2;
+    fireEvent.pointerDown(canvas, { clientX: 100 + grab, clientY: 100 + grab });
     fireEvent.pointerMove(window, { clientX: 130, clientY: 130 });
     fireEvent.pointerUp(window, { clientX: 130, clientY: 130 });
-    const p = h.elements.find((e) => e.id === id) as any;
-    expect(p.type).toBe("path");
-    expect(p.handles[0].radius).toBe(30);
-    expect(p.handles.slice(1).every((hd: any) => !hd.radius)).toBe(true);
+    const path = handle.elements.find((element) => element.id === id) as any;
+    expect(path.type).toBe("path");
+    expect(path.handles[0].radius).toBe(30);
+    expect(path.handles.slice(1).every((hd: any) => !hd.radius)).toBe(true);
     // anchors stayed where the corners were
-    expect([p.x + p.points[0][0], p.y + p.points[0][1]]).toEqual([100, 100]);
+    expect([path.x + path.points[0][0], path.y + path.points[0][1]]).toEqual([
+      100, 100,
+    ]);
   });
 
   it("Shift rounds every corner alike", async () => {
     const { canvas, id } = await setup();
-    act(() => h.app.corners.toggle());
-    const g = 14 / Math.SQRT2;
+    act(() => handle.app.corners.toggle());
+    const grab = 14 / Math.SQRT2;
     fireEvent.pointerDown(canvas, {
-      clientX: 100 + g,
-      clientY: 100 + g,
+      clientX: 100 + grab,
+      clientY: 100 + grab,
       shiftKey: true,
     });
     fireEvent.pointerMove(window, {
@@ -141,20 +144,20 @@ describe("live corners in the editor", () => {
       shiftKey: true,
     });
     fireEvent.pointerUp(window, { clientX: 120, clientY: 120 });
-    const p = h.elements.find((e) => e.id === id) as any;
-    expect(p.handles.map((hd: any) => hd.radius)).toEqual([20, 20, 20, 20]);
+    const path = handle.elements.find((element) => element.id === id) as any;
+    expect(path.handles.map((hd: any) => hd.radius)).toEqual([20, 20, 20, 20]);
   });
 
   it("converting a rounded rectangle to a path keeps its rounding", async () => {
     await render(<Excalidraw />);
-    const r = rect({
+    const rectangle = rect({
       roundness: { type: ROUNDNESS.ADAPTIVE_RADIUS, value: 16 },
     });
-    API.setElements([r]);
-    API.setSelectedElements([r]);
+    API.setElements([rectangle]);
+    API.setSelectedElements([rectangle]);
     API.executeAction(actionConvertShapeToPath);
-    const p = h.elements[0] as any;
-    expect(p.type).toBe("path");
-    expect(p.handles.every((hd: any) => hd.radius === 16)).toBe(true);
+    const path = handle.elements[0] as any;
+    expect(path.type).toBe("path");
+    expect(path.handles.every((hd: any) => hd.radius === 16)).toBe(true);
   });
 });

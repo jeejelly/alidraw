@@ -19,16 +19,16 @@ export const sanitizeGuides = (value: unknown): Guide[] => {
   }
   const seen = new Set<string>();
   const guides: Guide[] = [];
-  for (const g of value) {
+  for (const entry of value) {
     if (
-      g &&
-      typeof g.id === "string" &&
-      (g.axis === "x" || g.axis === "y") &&
-      Number.isFinite(g.position) &&
-      !seen.has(g.id)
+      entry &&
+      typeof entry.id === "string" &&
+      (entry.axis === "x" || entry.axis === "y") &&
+      Number.isFinite(entry.position) &&
+      !seen.has(entry.id)
     ) {
-      seen.add(g.id);
-      guides.push({ id: g.id, axis: g.axis, position: g.position });
+      seen.add(entry.id);
+      guides.push({ id: entry.id, axis: entry.axis, position: entry.position });
     }
   }
   return guides;
@@ -48,23 +48,25 @@ export const getGuideSnap = (
   const offset = { x: 0, y: 0 };
   for (const guide of guides) {
     const axis = guide.axis;
-    for (const p of points) {
-      const d = guide.position - (axis === "x" ? p[0] : p[1]);
-      if (Math.abs(d) <= limit && Math.abs(d) < best[axis]) {
-        best[axis] = Math.abs(d);
-        offset[axis] = d;
+    for (const point of points) {
+      const distance = guide.position - (axis === "x" ? point[0] : point[1]);
+      if (Math.abs(distance) <= limit && Math.abs(distance) < best[axis]) {
+        best[axis] = Math.abs(distance);
+        offset[axis] = distance;
       }
     }
   }
   return {
     ...offset,
     guides: guides.filter(
-      (g) =>
-        best[g.axis] !== Infinity &&
+      (guide) =>
+        best[guide.axis] !== Infinity &&
         points.some(
-          (p) =>
+          (point) =>
             Math.abs(
-              (g.axis === "x" ? p[0] : p[1]) + offset[g.axis] - g.position,
+              (guide.axis === "x" ? point[0] : point[1]) +
+                offset[guide.axis] -
+                guide.position,
             ) < 1e-6,
         ),
     ),
@@ -79,13 +81,14 @@ const STEPS = [1, 2, 5];
  */
 export const getRulerStep = (zoom: number, minPx = 60) => {
   for (let mag = 0.001; mag < 1e9; mag *= 10) {
-    for (const s of STEPS) {
-      if (s * mag * zoom >= minPx) {
-        return s * mag;
+    for (const step of STEPS) {
+      if (step * mag * zoom >= minPx) {
+        return step * mag;
       }
     }
   }
   return 1e9;
 };
 
-export const formatRulerValue = (v: number) => `${Math.round(v * 1000) / 1000}`;
+export const formatRulerValue = (value: number) =>
+  `${Math.round(value * 1000) / 1000}`;

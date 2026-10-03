@@ -3,7 +3,7 @@ const path = require("node:path");
 const git = require("./git");
 
 const message = (paths) => {
-  const names = [...paths].map((p) => path.posix.basename(p));
+  const names = [...paths].map((filePath) => path.posix.basename(filePath));
   return names.length <= 3
     ? `Update ${names.join(", ")}`
     : `Update ${names.length} files`;
@@ -34,30 +34,30 @@ class AutoCommit {
     if (delay === null) {
       return; // auto commit is off
     }
-    let p = this.pending.get(id);
-    if (!p) {
-      p = { root, paths: new Set(), timer: null };
-      this.pending.set(id, p);
+    let entry = this.pending.get(id);
+    if (!entry) {
+      entry = { root, paths: new Set(), timer: null };
+      this.pending.set(id, entry);
     }
-    p.paths.add(rel);
-    if (p.timer) {
-      this.clearTimer(p.timer);
+    entry.paths.add(rel);
+    if (entry.timer) {
+      this.clearTimer(entry.timer);
     }
-    p.timer = this.setTimer(() => this.flush(id), delay);
+    entry.timer = this.setTimer(() => this.flush(id), delay);
   }
 
   /** commit what is pending for a workspace now (also the "commit now" button) */
   async flush(id, root, customMessage) {
-    const p = this.pending.get(id);
-    if (p?.timer) {
-      this.clearTimer(p.timer);
+    const entry = this.pending.get(id);
+    if (entry?.timer) {
+      this.clearTimer(entry.timer);
     }
     this.pending.delete(id);
-    const dir = p?.root ?? root;
+    const dir = entry?.root ?? root;
     if (!dir) {
       return null;
     }
-    const paths = p ? [...p.paths] : undefined;
+    const paths = entry ? [...entry.paths] : undefined;
     try {
       const hash = await git.commit(
         dir,
@@ -84,9 +84,9 @@ class AutoCommit {
   }
 
   dispose() {
-    for (const p of this.pending.values()) {
-      if (p.timer) {
-        this.clearTimer(p.timer);
+    for (const entry of this.pending.values()) {
+      if (entry.timer) {
+        this.clearTimer(entry.timer);
       }
     }
     this.pending.clear();

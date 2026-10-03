@@ -5,11 +5,7 @@ import { COMPONENTS, defaultsOf, type Shape, type Values } from "./components";
 
 import type { SymbolTheme } from "./theme";
 
-/**
- * Whole screens made of components: each part is its own symbol (a group with
- * its settings), so every part stays editable, themable, stretchable, and
- * comes out in the code export.
- */
+/** Whole screens made of components; each part is its own editable symbol. */
 export type TemplatePart = {
   component: string;
   values?: Values;
@@ -26,7 +22,7 @@ export type TemplateDef = {
 
 const phone: TemplatePart = { component: "phone", x: 0, y: 0 };
 
-const W = 328;
+const width = 328;
 const part = (
   component: string,
   x: number,
@@ -47,23 +43,23 @@ export const TEMPLATES: readonly TemplateDef[] = [
         width: 360,
         actions: 0,
       }),
-      part("input", 16, 120, { label: "Email", icon: "mail", width: W }),
+      part("input", 16, 120, { label: "Email", icon: "mail", width }),
       part("input", 16, 206, {
         label: "Password",
         icon: "lock",
         trailing: "eye",
-        width: W,
+        width,
       }),
-      part("button", 16, 308, { label: "Sign in", width: W }),
+      part("button", 16, 308, { label: "Sign in", width }),
       part("button", 16, 364, {
         label: "Forgot password?",
         look: "text",
-        width: W,
+        width,
       }),
       part("button", 16, 440, {
         label: "Continue with a link",
         look: "outline",
-        width: W,
+        width,
       }),
     ],
   },
@@ -85,7 +81,7 @@ export const TEMPLATES: readonly TemplateDef[] = [
         leading: "icon",
         trailing: "switch",
         style: "lines",
-        width: W,
+        width,
       }),
       part("list", 16, 340, {
         rows: 3,
@@ -93,9 +89,13 @@ export const TEMPLATES: readonly TemplateDef[] = [
         leading: "none",
         trailing: "chevron",
         style: "lines",
-        width: W,
+        width,
       }),
-      part("button", 16, 600, { label: "Sign out", look: "danger", width: W }),
+      part("button", 16, 600, {
+        label: "Sign out",
+        look: "danger",
+        width,
+      }),
     ],
   },
   {
@@ -105,7 +105,7 @@ export const TEMPLATES: readonly TemplateDef[] = [
     parts: [
       phone,
       part("app-bar", 0, 28, { title: "My app", actions: 2, width: 360 }),
-      part("search-bar", 16, 96, { width: W }),
+      part("search-bar", 16, 96, { width }),
       part("pills", 16, 160, {
         labels: "All, Recipes, Drinks, Sweets",
         active: 1,
@@ -116,7 +116,7 @@ export const TEMPLATES: readonly TemplateDef[] = [
         leading: "status",
         trailing: "actions",
         style: "cards",
-        width: W,
+        width,
       }),
       part("navigation-bar", 0, 648, {}),
       part("fab", 280, 578, {}),
@@ -140,9 +140,9 @@ export const TEMPLATES: readonly TemplateDef[] = [
         value: 62,
         style: "bar",
         label: true,
-        width: W,
+        width,
       }),
-      part("table", 16, 330, { rows: 4, width: W }),
+      part("table", 16, 330, { rows: 4, width }),
       part("navigation-bar", 0, 648, {}),
     ],
   },
@@ -163,14 +163,18 @@ export const TEMPLATES: readonly TemplateDef[] = [
         current: 2,
         gap: 124,
       }),
-      part("input", 16, 190, { label: "Full name", width: W }),
-      part("input", 16, 270, { label: "Address", icon: "map-pin", width: W }),
-      part("select", 16, 360, { value: "Country", width: W }),
+      part("input", 16, 190, { label: "Full name", width }),
+      part("input", 16, 270, {
+        label: "Address",
+        icon: "map-pin",
+        width,
+      }),
+      part("select", 16, 360, { value: "Country", width }),
       part("checkbox", 16, 440, {
         label: "Save for next time",
         value: "checked",
       }),
-      part("button", 16, 600, { label: "Continue", width: W }),
+      part("button", 16, 600, { label: "Continue", width }),
     ],
   },
   {
@@ -186,8 +190,8 @@ export const TEMPLATES: readonly TemplateDef[] = [
         height: 300,
       }),
       part("pagination", 52, 330, { pages: 3, current: 1 }),
-      part("button", 16, 560, { label: "Get started", width: W }),
-      part("button", 16, 616, { label: "Skip", look: "text", width: W }),
+      part("button", 16, 560, { label: "Get started", width }),
+      part("button", 16, 616, { label: "Skip", look: "text", width }),
     ],
   },
   {
@@ -203,7 +207,7 @@ export const TEMPLATES: readonly TemplateDef[] = [
         leading: "icon",
         trailing: "chevron",
         style: "cards",
-        width: W,
+        width,
       }),
       part("dialog", 20, 250, {
         title: "Delete collection?",
@@ -215,38 +219,54 @@ export const TEMPLATES: readonly TemplateDef[] = [
 ];
 
 /** the shapes of a template, placed, for the panel's preview */
-export const templateShapes = (t: TemplateDef, theme: SymbolTheme): Shape[] =>
-  t.parts.flatMap((p) => {
-    const def = COMPONENTS.find((c) => c.id === p.component);
+export const templateShapes = (
+  template: TemplateDef,
+  theme: SymbolTheme,
+): Shape[] =>
+  template.parts.flatMap((templatePart) => {
+    const def = COMPONENTS.find(
+      (component) => component.id === templatePart.component,
+    );
     if (!def) {
       return [];
     }
-    return def.shapes(theme, { ...defaultsOf(def), ...p.values }).map((s) =>
-      s.t === "line"
-        ? {
-            ...s,
-            pts: s.pts.map(([x, y]) => [x + p.x, y + p.y] as [number, number]),
-          }
-        : ({ ...s, x: (s as any).x + p.x, y: (s as any).y + p.y } as Shape),
-    );
+    return def
+      .shapes(theme, { ...defaultsOf(def), ...templatePart.values })
+      .map((shape) =>
+        shape.t === "line"
+          ? {
+              ...shape,
+              pts: shape.pts.map(
+                ([x, y]) =>
+                  [x + templatePart.x, y + templatePart.y] as [number, number],
+              ),
+            }
+          : ({
+              ...shape,
+              x: (shape as any).x + templatePart.x,
+              y: (shape as any).y + templatePart.y,
+            } as Shape),
+      );
   });
 
 /** the elements of a template: one group per part */
 export const buildTemplate = (
-  t: TemplateDef,
+  template: TemplateDef,
   theme: SymbolTheme,
 ): ExcalidrawElement[] =>
-  t.parts.flatMap((p) => {
-    const def = COMPONENTS.find((c) => c.id === p.component);
+  template.parts.flatMap((templatePart) => {
+    const def = COMPONENTS.find(
+      (component) => component.id === templatePart.component,
+    );
     if (!def) {
       return [];
     }
-    const values = { ...defaultsOf(def), ...p.values };
+    const values = { ...defaultsOf(def), ...templatePart.values };
     return buildElements(
       def.shapes(theme, values),
       theme,
-      { x: p.x, y: p.y },
-      p.component,
+      { x: templatePart.x, y: templatePart.y },
+      templatePart.component,
       values,
     );
   });

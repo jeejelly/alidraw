@@ -12,28 +12,29 @@ export type SceneNode = {
 /** scenes grouped by folder, like a project browser */
 export const sceneTree = (scenes: SceneEntry[]): SceneNode[] => {
   const root: SceneNode = { name: "", path: "", children: [] };
-  for (const s of scenes) {
-    const parts = s.path.split("/");
+  for (const scene of scenes) {
+    const parts = scene.path.split("/");
     let node = root;
-    parts.forEach((part, i) => {
-      const path = parts.slice(0, i + 1).join("/");
-      let next = node.children.find((c) => c.path === path);
+    parts.forEach((part, index) => {
+      const path = parts.slice(0, index + 1).join("/");
+      let next = node.children.find((child) => child.path === path);
       if (!next) {
         next = { name: part, path, children: [] };
         node.children.push(next);
       }
-      if (i === parts.length - 1) {
-        next.scene = s;
+      if (index === parts.length - 1) {
+        next.scene = scene;
       }
       node = next;
     });
   }
-  const sort = (n: SceneNode) => {
-    n.children.sort(
-      (a, b) =>
-        Number(!!a.scene) - Number(!!b.scene) || a.name.localeCompare(b.name),
+  const sort = (node: SceneNode) => {
+    node.children.sort(
+      (first, second) =>
+        Number(!!first.scene) - Number(!!second.scene) ||
+        first.name.localeCompare(second.name),
     );
-    n.children.forEach(sort);
+    node.children.forEach(sort);
   };
   sort(root);
   return root.children;
@@ -54,26 +55,26 @@ export const SceneTreeView = ({
 }) => {
   const tree = useMemo(() => sceneTree(scenes), [scenes]);
   const render = (nodes: SceneNode[], depth: number): React.ReactNode =>
-    nodes.map((n) =>
-      n.scene ? (
-        <li key={n.path}>
-          {leaf(n.scene, depth, n.name.replace(/\.excalidraw$/, ""))}
+    nodes.map((node) =>
+      node.scene ? (
+        <li key={node.path}>
+          {leaf(node.scene, depth, node.name.replace(/\.excalidraw$/, ""))}
         </li>
       ) : (
-        <li key={n.path}>
+        <li key={node.path}>
           <button
             type="button"
             className="workspace__leaf"
             style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}
-            aria-expanded={!closed[n.path]}
-            onClick={() => onToggle(n.path)}
+            aria-expanded={!closed[node.path]}
+            onClick={() => onToggle(node.path)}
           >
             <span className="workspace__chev">
-              {closed[n.path] ? "▸" : "▾"}
+              {closed[node.path] ? "▸" : "▾"}
             </span>
-            {n.name}
+            {node.name}
           </button>
-          {!closed[n.path] && <ul>{render(n.children, depth + 1)}</ul>}
+          {!closed[node.path] && <ul>{render(node.children, depth + 1)}</ul>}
         </li>
       ),
     );

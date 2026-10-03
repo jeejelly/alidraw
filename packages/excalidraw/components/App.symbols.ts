@@ -1,20 +1,21 @@
 import { getBoundTextElement } from "@excalidraw/element";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
-
 import { getSymbolMeta, symbolGroupOf } from "@excalidraw/symbols";
 import { isReplaceable, labelOf, symbolInBox } from "@excalidraw/symbols";
+
+import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import type { Values } from "@excalidraw/symbols";
 import type { SymbolTheme } from "@excalidraw/symbols";
 
 import type App from "./App";
 
+/** mutations that must not notify subscribers or count as a drag */
+const QUIET = { informMutation: false, isDragging: false };
+
 /**
- * A symbol can stand in for a shape of a diagram, with the shape's text as its
- * label. The shape stays under it as an invisible anchor, so arrows glued to it
- * keep working, and when its text changes (from the canvas or from the Flow
- * text) the symbol is redrawn with the new label.
+ * A symbol stands in for a shape, which stays under it as an invisible anchor
+ * so glued arrows keep working; the symbol is redrawn when the shape's text changes.
  */
 export class AppSymbols {
   private off: (() => void) | null = null;
@@ -81,33 +82,16 @@ export class AppSymbols {
         values,
         label,
       };
-      const quiet = { informMutation: false, isDragging: false };
-      this.app.scene.mutateElement(
-        node as any,
-        {
-          strokeColor: "transparent",
-          backgroundColor: "transparent",
-          groupIds: [group, ...node.groupIds],
-          customData: { ...node.customData, symbol: { ...meta, anchor: true } },
-        },
-        quiet,
-      );
-      if (text) {
-        this.app.scene.mutateElement(
-          text as any,
-          {
-            strokeColor: "transparent",
-            groupIds: [group, ...text.groupIds],
-            customData: { ...text.customData, symbol: meta },
-          },
-          quiet,
-        );
-      }
+      this.hideBehindSymbol(node, text, group, meta);
       // the shape that was replaced is a text on its own: it keeps its place, unseen
       this.app.scene.insertElementsAtIndex(made, null);
       last = {
         group,
-        ids: [node.id, ...(text ? [text.id] : []), ...made.map((e) => e.id)],
+        ids: [
+          node.id,
+          ...(text ? [text.id] : []),
+          ...made.map((element) => element.id),
+        ],
       };
     }
     if (last) {
@@ -117,58 +101,56 @@ export class AppSymbols {
     return nodes.length;
   };
 
+  /** the replaced shape and its text stay as invisible anchors of the symbol */
+  private hideBehindSymbol = (
+    node: ExcalidrawElement,
+    text: ExcalidrawElement | null,
+    group: string,
+    meta: object,
+  ) => {
+    this.app.scene.mutateElement(
+      node as any,
+      {
+        strokeColor: "transparent",
+        backgroundColor: "transparent",
+        groupIds: [group, ...node.groupIds],
+        customData: { ...node.customData, symbol: { ...meta, anchor: true } },
+      },
+      QUIET,
+    );
+    if (text) {
+      this.app.scene.mutateElement(
+        text as any,
+        {
+          strokeColor: "transparent",
+          groupIds: [group, ...text.groupIds],
+          customData: { ...text.customData, symbol: meta },
+        },
+        QUIET,
+      );
+    }
+  };
+
   /** redraws every symbol whose anchor's text changed */
   sync = () => {
     const map = this.app.scene.getNonDeletedElementsMap();
     const all = this.app.scene.getNonDeletedElements();
-    const stale: ExcalidrawElement[] = [];
-    for (const el of all) {
-      const m = getSymbolMeta(el);
-      if (m?.anchor && m.component && labelOf(el, map) !== (m.label ?? "")) {
-        stale.push(el);
-      }
-    }
+    const stale = all.filter((element) => {
+      const meta = getSymbolMeta(element);
+      return (
+        meta?.anchor &&
+        meta.component &&
+        labelOf(element, map) !== (meta.label ?? "")
+      );
+    });
     if (!stale.length) {
       return;
     }
     this.busy = true;
     try {
-      const theme = this.themeFor();
+      const theme = this.app.symbolTheme();
       for (const anchor of stale) {
-        const m = getSymbolMeta(anchor)!;
-        const label = labelOf(anchor, map);
-        const keep = new Set([anchor.id, getBoundTextElement(anchor, map)?.id]);
-        for (const el of all) {
-          if (symbolGroupOf(el) === anchor.groupIds[0] && !keep.has(el.id)) {
-            this.app.scene.mutateElement(
-              el as any,
-              { isDeleted: true },
-              { informMutation: false, isDragging: false },
-            );
-          }
-        }
-        const made = symbolInBox(
-          m.component!,
-          m.values ?? {},
-          theme,
-          anchor,
-          label,
-        ).map((e) => ({
-          ...e,
-          groupIds: anchor.groupIds,
-        }));
-        for (const e of made) {
-          e.customData = {
-            ...e.customData,
-            symbol: { ...e.customData?.symbol, group: m.group },
-          };
-        }
-        this.app.scene.insertElementsAtIndex(made as any, null);
-        this.app.scene.mutateElement(
-          anchor as any,
-          { customData: { ...anchor.customData, symbol: { ...m, label } } },
-          { informMutation: false, isDragging: false },
-        );
+        this.redraw(anchor, theme, all, map);
       }
       this.app.scene.triggerUpdate();
       this.app.store.scheduleCapture();
@@ -177,5 +159,46 @@ export class AppSymbols {
     }
   };
 
-  private themeFor = (): SymbolTheme => this.app.symbolTheme();
+  /** replaces the parts of one symbol by a fresh drawing with the anchor's current text */
+  private redraw = (
+    anchor: ExcalidrawElement,
+    theme: SymbolTheme,
+    all: readonly ExcalidrawElement[],
+    map: ReturnType<App["scene"]["getNonDeletedElementsMap"]>,
+  ) => {
+    const meta = getSymbolMeta(anchor)!;
+    const label = labelOf(anchor, map);
+    const keep = new Set([anchor.id, getBoundTextElement(anchor, map)?.id]);
+    for (const element of all) {
+      if (
+        symbolGroupOf(element) === anchor.groupIds[0] &&
+        !keep.has(element.id)
+      ) {
+        this.app.scene.mutateElement(
+          element as any,
+          { isDeleted: true },
+          QUIET,
+        );
+      }
+    }
+    const made = symbolInBox(
+      meta.component!,
+      meta.values ?? {},
+      theme,
+      anchor,
+      label,
+    ).map((element) => ({ ...element, groupIds: anchor.groupIds }));
+    for (const element of made) {
+      element.customData = {
+        ...element.customData,
+        symbol: { ...element.customData?.symbol, group: meta.group },
+      };
+    }
+    this.app.scene.insertElementsAtIndex(made as any, null);
+    this.app.scene.mutateElement(
+      anchor as any,
+      { customData: { ...anchor.customData, symbol: { ...meta, label } } },
+      QUIET,
+    );
+  };
 }

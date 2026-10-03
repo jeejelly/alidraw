@@ -21,7 +21,7 @@ export const WorkspaceChip = () => {
     const load = () =>
       bridge
         .status(active.id)
-        .then((s) => !cancelled && setStatus(s))
+        .then((gitStatus) => !cancelled && setStatus(gitStatus))
         .catch(() => !cancelled && setStatus(null));
     load();
     const timer = window.setInterval(load, 10000);

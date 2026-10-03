@@ -1,7 +1,4 @@
-/**
- * Flat vector illustrations, drawn for this app (original artwork, same licence as the app).
- * They are plain SVG: inserting one makes ordinary, editable vector paths in one group.
- */
+/** Flat vector illustrations (original artwork, same licence as the app) as plain SVG. */
 export type Illustration = {
   id: string;
   name: string;

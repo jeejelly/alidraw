@@ -18,7 +18,7 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
 afterEach(() => setFileSaveProvider(null));
 
@@ -51,9 +51,9 @@ describe("a host that takes over saving scene files", () => {
     fireEvent.click(screen.getByTestId("main-menu-trigger"));
     fireEvent.click(screen.getByTestId("json-export-button"));
     await waitFor(() => expect(calls).toHaveLength(1));
-    expect(h.state.openDialog).toBeNull();
+    expect(handle.state.openDialog).toBeNull();
     await waitFor(() =>
-      expect(h.state.fileHandle).toMatchObject({
+      expect(handle.state.fileHandle).toMatchObject({
         name: expect.stringContaining(".excalidraw"),
       }),
     );
@@ -63,7 +63,7 @@ describe("a host that takes over saving scene files", () => {
     await render(<Excalidraw />);
     fireEvent.click(screen.getByTestId("main-menu-trigger"));
     fireEvent.click(screen.getByTestId("json-export-button"));
-    expect(h.state.openDialog).toMatchObject({ name: "jsonExport" });
+    expect(handle.state.openDialog).toMatchObject({ name: "jsonExport" });
   });
 });
 
@@ -100,23 +100,23 @@ describe("image storage in the inspector", () => {
       screen.getByTestId("image-storage-default").getAttribute("aria-pressed"),
     ).toBe("true");
     fireEvent.click(screen.getByTestId("image-storage-linked"));
-    expect(h.elements[0].customData?.imageStorage).toBe("linked");
+    expect(handle.elements[0].customData?.imageStorage).toBe("linked");
     expect(
       screen.getByTestId("image-storage-linked").getAttribute("aria-pressed"),
     ).toBe("true");
     fireEvent.click(screen.getByTestId("image-storage-embedded"));
-    expect(h.elements[0].customData?.imageStorage).toBe("embedded");
+    expect(handle.elements[0].customData?.imageStorage).toBe("embedded");
     fireEvent.click(screen.getByTestId("image-storage-default"));
-    expect(h.elements[0].customData?.imageStorage).toBe("default");
+    expect(handle.elements[0].customData?.imageStorage).toBe("default");
   });
 
   it("not shown for other shapes", async () => {
     setHostCapabilities({ linkedImages: true });
     await render(<Excalidraw />);
     API.setAppState({ paletteOpen: true });
-    const r = API.createElement({ type: "rectangle" });
-    API.setElements([r]);
-    API.setSelectedElements([r]);
+    const rectangle = API.createElement({ type: "rectangle" });
+    API.setElements([rectangle]);
+    API.setSelectedElements([rectangle]);
     expect(screen.queryByTestId("inspector-image-storage")).toBeNull();
   });
 });

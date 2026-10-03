@@ -1,15 +1,17 @@
 import React from "react";
 
-import type { ExcalidrawElement } from "@excalidraw/element/types";
-
-import { actionConvertToSymbol } from "../actions";
-import { Excalidraw } from "../index";
 import { getSymbolMeta } from "@excalidraw/symbols";
 import { customOf, detectParams, isCustom } from "@excalidraw/symbols";
 import { setCustomParam } from "@excalidraw/symbols";
 import { generateSceneCode } from "@excalidraw/symbols";
 import { DEFAULT_THEME } from "@excalidraw/symbols";
 
+import type { ExcalidrawElement } from "@excalidraw/element/types";
+
+import { actionConvertToSymbol } from "../actions";
+import { Excalidraw } from "../index";
+
+import { liveElements } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import {
   act,
@@ -21,7 +23,7 @@ import {
 } from "./test-utils";
 
 unmountComponent();
-const { h } = window;
+const handle = window.h;
 
 /** a drawn button: a rounded blue box with a dark outline, a label, and a small dot */
 const drawButton = () => {
@@ -58,20 +60,22 @@ const drawButton = () => {
   return { box, label, dot, all: [box, label, dot] as ExcalidrawElement[] };
 };
 
-const live = () => h.elements.filter((e) => !e.isDeleted);
-const byId = (id: string) => h.elements.find((e) => e.id === id) as any;
+const byId = (id: string) =>
+  handle.elements.find((element) => element.id === id) as any;
 
 describe("custom symbols", () => {
   it("suggests parameters from what is drawn", () => {
     const { all } = drawButton();
     const params = detectParams(all);
-    expect(params.map((p) => [p.key, p.kind, p.value])).toEqual([
-      ["background", "color", "#4f8dff"],
-      ["accent", "color", "#ff6b57"],
-      ["outline", "color", "#14142b"],
-      ["ink", "color", "#ffffff"],
-      ["text1", "text", "Buy now"],
-    ]);
+    expect(params.map((param) => [param.key, param.kind, param.value])).toEqual(
+      [
+        ["background", "color", "#4f8dff"],
+        ["accent", "color", "#ff6b57"],
+        ["outline", "color", "#14142b"],
+        ["ink", "color", "#ffffff"],
+        ["text1", "text", "Buy now"],
+      ],
+    );
   });
 
   it("converts a group into a symbol that keeps its drawing and carries its parameters", async () => {
@@ -79,16 +83,22 @@ describe("custom symbols", () => {
     const { box, label, dot, all } = drawButton();
     API.setElements(all);
     API.setSelectedElements([box, label, dot]);
-    act(() => h.app.actionManager.executeAction(actionConvertToSymbol));
-    const members = live();
-    expect(members.every((e) => isCustom(e))).toBe(true);
+    act(() => handle.app.actionManager.executeAction(actionConvertToSymbol));
+    const members = liveElements();
+    expect(members.every((element) => isCustom(element))).toBe(true);
     // the drawing is untouched, the symbol's group is the innermost
     expect(byId(box.id)).toMatchObject({ x: 100, backgroundColor: "#4f8dff" });
     const group = getSymbolMeta(members[0])!.group;
-    expect(members.every((e) => e.groupIds[0] === group)).toBe(true);
+    expect(members.every((element) => element.groupIds[0] === group)).toBe(
+      true,
+    );
     const { params, parts } = customOf(members);
     expect(params.length).toBe(5);
-    expect(parts.map((e) => e.id)).toEqual([box.id, label.id, dot.id]);
+    expect(parts.map((element) => element.id)).toEqual([
+      box.id,
+      label.id,
+      dot.id,
+    ]);
   });
 
   it("sets a parameter on every part it reaches, in the panel", async () => {
@@ -122,9 +132,11 @@ describe("custom symbols", () => {
     )[0] as HTMLInputElement;
     fireEvent.change(name, { target: { value: "Fill" } });
     fireEvent.blur(name);
-    expect(customOf(live()).params[0].label).toBe("Fill");
+    expect(customOf(liveElements()).params[0].label).toBe("Fill");
     fireEvent.click(screen.getByTestId("symbols-param-remove-accent"));
-    expect(customOf(live()).params.map((p) => p.key)).not.toContain("accent");
+    expect(
+      customOf(liveElements()).params.map((param) => param.key),
+    ).not.toContain("accent");
   });
 
   it("a part exposes more of itself, and a copy keeps parameters of its own", async () => {
@@ -133,7 +145,7 @@ describe("custom symbols", () => {
     const { box, label, dot, all } = drawButton();
     API.setElements(all);
     API.setSelectedElements([box, label, dot]);
-    act(() => h.app.actionManager.executeAction(actionConvertToSymbol));
+    act(() => handle.app.actionManager.executeAction(actionConvertToSymbol));
     // one part inside: expose its line width
     API.setSelectedElements([byId(box.id)]);
     fireEvent.click(screen.getByTestId("inspector-tab-symbols"));
@@ -144,29 +156,33 @@ describe("custom symbols", () => {
       target: { value: "Line" },
     });
     fireEvent.click(screen.getByTestId("symbols-expose"));
-    const line = customOf(live()).params.find((p) => p.label === "Line")!;
+    const line = customOf(liveElements()).params.find(
+      (param) => param.label === "Line",
+    )!;
     expect(line.targets).toEqual([{ part: 0, prop: "strokeWidth" }]);
 
     // a copy through the library path: its own group, the same parameters, independent
-    const known = new Set(live().map((e) => e.id));
+    const known = new Set(liveElements().map((element) => element.id));
     act(() => {
-      h.app.addElementsFromPasteOrLibrary({
-        elements: live() as any,
+      handle.app.addElementsFromPasteOrLibrary({
+        elements: liveElements() as any,
         files: null,
         position: { clientX: 600, clientY: 400 },
       });
     });
-    const copy = live().filter((e) => !known.has(e.id));
+    const copy = liveElements().filter((element) => !known.has(element.id));
     expect(copy).toHaveLength(3);
     expect(isCustom(copy[0])).toBe(true);
-    expect(customOf(copy).params.map((p) => p.key)).toEqual(
-      customOf(live().filter((e) => known.has(e.id))).params.map((p) => p.key),
+    expect(customOf(copy).params.map((param) => param.key)).toEqual(
+      customOf(
+        liveElements().filter((element) => known.has(element.id)),
+      ).params.map((param) => param.key),
     );
-    act(() => setCustomParam(h.app.scene, copy, "background", "#112233"));
+    act(() => setCustomParam(handle.app.scene, copy, "background", "#112233"));
     expect(byId(copy[0].id).backgroundColor).toBe("#112233");
     expect(byId(box.id).backgroundColor).toBe("#4f8dff");
     // setting the line width on the copy only touches the copy
-    act(() => setCustomParam(h.app.scene, copy, "line", 6));
+    act(() => setCustomParam(handle.app.scene, copy, "line", 6));
     expect(byId(copy[0].id).strokeWidth).toBe(6);
     expect(byId(box.id).strokeWidth).toBe(2);
   });
@@ -176,8 +192,8 @@ describe("custom symbols", () => {
     const { box, label, dot, all } = drawButton();
     API.setElements(all);
     API.setSelectedElements([box, label, dot]);
-    act(() => h.app.actionManager.executeAction(actionConvertToSymbol));
-    const code = generateSceneCode(live() as any, DEFAULT_THEME)!;
+    act(() => handle.app.actionManager.executeAction(actionConvertToSymbol));
+    const code = generateSceneCode(liveElements() as any, DEFAULT_THEME)!;
     expect(code.html).toContain("#4f8dff");
     expect(code.html).toContain("Buy now");
   });

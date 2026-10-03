@@ -1,12 +1,11 @@
 import React from "react";
 
-import { reseed } from "@excalidraw/common";
-
 import { Excalidraw } from "../index";
 import { serializeAsJSON } from "../data/json";
 import { restoreAppState, restoreElements } from "../data/restore";
 import { getLayerId } from "../layers";
 
+import { liveElements, resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import {
   act,
@@ -20,19 +19,15 @@ import {
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
-const live = () => h.elements.filter((e) => !e.isDeleted);
-const ids = () => live().map((e) => e.id);
+const ids = () => liveElements().map((element) => element.id);
 
 const setup = async () => {
   await render(<Excalidraw />);
-  const a = API.createElement({
+  const first = API.createElement({
     type: "rectangle",
     x: 0,
     y: 0,
@@ -40,7 +35,7 @@ const setup = async () => {
     height: 100,
     backgroundColor: "#ff0000",
   });
-  const b = API.createElement({
+  const second = API.createElement({
     type: "ellipse",
     x: 200,
     y: 0,
@@ -48,135 +43,160 @@ const setup = async () => {
     height: 100,
     backgroundColor: "#00ff00",
   });
-  API.setElements([a, b]);
-  return { a, b };
+  API.setElements([first, second]);
+  return { first, second };
 };
 
 const addLayer = (name?: string) => {
   let layer: any;
   act(() => {
-    layer = h.app.layers.add(name);
+    layer = handle.app.layers.add(name);
   });
   return layer;
 };
 
 describe("layers", () => {
   it("the first layer takes what is drawn, a new one becomes active", async () => {
-    const { a, b } = await setup();
+    const { first: firstElement, second: secondElement } = await setup();
     const second = addLayer("Buttons");
-    expect(h.state.layers.map((l) => l.name)).toEqual(["Layer 1", "Buttons"]);
-    expect(h.state.activeLayerId).toBe(second.id);
-    const first = h.state.layers[0];
-    expect(getLayerId(h.elements.find((e) => e.id === a.id)!)).toBe(first.id);
-    expect(getLayerId(h.elements.find((e) => e.id === b.id)!)).toBe(first.id);
+    expect(handle.state.layers.map((layer) => layer.name)).toEqual([
+      "Layer 1",
+      "Buttons",
+    ]);
+    expect(handle.state.activeLayerId).toBe(second.id);
+    const first = handle.state.layers[0];
+    expect(
+      getLayerId(
+        handle.elements.find((element) => element.id === firstElement.id)!,
+      ),
+    ).toBe(first.id);
+    expect(
+      getLayerId(
+        handle.elements.find((element) => element.id === secondElement.id)!,
+      ),
+    ).toBe(first.id);
     // what is drawn next goes to the active layer
-    const c = API.createElement({ type: "diamond", x: 0, y: 300 });
+    const third = API.createElement({ type: "diamond", x: 0, y: 300 });
     act(() => {
-      API.updateScene({ elements: [...h.elements, c] });
+      API.updateScene({ elements: [...handle.elements, third] });
     });
-    expect(getLayerId(h.elements.find((e) => e.id === c.id)!)).toBe(second.id);
+    expect(
+      getLayerId(handle.elements.find((element) => element.id === third.id)!),
+    ).toBe(second.id);
   });
 
   it("a layer is a block of the stack: reordering layers reorders objects", async () => {
-    const { a, b } = await setup();
+    const { first, second } = await setup();
     const top = addLayer("Top");
-    const c = API.createElement({ type: "diamond", x: 0, y: 300 });
+    const third = API.createElement({ type: "diamond", x: 0, y: 300 });
     act(() => {
-      API.updateScene({ elements: [...h.elements, c] });
+      API.updateScene({ elements: [...handle.elements, third] });
     });
-    expect(ids()).toEqual([a.id, b.id, c.id]);
-    act(() => h.app.layers.move(top.id, 0));
-    expect(ids()).toEqual([c.id, a.id, b.id]);
+    expect(ids()).toEqual([first.id, second.id, third.id]);
+    act(() => handle.app.layers.move(top.id, 0));
+    expect(ids()).toEqual([third.id, first.id, second.id]);
   });
 
   it("moving objects to another layer puts them on top of its block", async () => {
-    const { a, b } = await setup();
+    const { first, second } = await setup();
     addLayer("Top");
-    const [l1, l2] = h.state.layers;
-    act(() => h.app.layers.moveObjects([a.id], l2.id));
-    expect(getLayerId(h.elements.find((e) => e.id === a.id)!)).toBe(l2.id);
-    expect(ids()).toEqual([b.id, a.id]);
-    expect(h.app.layers.getObjects(l1.id).map((e) => e.id)).toEqual([b.id]);
+    const [l1, l2] = handle.state.layers;
+    act(() => handle.app.layers.moveObjects([first.id], l2.id));
+    expect(
+      getLayerId(handle.elements.find((element) => element.id === first.id)!),
+    ).toBe(l2.id);
+    expect(ids()).toEqual([second.id, first.id]);
+    expect(
+      handle.app.layers.getObjects(l1.id).map((element) => element.id),
+    ).toEqual([second.id]);
   });
 
   it("hiding a layer hides, unselects and unpicks its objects", async () => {
-    const { a, b } = await setup();
+    const { first, second } = await setup();
     addLayer("Top");
-    const l1 = h.state.layers[0];
-    API.setSelectedElements([a]);
-    act(() => h.app.layers.setVisible(l1.id, false));
-    expect(h.state.selectedElementIds[a.id]).toBeFalsy();
-    expect(h.app.getElementsAtPosition(50, 50)).toHaveLength(0);
-    expect(h.app.getElementsAtPosition(250, 50)).toHaveLength(0);
+    const l1 = handle.state.layers[0];
+    API.setSelectedElements([first]);
+    act(() => handle.app.layers.setVisible(l1.id, false));
+    expect(handle.state.selectedElementIds[first.id]).toBeFalsy();
+    expect(handle.app.getElementsAtPosition(50, 50)).toHaveLength(0);
+    expect(handle.app.getElementsAtPosition(250, 50)).toHaveLength(0);
     // the data stays
-    expect(live()).toHaveLength(2);
-    act(() => h.app.layers.setVisible(l1.id, true));
-    expect(h.app.getElementsAtPosition(50, 50).map((e) => e.id)).toEqual([
-      a.id,
-    ]);
-    expect(h.app.getElementsAtPosition(250, 50).map((e) => e.id)).toEqual([
-      b.id,
-    ]);
+    expect(liveElements()).toHaveLength(2);
+    act(() => handle.app.layers.setVisible(l1.id, true));
+    expect(
+      handle.app.getElementsAtPosition(50, 50).map((element) => element.id),
+    ).toEqual([first.id]);
+    expect(
+      handle.app.getElementsAtPosition(250, 50).map((element) => element.id),
+    ).toEqual([second.id]);
   });
 
   it("locking a layer locks its objects, unlocking frees them", async () => {
     await setup();
     addLayer();
-    const l1 = h.state.layers[0];
-    act(() => h.app.layers.setLocked(l1.id, true));
-    expect(live().every((e) => e.locked)).toBe(true);
-    act(() => h.app.layers.setLocked(l1.id, false));
-    expect(live().some((e) => e.locked)).toBe(false);
+    const l1 = handle.state.layers[0];
+    act(() => handle.app.layers.setLocked(l1.id, true));
+    expect(liveElements().every((element) => element.locked)).toBe(true);
+    act(() => handle.app.layers.setLocked(l1.id, false));
+    expect(liveElements().some((element) => element.locked)).toBe(false);
   });
 
   it("the layer style restyles every object of the layer at once", async () => {
-    const { a, b } = await setup();
+    const { first, second } = await setup();
     addLayer();
-    const l1 = h.state.layers[0];
-    expect(h.app.layers.getSharedStyle(l1.id, "backgroundColor")).toBeNull();
+    const l1 = handle.state.layers[0];
+    expect(
+      handle.app.layers.getSharedStyle(l1.id, "backgroundColor"),
+    ).toBeNull();
     act(() =>
-      h.app.layers.setStyle(l1.id, {
+      handle.app.layers.setStyle(l1.id, {
         backgroundColor: "#123456",
         strokeColor: "#abcdef",
       }),
     );
-    for (const id of [a.id, b.id]) {
-      const el = h.elements.find((e) => e.id === id)!;
+    for (const id of [first.id, second.id]) {
+      const el = handle.elements.find((element) => element.id === id)!;
       expect(el.backgroundColor).toBe("#123456");
       expect(el.strokeColor).toBe("#abcdef");
     }
-    expect(h.app.layers.getSharedStyle(l1.id, "backgroundColor")).toBe(
+    expect(handle.app.layers.getSharedStyle(l1.id, "backgroundColor")).toBe(
       "#123456",
     );
   });
 
   it("deleting a layer deletes the objects it owns", async () => {
-    const { a } = await setup();
+    const { first } = await setup();
     addLayer();
-    const [l1, l2] = h.state.layers;
-    act(() => h.app.layers.moveObjects([a.id], l2.id));
-    act(() => h.app.layers.remove(l2.id));
-    expect(h.state.layers.map((l) => l.id)).toEqual([l1.id]);
-    expect(h.elements.find((e) => e.id === a.id)!.isDeleted).toBe(true);
-    expect(live()).toHaveLength(1);
-    expect(h.state.activeLayerId).toBe(l1.id);
+    const [l1, l2] = handle.state.layers;
+    act(() => handle.app.layers.moveObjects([first.id], l2.id));
+    act(() => handle.app.layers.remove(l2.id));
+    expect(handle.state.layers.map((layer) => layer.id)).toEqual([l1.id]);
+    expect(
+      handle.elements.find((element) => element.id === first.id)!.isDeleted,
+    ).toBe(true);
+    expect(liveElements()).toHaveLength(1);
+    expect(handle.state.activeLayerId).toBe(l1.id);
   });
 
-  it("survives save and restore", async () => {
+  it("layer visibility and names survive save and restore", async () => {
     await setup();
     addLayer("Buttons");
-    act(() => h.app.layers.setVisible(h.state.layers[0].id, false));
-    const json = JSON.parse(serializeAsJSON(h.elements, h.state, {}, "local"));
+    act(() => handle.app.layers.setVisible(handle.state.layers[0].id, false));
+    const json = JSON.parse(
+      serializeAsJSON(handle.elements, handle.state, {}, "local"),
+    );
     const appState = restoreAppState(json.appState, null);
-    expect(appState.layers.map((l) => [l.name, l.visible])).toEqual([
-      ["Layer 1", false],
-      ["Buttons", true],
-    ]);
-    expect(appState.activeLayerId).toBe(h.state.layers[1].id);
+    expect(appState.layers.map((layer) => [layer.name, layer.visible])).toEqual(
+      [
+        ["Layer 1", false],
+        ["Buttons", true],
+      ],
+    );
+    expect(appState.activeLayerId).toBe(handle.state.layers[1].id);
     const els = restoreElements(json.elements, null);
-    expect(els.map((e) => getLayerId(e))).toEqual([
-      h.state.layers[0].id,
-      h.state.layers[0].id,
+    expect(els.map((element) => getLayerId(element))).toEqual([
+      handle.state.layers[0].id,
+      handle.state.layers[0].id,
     ]);
     // junk is dropped
     expect(
@@ -215,52 +235,55 @@ describe("layers panel", () => {
     const input = screen.getByTestId("layer-name-input");
     fireEvent.change(input, { target: { value: "Buttons" } });
     fireEvent.blur(input);
-    expect(h.state.layers[1].name).toBe("Buttons");
+    expect(handle.state.layers[1].name).toBe("Buttons");
 
     fireEvent.click(screen.getAllByTestId("layer-visible")[0]);
-    expect(h.state.layers[1].visible).toBe(false);
+    expect(handle.state.layers[1].visible).toBe(false);
 
     fireEvent.click(screen.getByTestId("layer-delete"));
-    expect(h.state.layers).toHaveLength(1);
+    expect(handle.state.layers).toHaveLength(1);
   });
 
   it("clicking the square selects every object of the layer", async () => {
-    const { a, b } = await open();
+    const { first, second } = await open();
     fireEvent.click(screen.getByTestId("layer-add"));
     fireEvent.click(screen.getAllByTestId("layer-select")[1]);
-    expect(Object.keys(h.state.selectedElementIds).sort()).toEqual(
-      [a.id, b.id].sort(),
+    expect(Object.keys(handle.state.selectedElementIds).sort()).toEqual(
+      [first.id, second.id].sort(),
     );
   });
 
   it("dragging a layer row reorders the layers", async () => {
     await open();
     fireEvent.click(screen.getByTestId("layer-add"));
-    const [bottom, top] = h.state.layers;
+    const [bottom, top] = handle.state.layers;
     const rows = screen.getAllByTestId("layer-row");
     const store: Record<string, string> = {};
     const dataTransfer = {
-      setData: (k: string, v: string) => (store[k] = v),
-      getData: (k: string) => store[k],
+      setData: (key: string, value: string) => (store[key] = value),
+      getData: (key: string) => store[key],
       effectAllowed: "",
     };
     // the bottom row dropped on the upper half of the top one goes above it
     fireEvent.dragStart(rows[1], { dataTransfer });
     fireEvent.drop(rows[0], { dataTransfer });
-    expect(h.state.layers.map((l) => l.id)).toEqual([top.id, bottom.id]);
+    expect(handle.state.layers.map((layer) => layer.id)).toEqual([
+      top.id,
+      bottom.id,
+    ]);
   });
 
   it("the layer fill colour restyles its objects", async () => {
-    const { a, b } = await open();
+    const { first, second } = await open();
     fireEvent.click(screen.getByTestId("layer-add"));
     fireEvent.click(screen.getAllByTestId("layer-row")[1]);
     fireEvent.change(screen.getByTestId("layer-fill"), {
       target: { value: "#0000ff" },
     });
-    for (const id of [a.id, b.id]) {
-      expect(h.elements.find((e) => e.id === id)!.backgroundColor).toBe(
-        "#0000ff",
-      );
+    for (const id of [first.id, second.id]) {
+      expect(
+        handle.elements.find((element) => element.id === id)!.backgroundColor,
+      ).toBe("#0000ff");
     }
   });
 });

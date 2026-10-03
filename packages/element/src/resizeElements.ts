@@ -524,7 +524,7 @@ export const rotateElementsBy = (
   delta: number,
 ) => {
   const elementsMap = scene.getNonDeletedElementsMap();
-  const turning = new Map(elements.map((e) => [e.id, e]));
+  const turning = new Map(elements.map((element) => [element.id, element]));
   for (const element of elements) {
     if (isFrameLikeElement(element)) {
       continue;

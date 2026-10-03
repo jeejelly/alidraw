@@ -6,7 +6,6 @@ import {
   fontSizeToPx,
   getFontFamilyString,
   getFontString,
-  reseed,
 } from "@excalidraw/common";
 
 import type { ExcalidrawTextElement } from "@excalidraw/element/types";
@@ -17,17 +16,15 @@ import { restoreElements } from "../data/restore";
 import { filterFontFamilies } from "../fonts/localFonts";
 import { Excalidraw } from "../index";
 
+import { resetTestState } from "./helpers/fixtures";
 import { API } from "./helpers/api";
 import { render, unmountComponent } from "./test-utils";
 
 unmountComponent();
 
-const { h } = window;
+const handle = window.h;
 
-beforeEach(() => {
-  localStorage.clear();
-  reseed(7);
-});
+beforeEach(resetTestState);
 
 describe("font strings", () => {
   it("a local family comes first and the bundled family stays as fallback", () => {
@@ -84,20 +81,20 @@ describe("text typography in the editor", () => {
     API.setSelectedElements([text]);
     return text;
   };
-  const current = () => h.elements[0] as ExcalidrawTextElement;
+  const current = () => handle.elements[0] as ExcalidrawTextElement;
 
   it("accepts any typed size, not only the presets", async () => {
     await setup();
     API.executeAction(actionChangeFontSizeInput, { size: 23 });
     expect(current().fontSize).toBe(23);
-    expect(h.state.currentItemFontSize).toBe(23);
+    expect(handle.state.currentItemFontSize).toBe(23);
   });
 
   it("records the unit on the text", async () => {
     await setup();
     API.executeAction(actionChangeFontSizeInput, { unit: "dp" });
     expect(current().fontUnit).toBe("dp");
-    expect(h.state.currentItemFontUnit).toBe("dp");
+    expect(handle.state.currentItemFontUnit).toBe("dp");
     API.executeAction(actionChangeFontSizeInput, { unit: "px" });
     expect(current().fontUnit).toBe("px");
   });
@@ -106,7 +103,7 @@ describe("text typography in the editor", () => {
     await setup();
     API.executeAction(actionChangeLocalFont, "Fira Sans");
     expect(current().fontFamilyName).toBe("Fira Sans");
-    expect(h.state.currentItemFontFamilyName).toBe("Fira Sans");
+    expect(handle.state.currentItemFontFamilyName).toBe("Fira Sans");
     // the bundled family is kept as the fallback
     expect(current().fontFamily).toBeDefined();
     API.executeAction(actionChangeLocalFont, null);

@@ -19,7 +19,7 @@ import { API } from "./helpers/api";
 import { act, render, unmountComponent } from "./test-utils";
 
 unmountComponent();
-const { h } = window;
+const handle = window.h;
 
 const root = path.join(__dirname, "..", "..", "..");
 const library = path.join(root, "public", "fonts", "library");
@@ -35,13 +35,13 @@ const ALLOWED = new Set([
 /** the app's static files, read from the repo instead of a server */
 const stubFetch = () => {
   vi.stubGlobal("fetch", async (url: string | URL) => {
-    const u = String(url);
+    const href = String(url);
     const marker = "/fonts/library/";
-    const at = u.indexOf(marker);
+    const at = href.indexOf(marker);
     if (at < 0) {
-      throw new Error(`unexpected fetch ${u}`);
+      throw new Error(`unexpected fetch ${href}`);
     }
-    const file = path.join(library, u.slice(at + marker.length));
+    const file = path.join(library, href.slice(at + marker.length));
     if (!fs.existsSync(file)) {
       return { ok: false, status: 404 } as any;
     }
@@ -82,9 +82,9 @@ describe("the font library", () => {
     // the table of licences is generated with the files
     const table = fs.readFileSync(path.join(library, "LICENSES.md"), "utf8");
     expect(table).toContain("| Inter | OFL-1.1 |");
-    expect(new Set(fonts.map((f) => f.category)).size).toBeGreaterThanOrEqual(
-      4,
-    );
+    expect(
+      new Set(fonts.map((font) => font.category)).size,
+    ).toBeGreaterThanOrEqual(4);
   });
 
   it("picks the face closest to the weight and style asked for", async () => {
@@ -124,11 +124,15 @@ describe("the font library", () => {
       } as any);
     const width = async (el: any) => {
       const out = (await textToPaths(el))!;
-      const xs = out.elements.flatMap((e) => [e.x, e.x + e.width]);
+      const xs = out.elements.flatMap((element) => [
+        element.x,
+        element.x + element.width,
+      ]);
       return {
         w: Math.max(...xs) - Math.min(...xs),
         strokes: out.elements.some(
-          (e) => e.strokeWidth > 0.6 && e.strokeColor !== "transparent",
+          (element) =>
+            element.strokeWidth > 0.6 && element.strokeColor !== "transparent",
         ),
       };
     };
@@ -152,7 +156,7 @@ describe("the font library", () => {
     API.setElements([text]);
     API.setSelectedElements([text]);
     await act(async () => {
-      await (h.app.actionManager.executeAction(
+      await (handle.app.actionManager.executeAction(
         actionChangeLibraryFont,
         "ui",
         "Lora",
@@ -160,12 +164,13 @@ describe("the font library", () => {
     });
     await vi.waitFor(() =>
       expect(
-        (h.elements.find((e) => e.id === text.id) as any).fontFamilyName,
+        (handle.elements.find((element) => element.id === text.id) as any)
+          .fontFamilyName,
       ).toBe("Lora"),
     );
     expect(
       (document.fonts.add as any).mock.calls.some(
-        ([f]: any[]) => f.family === "Lora",
+        ([font]: any[]) => font.family === "Lora",
       ),
     ).toBe(true);
   });

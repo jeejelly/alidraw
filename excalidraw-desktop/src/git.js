@@ -33,10 +33,10 @@ const run = (cwd, args, { input, timeout = 60000 } = {}) =>
       },
       (error, stdout, stderr) => {
         if (error) {
-          const e = new Error((stderr || error.message).trim());
-          e.code = error.code;
-          e.stderr = stderr;
-          reject(e);
+          const failure = new Error((stderr || error.message).trim());
+          failure.code = error.code;
+          failure.stderr = stderr;
+          reject(failure);
         } else {
           resolve(stdout);
         }
@@ -122,8 +122,10 @@ const status = async (root) => {
     "--",
     ".",
   ]);
-  const inside = (p) =>
-    prefix && p.startsWith(prefix) ? p.slice(prefix.length) : p;
+  const inside = (filePath) =>
+    prefix && filePath.startsWith(prefix)
+      ? filePath.slice(prefix.length)
+      : filePath;
   const result = {
     branch: null,
     upstream: null,
@@ -133,8 +135,8 @@ const status = async (root) => {
     clean: true,
   };
   const parts = out.split("\0");
-  for (let i = 0; i < parts.length; i++) {
-    const line = parts[i];
+  for (let index = 0; index < parts.length; index++) {
+    const line = parts[index];
     if (!line) {
       continue;
     }
@@ -143,18 +145,24 @@ const status = async (root) => {
     } else if (line.startsWith("# branch.upstream ")) {
       result.upstream = line.slice(18);
     } else if (line.startsWith("# branch.ab ")) {
-      const m = /\+(\d+) -(\d+)/.exec(line);
-      if (m) {
-        result.ahead = +m[1];
-        result.behind = +m[2];
+      const match = /\+(\d+) -(\d+)/.exec(line);
+      if (match) {
+        result.ahead = +match[1];
+        result.behind = +match[2];
       }
     } else if (line[0] === "1") {
-      const f = line.split(" ");
-      result.changes.push({ path: inside(f.slice(8).join(" ")), code: f[1] });
+      const fields = line.split(" ");
+      result.changes.push({
+        path: inside(fields.slice(8).join(" ")),
+        code: fields[1],
+      });
     } else if (line[0] === "2") {
-      const f = line.split(" ");
-      result.changes.push({ path: inside(f.slice(9).join(" ")), code: f[1] });
-      i++; // the original path follows
+      const fields = line.split(" ");
+      result.changes.push({
+        path: inside(fields.slice(9).join(" ")),
+        code: fields[1],
+      });
+      index++; // the original path follows
     } else if (line[0] === "?") {
       result.changes.push({ path: inside(line.slice(2)), code: "??" });
     }
@@ -177,9 +185,9 @@ const commit = async (root, message, paths) => {
   try {
     await run(root, ["diff", "--cached", "--quiet", "--", "."]);
     return null; // nothing staged
-  } catch (e) {
-    if (e.code !== 1) {
-      throw e;
+  } catch (error) {
+    if (error.code !== 1) {
+      throw error;
     }
   }
   await run(root, ["commit", "-m", message, "--", "."]);
@@ -196,18 +204,18 @@ const log = async (root, relPath, limit = 50) => {
       "--format=%H%x1f%h%x1f%aI%x1f%s%x1e",
       ...(relPath ? ["--", relPath] : []),
     ]);
-  } catch (e) {
-    if (/does not have any commits|unknown revision/.test(e.message)) {
+  } catch (error) {
+    if (/does not have any commits|unknown revision/.test(error.message)) {
       return [];
     }
-    throw e;
+    throw error;
   }
   return out
     .split("\x1e")
-    .map((r) => r.trim())
+    .map((record) => record.trim())
     .filter(Boolean)
-    .map((r) => {
-      const [hash, short, date, subject] = r.split("\x1f");
+    .map((record) => {
+      const [hash, short, date, subject] = record.split("\x1f");
       return { hash, short, date, subject };
     });
 };
@@ -223,28 +231,28 @@ const showFile = (root, hash, relPath) => {
 
 /** a remote URL the app will accept: https, ssh, scp-like, file or an absolute path */
 const checkRemoteUrl = (url) => {
-  const u = String(url ?? "").trim();
+  const candidate = String(url ?? "").trim();
   if (
-    !u ||
-    u.startsWith("-") ||
-    /[\s\u0000-\u001f]/.test(u) ||
-    u.includes("::")
+    !candidate ||
+    candidate.startsWith("-") ||
+    /[\s\u0000-\u001f]/.test(candidate) ||
+    candidate.includes("::")
   ) {
     throw new Error("that is not a valid remote address");
   }
   const ok =
-    /^https:\/\/[^/]+\/.+/.test(u) ||
-    /^ssh:\/\/[^/]+\/.+/.test(u) ||
-    /^[\w.-]+@[\w.-]+:[^\s]+$/.test(u) ||
-    /^file:\/\/\/.+/.test(u) ||
-    /^\/[^\s]*$/.test(u) ||
-    /^[A-Za-z]:[\\/][^\s]*$/.test(u);
+    /^https:\/\/[^/]+\/.+/.test(candidate) ||
+    /^ssh:\/\/[^/]+\/.+/.test(candidate) ||
+    /^[\w.-]+@[\w.-]+:[^\s]+$/.test(candidate) ||
+    /^file:\/\/\/.+/.test(candidate) ||
+    /^\/[^\s]*$/.test(candidate) ||
+    /^[A-Za-z]:[\\/][^\s]*$/.test(candidate);
   if (!ok) {
     throw new Error(
       "use an https:// or ssh:// address, user@host:path, or a folder path",
     );
   }
-  return u;
+  return candidate;
 };
 
 /** @returns {{name, url}[]} fetch urls */
@@ -252,9 +260,9 @@ const remotes = async (root) => {
   const out = await run(root, ["remote", "-v"]);
   const seen = new Map();
   for (const line of out.split("\n")) {
-    const m = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line.trim());
-    if (m && !seen.has(m[1])) {
-      seen.set(m[1], m[2]);
+    const match = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line.trim());
+    if (match && !seen.has(match[1])) {
+      seen.set(match[1], match[2]);
     }
   }
   return [...seen].map(([name, url]) => ({ name, url }));
@@ -262,7 +270,7 @@ const remotes = async (root) => {
 
 const setRemote = async (root, url, name = "origin") => {
   const checked = checkRemoteUrl(url);
-  const have = (await remotes(root)).some((r) => r.name === name);
+  const have = (await remotes(root)).some((remote) => remote.name === name);
   await run(root, ["remote", have ? "set-url" : "add", name, checked]);
   return checked;
 };
@@ -313,8 +321,8 @@ const branchOff = async (root, branch, name = "origin") => {
 };
 
 /** files that differ between two commits */
-const changedBetween = async (root, a, b) =>
-  (await run(root, ["diff", "--relative", "--name-only", a, b]))
+const changedBetween = async (root, fromRef, toRef) =>
+  (await run(root, ["diff", "--relative", "--name-only", fromRef, toRef]))
     .split("\n")
     .filter(Boolean);
 

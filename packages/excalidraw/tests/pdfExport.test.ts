@@ -7,17 +7,17 @@ import {
 
 describe("pdf pages", () => {
   it("a page of the drawing's own size, plus the margin", () => {
-    const l = pdfLayout(800, 600, { ...DEFAULT_PDF_OPTIONS, margin: 10 });
-    expect(l.box).toBe("width:800px;height:600px");
+    const layout = pdfLayout(800, 600, { ...DEFAULT_PDF_OPTIONS, margin: 10 });
+    expect(layout.box).toBe("width:800px;height:600px");
     // 10 mm on each side is about 38 px
-    expect(l.pageCss).toBe("@page{size:876px 676px;margin:10mm}");
-    expect(l.scaled).toBe(false);
+    expect(layout.pageCss).toBe("@page{size:876px 676px;margin:10mm}");
+    expect(layout.scaled).toBe(false);
   });
 
   it("a drawing too big for a page is scaled down, never refused", () => {
-    const l = pdfLayout(40000, 20000, DEFAULT_PDF_OPTIONS);
-    expect(l.scaled).toBe(true);
-    expect(l.box).toBe("width:14000px;height:7000px");
+    const layout = pdfLayout(40000, 20000, DEFAULT_PDF_OPTIONS);
+    expect(layout.scaled).toBe(true);
+    expect(layout.box).toBe("width:14000px;height:7000px");
   });
 
   it("fixed pages follow the drawing's shape or the chosen orientation", () => {
@@ -37,14 +37,14 @@ describe("pdf pages", () => {
   });
 
   it("actual size keeps the drawing's pixels and counts the pages", () => {
-    const l = pdfLayout(700, 4000, {
+    const layout = pdfLayout(700, 4000, {
       ...DEFAULT_PDF_OPTIONS,
       page: "a4",
       scale: "actual",
       margin: 10,
     });
-    expect(l.box).toBe("width:700px;height:4000px");
-    expect(l.pages).toBeGreaterThan(3);
+    expect(layout.box).toBe("width:700px;height:4000px");
+    expect(layout.pages).toBeGreaterThan(3);
   });
 
   it("settings are cleaned up, and the page puts the drawing in a box", () => {

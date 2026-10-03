@@ -11,7 +11,8 @@ import {
 import { TOKENS } from "@excalidraw/symbols";
 
 const hue = (hex: string) => hexToHsl(hex).h;
-const gap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+const gap = (first: number, second: number) =>
+  Math.abs(((first - second + 540) % 360) - 180);
 
 describe("colour harmonies", () => {
   it("round-trips colours through HSL", () => {
@@ -51,19 +52,19 @@ describe("colour harmonies", () => {
     expect(gap(split[1], h0)).toBeCloseTo(150, 0);
     expect(gap(split[2], h0)).toBeCloseTo(150, 0);
     const square = harmony(base, "square").colors.map(hue);
-    expect([1, 2, 3].map((i) => Math.round(gap(square[i], h0)))).toEqual([
-      90, 180, 90,
-    ]);
+    expect(
+      [1, 2, 3].map((index) => Math.round(gap(square[index], h0))),
+    ).toEqual([90, 180, 90]);
     // monochromatic and shades keep one hue, shades step the lightness
     expect(
       new Set(
-        harmony(base, "monochromatic").colors.map((c) =>
-          Math.round(hue(c) / 3),
+        harmony(base, "monochromatic").colors.map((color) =>
+          Math.round(hue(color) / 3),
         ),
       ).size,
     ).toBe(1);
-    const ls = harmony(base, "shades").colors.map((c) => hexToHsl(c).l);
-    expect([...ls].sort((a, b) => a - b)).toEqual(ls);
+    const ls = harmony(base, "shades").colors.map((color) => hexToHsl(color).l);
+    expect([...ls].sort((first, second) => first - second)).toEqual(ls);
   });
 
   it("builds a whole theme: every token, readable, tinted by the base", () => {
@@ -75,41 +76,49 @@ describe("colour harmonies", () => {
         "#1fcf9b",
         "#6c5ce7",
       ]) {
-        const t = themeFromHarmony(base, "analogous", mode);
-        expect(Object.keys(t).sort()).toEqual([...TOKENS].sort());
+        const theme = themeFromHarmony(base, "analogous", mode);
+        expect(Object.keys(theme).sort()).toEqual([...TOKENS].sort());
         // text on the page and on a sheet, the label on the accent
-        expect(contrast(t.text, t.page)).toBeGreaterThan(7);
-        expect(contrast(t.text, t.surface)).toBeGreaterThan(7);
-        expect(contrast(t.onAccent, t.accent)).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(t.muted, t.page)).toBeGreaterThan(3);
+        expect(contrast(theme.text, theme.page)).toBeGreaterThan(7);
+        expect(contrast(theme.text, theme.surface)).toBeGreaterThan(7);
+        expect(contrast(theme.onAccent, theme.accent)).toBeGreaterThanOrEqual(
+          4.5,
+        );
+        expect(contrast(theme.muted, theme.page)).toBeGreaterThan(3);
         // light themes are light, dark ones dark
-        expect(hexToHsl(t.page).l).toBeGreaterThan(mode === "light" ? 90 : 0);
-        expect(hexToHsl(t.page).l).toBeLessThan(mode === "light" ? 101 : 20);
+        expect(hexToHsl(theme.page).l).toBeGreaterThan(
+          mode === "light" ? 90 : 0,
+        );
+        expect(hexToHsl(theme.page).l).toBeLessThan(
+          mode === "light" ? 101 : 20,
+        );
         // the neutrals lean to the base hue
         if (hexToHsl(base).s > 40) {
-          expect(gap(hue(t.surfaceAlt), hue(base))).toBeLessThan(12);
+          expect(gap(hue(theme.surfaceAlt), hue(base))).toBeLessThan(12);
         }
       }
     }
     // success is green-ish and danger red-ish
-    const t = themeFromHarmony("#4f8dff", "triad");
-    expect(gap(hue(t.success), 140)).toBeLessThan(50);
+    const theme = themeFromHarmony("#4f8dff", "triad");
+    expect(gap(hue(theme.success), 140)).toBeLessThan(50);
     expect(
-      Math.min(gap(hue(t.danger), 0), gap(hue(t.danger), 360)),
+      Math.min(gap(hue(theme.danger), 0), gap(hue(theme.danger), 360)),
     ).toBeLessThan(45);
   });
 
   it("takes a green or a red from the harmony when it has one", () => {
     // a green base: its harmony's success is the base's own neighbour
-    const t = themeFromHarmony("#2fa84f", "analogous");
-    expect(gap(hue(t.success), hue("#2fa84f"))).toBeLessThan(70);
+    const theme = themeFromHarmony("#2fa84f", "analogous");
+    expect(gap(hue(theme.success), hue("#2fa84f"))).toBeLessThan(70);
   });
 
   it("ships palettes of valid colours, and picks the most vivid", () => {
     expect(PALETTE_PRESETS.length).toBeGreaterThanOrEqual(12);
-    for (const p of PALETTE_PRESETS) {
-      expect(p.colors.length).toBeGreaterThanOrEqual(6);
-      expect(p.colors.every((c) => /^#[0-9a-f]{6}$/i.test(c))).toBe(true);
+    for (const preset of PALETTE_PRESETS) {
+      expect(preset.colors.length).toBeGreaterThanOrEqual(6);
+      expect(
+        preset.colors.every((color) => /^#[0-9a-f]{6}$/i.test(color)),
+      ).toBe(true);
     }
     expect(mostVivid(["#f4f4f7", "#808080", "#e8590c", "#222222"])).toBe(
       "#e8590c",

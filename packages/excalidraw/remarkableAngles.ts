@@ -35,18 +35,18 @@ const rad = (deg: number) => (deg * Math.PI) / 180;
 const TWO_PI = Math.PI * 2;
 
 /** the magnet: 0, 30, 45, 60, 90, 120, 135, 150 and their opposites */
-export const MAGNET_ANGLES = [0, 30, 45, 60, 90, 120, 135, 150].flatMap((a) => [
-  a,
-  a + 180,
-]);
+export const MAGNET_ANGLES = [0, 30, 45, 60, 90, 120, 135, 150].flatMap(
+  (degrees) => [degrees, degrees + 180],
+);
 export const MAGNET_TOLERANCE = rad(2.5);
 
-export const normalizeAngle = (a: number) => ((a % TWO_PI) + TWO_PI) % TWO_PI;
+export const normalizeAngle = (angle: number) =>
+  ((angle % TWO_PI) + TWO_PI) % TWO_PI;
 
 /** the signed shortest turn from `from` to `to` */
 const delta = (from: number, to: number) => {
-  const d = normalizeAngle(to - from);
-  return d > Math.PI ? d - TWO_PI : d;
+  const difference = normalizeAngle(to - from);
+  return difference > Math.PI ? difference - TWO_PI : difference;
 };
 
 /**
@@ -64,10 +64,10 @@ export const magnetAngle = (
     const base = rad(deg);
     const turns = Math.round((angle - base) / symmetry);
     const target = base + turns * symmetry;
-    const d = Math.abs(target - angle);
-    if (d < bestD) {
+    const separation = Math.abs(target - angle);
+    if (separation < bestD) {
       best = target;
-      bestD = d;
+      bestD = separation;
     }
   }
   return { angle: best, snapped: bestD <= tolerance };
@@ -105,24 +105,24 @@ export class AngleKeys {
 
   start = (win: Window, onChange?: () => void) => {
     this.end();
-    const down = (e: KeyboardEvent) => {
+    const down = (keyEvent: KeyboardEvent) => {
       if (
-        e.key in ANGLE_KEYS &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
+        keyEvent.key in ANGLE_KEYS &&
+        !keyEvent.ctrlKey &&
+        !keyEvent.metaKey &&
+        !keyEvent.altKey &&
         !["INPUT", "TEXTAREA", "SELECT"].includes(
-          (e.target as HTMLElement | null)?.tagName ?? "",
+          (keyEvent.target as HTMLElement | null)?.tagName ?? "",
         )
       ) {
-        this.held = e.key;
+        this.held = keyEvent.key;
         onChange?.();
-        e.preventDefault();
-        e.stopPropagation();
+        keyEvent.preventDefault();
+        keyEvent.stopPropagation();
       }
     };
-    const up = (e: KeyboardEvent) => {
-      if (e.key === this.held) {
+    const up = (keyEvent: KeyboardEvent) => {
+      if (keyEvent.key === this.held) {
         this.held = null;
         onChange?.();
       }
@@ -174,15 +174,15 @@ export const resolveAngle = (
     return { angle: stepAngle(raw), how: "step" };
   }
   if (!alt) {
-    const m = magnetAngle(raw, { symmetry });
-    if (m.snapped) {
-      return { angle: m.angle, how: "magnet" };
+    const magnet = magnetAngle(raw, { symmetry });
+    if (magnet.snapped) {
+      return { angle: magnet.angle, how: "magnet" };
     }
   }
   return { angle: raw, how: "free" };
 };
 
-export const toDegrees = (a: number) =>
-  Math.round(((normalizeAngle(a) * 180) / Math.PI) * 10) / 10;
+export const toDegrees = (angle: number) =>
+  Math.round(((normalizeAngle(angle) * 180) / Math.PI) * 10) / 10;
 
 export { delta as angleDelta };

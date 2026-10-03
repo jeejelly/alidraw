@@ -144,7 +144,7 @@ class Backup {
   localAssets(id) {
     const dir = path.join(this.workspaces.root(id), "assets");
     try {
-      return fs.readdirSync(dir).filter((n) => NAME.test(n));
+      return fs.readdirSync(dir).filter((fileName) => NAME.test(fileName));
     } catch {
       return [];
     }
@@ -179,7 +179,9 @@ class Backup {
       try {
         const result = await this.session(id, async (conn) => {
           const have = new Set(await conn.list());
-          const todo = this.localAssets(id).filter((n) => !have.has(n));
+          const todo = this.localAssets(id).filter(
+            (fileName) => !have.has(fileName),
+          );
           const failed = [];
           let uploaded = 0;
           for (const name of todo) {
@@ -189,8 +191,8 @@ class Backup {
                 name,
               );
               uploaded++;
-            } catch (e) {
-              failed.push({ name, message: e.message });
+            } catch (error) {
+              failed.push({ name, message: error.message });
             }
           }
           return {
@@ -201,8 +203,8 @@ class Backup {
           };
         });
         return this.report(id, result);
-      } catch (e) {
-        return this.report(id, this.fail(e));
+      } catch (error) {
+        return this.report(id, this.fail(error));
       } finally {
         this.running.delete(id);
       }
@@ -269,7 +271,7 @@ class Backup {
         await this.session(id, async (conn) => {
           const local = new Set(this.localAssets(id));
           const missing = (await conn.list()).filter(
-            (n) => NAME.test(n) && !local.has(n),
+            (fileName) => NAME.test(fileName) && !local.has(fileName),
           );
           const failed = [];
           let downloaded = 0;
@@ -281,15 +283,15 @@ class Backup {
                 resolveInside(this.workspaces.root(id), `assets/${name}`),
               );
               downloaded++;
-            } catch (e) {
-              failed.push({ name, message: e.message });
+            } catch (error) {
+              failed.push({ name, message: error.message });
             }
           }
           return { outcome: "fetched", downloaded, failed };
         }),
       );
-    } catch (e) {
-      return this.report(id, this.fail(e));
+    } catch (error) {
+      return this.report(id, this.fail(error));
     }
   }
 
@@ -301,10 +303,11 @@ class Backup {
     try {
       return await this.session(id, async (conn) => ({
         outcome: "ok",
-        files: (await conn.list()).filter((n) => NAME.test(n)).length,
+        files: (await conn.list()).filter((fileName) => NAME.test(fileName))
+          .length,
       }));
-    } catch (e) {
-      return this.fail(e);
+    } catch (error) {
+      return this.fail(error);
     }
   }
 
@@ -318,7 +321,7 @@ class Backup {
     const lines = fs.existsSync(ignore)
       ? fs.readFileSync(ignore, "utf8").split("\n")
       : [];
-    const without = lines.filter((l) => l.trim() !== IGNORE_LINE);
+    const without = lines.filter((line) => line.trim() !== IGNORE_LINE);
     if (!on) {
       fs.writeFileSync(ignore, `${without.join("\n").replace(/\n*$/, "")}\n`);
       this.workspaces.setMeta(id, { binaries: "git" });
@@ -334,7 +337,10 @@ class Backup {
             })`,
       );
     }
-    const kept = without.filter((l, i, a) => !(l === "" && i === a.length - 1));
+    const kept = without.filter(
+      (line, index, allLines) =>
+        !(line === "" && index === allLines.length - 1),
+    );
     fs.writeFileSync(
       ignore,
       `${[...kept, "# binaries live on the file server", IGNORE_LINE].join(

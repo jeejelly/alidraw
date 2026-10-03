@@ -27,7 +27,7 @@ import { newPathElement } from "../src/newElement";
 
 import type { ExcalidrawPathElement } from "../src/types";
 
-const P = (x: number, y: number) => pointFrom<LocalPoint>(x, y);
+const localPoint = (x: number, y: number) => pointFrom<LocalPoint>(x, y);
 
 const makePath = (
   opts: Partial<Pick<ExcalidrawPathElement, "points" | "handles" | "closed">>,
@@ -48,18 +48,20 @@ const makePath = (
 
 describe("path geometry", () => {
   it("a point without handles gives straight segments", () => {
-    const el = makePath({ points: [P(0, 0), P(10, 0), P(10, 10)] });
-    expect(getPathSegments(el).every((s) => s.straight)).toBe(true);
+    const el = makePath({
+      points: [localPoint(0, 0), localPoint(10, 0), localPoint(10, 10)],
+    });
+    expect(getPathSegments(el).every((segment) => segment.straight)).toBe(true);
     expect(getPathSvgD(el)).toBe("M 0 0 L 10 0 L 10 10");
     expect(getPathLocalBounds(el)).toEqual([0, 0, 10, 10]);
   });
 
   it("draws the cubic defined by the handles", () => {
     const el = makePath({
-      points: [P(0, 0), P(100, 0)],
+      points: [localPoint(0, 0), localPoint(100, 0)],
       handles: [
-        { mode: "broken", in: null, out: P(0, 50) },
-        { mode: "broken", in: P(0, 50), out: null },
+        { mode: "broken", in: null, out: localPoint(0, 50) },
+        { mode: "broken", in: localPoint(0, 50), out: null },
       ],
     });
     expect(getPathSvgD(el)).toBe("M 0 0 C 0 50 100 50 100 0");
@@ -71,7 +73,7 @@ describe("path geometry", () => {
 
   it("closed paths add the closing segment", () => {
     const el = makePath({
-      points: [P(0, 0), P(10, 0), P(10, 10)],
+      points: [localPoint(0, 0), localPoint(10, 0), localPoint(10, 10)],
       closed: true,
     });
     expect(getPathSegments(el)).toHaveLength(3);
@@ -84,7 +86,12 @@ describe("path geometry", () => {
       width: 40,
       height: 20,
     });
-    expect(rect.points).toEqual([P(0, 0), P(40, 0), P(40, 20), P(0, 20)]);
+    expect(rect.points).toEqual([
+      localPoint(0, 0),
+      localPoint(40, 0),
+      localPoint(40, 20),
+      localPoint(0, 20),
+    ]);
 
     const ellipse = getPathGeometryFromShape({
       type: "ellipse",
@@ -99,8 +106,8 @@ describe("path geometry", () => {
     expect(maxY).toBeCloseTo(20, 1);
     // every flattened point sits on the ellipse
     for (const [x, y] of flattenPath(el)) {
-      const v = ((x - 20) / 20) ** 2 + ((y - 10) / 10) ** 2;
-      expect(v).toBeCloseTo(1, 2);
+      const ellipseValue = ((x - 20) / 20) ** 2 + ((y - 10) / 10) ** 2;
+      expect(ellipseValue).toBeCloseTo(1, 2);
     }
   });
 });
@@ -108,40 +115,48 @@ describe("path geometry", () => {
 describe("path editing", () => {
   const curved = () =>
     makePath({
-      points: [P(0, 0), P(100, 0)],
+      points: [localPoint(0, 0), localPoint(100, 0)],
       handles: [
-        { mode: "broken", in: null, out: P(0, 60) },
-        { mode: "broken", in: P(0, 60), out: null },
+        { mode: "broken", in: null, out: localPoint(0, 60) },
+        { mode: "broken", in: localPoint(0, 60), out: null },
       ],
     });
 
   it("a smooth point keeps its handles collinear while one is dragged", () => {
     const next = dragPathHandle(
-      { mode: "smooth", in: P(-10, 0), out: P(20, 0) },
+      { mode: "smooth", in: localPoint(-10, 0), out: localPoint(20, 0) },
       "out",
-      P(0, 30),
+      localPoint(0, 30),
     );
-    expect(next.out).toEqual(P(0, 30));
+    expect(next.out).toEqual(localPoint(0, 30));
     // `in` turns around, and keeps its own length
     expect(next.in![0]).toBeCloseTo(0);
     expect(next.in![1]).toBeCloseTo(-10);
   });
 
   it("dragging a handle out of a corner makes the point broken", () => {
-    const next = dragPathHandle(NO_HANDLES, "out", P(5, 5));
+    const next = dragPathHandle(NO_HANDLES, "out", localPoint(5, 5));
     expect(next.mode).toBe("broken");
-    expect(next.out).toEqual(P(5, 5));
+    expect(next.out).toEqual(localPoint(5, 5));
     expect(next.in).toBeNull();
   });
 
   it("switches a point between corner, smooth and broken", () => {
-    const el = makePath({ points: [P(0, 0), P(50, 0), P(100, 50)] });
+    const el = makePath({
+      points: [localPoint(0, 0), localPoint(50, 0), localPoint(100, 50)],
+    });
     const smooth = setPathPointMode(el, 1, "smooth");
-    const h = smooth.handles[1];
-    expect(h.mode).toBe("smooth");
+    const pointHandles = smooth.handles[1];
+    expect(pointHandles.mode).toBe("smooth");
     // tangent follows the neighbours and both handles are collinear
-    expect(h.in![0] * h.out![1] - h.in![1] * h.out![0]).toBeCloseTo(0);
-    expect(h.in![0] * h.out![0] + h.in![1] * h.out![1]).toBeLessThan(0);
+    expect(
+      pointHandles.in![0] * pointHandles.out![1] -
+        pointHandles.in![1] * pointHandles.out![0],
+    ).toBeCloseTo(0);
+    expect(
+      pointHandles.in![0] * pointHandles.out![0] +
+        pointHandles.in![1] * pointHandles.out![1],
+    ).toBeLessThan(0);
 
     const corner = setPathPointMode(
       { ...el, handles: smooth.handles },
@@ -189,26 +204,43 @@ describe("path editing", () => {
   });
 
   it("inserting on a straight segment adds a corner point", () => {
-    const el = makePath({ points: [P(0, 0), P(10, 0)] });
+    const el = makePath({ points: [localPoint(0, 0), localPoint(10, 0)] });
     const inserted = insertPathPoint(el, 0, 0.5)!;
-    expect(inserted.points[1]).toEqual(P(5, 0));
+    expect(inserted.points[1]).toEqual(localPoint(5, 0));
     expect(inserted.handles[1]).toEqual(NO_HANDLES);
   });
 
   it("deleting a point leaves the others where they are", () => {
-    const el = makePath({ points: [P(0, 0), P(10, 0), P(20, 5), P(30, 0)] });
+    const el = makePath({
+      points: [
+        localPoint(0, 0),
+        localPoint(10, 0),
+        localPoint(20, 5),
+        localPoint(30, 0),
+      ],
+    });
     const next = deletePathPoint(el, 1)!;
-    expect(next.points).toEqual([P(0, 0), P(20, 5), P(30, 0)]);
+    expect(next.points).toEqual([
+      localPoint(0, 0),
+      localPoint(20, 5),
+      localPoint(30, 0),
+    ]);
     expect(next.handles).toHaveLength(3);
   });
 
   it("never deletes below two points (three when closed)", () => {
     expect(
-      deletePathPoint(makePath({ points: [P(0, 0), P(1, 1)] }), 0),
+      deletePathPoint(
+        makePath({ points: [localPoint(0, 0), localPoint(1, 1)] }),
+        0,
+      ),
     ).toBeNull();
     expect(
       deletePathPoint(
-        makePath({ points: [P(0, 0), P(1, 1), P(2, 0)], closed: true }),
+        makePath({
+          points: [localPoint(0, 0), localPoint(1, 1), localPoint(2, 0)],
+          closed: true,
+        }),
         0,
       ),
     ).toBeNull();
@@ -216,15 +248,15 @@ describe("path editing", () => {
 
   it("moving an anchor carries its handles along", () => {
     const el = curved();
-    const next = movePathPoint(el, 0, P(10, 10));
-    expect(next.points[0]).toEqual(P(10, 10));
+    const next = movePathPoint(el, 0, localPoint(10, 10));
+    expect(next.points[0]).toEqual(localPoint(10, 10));
     expect(next.handles).toEqual(el.handles);
   });
 
   it("normalizes the element frame after an edit", () => {
-    const el = makePath({ points: [P(0, 0), P(10, 0)] });
-    const update = getPathUpdate(el, movePathPoint(el, 0, P(-5, -5)));
-    expect(update.points).toEqual([P(0, 0), P(15, 5)]);
+    const el = makePath({ points: [localPoint(0, 0), localPoint(10, 0)] });
+    const update = getPathUpdate(el, movePathPoint(el, 0, localPoint(-5, -5)));
+    expect(update.points).toEqual([localPoint(0, 0), localPoint(15, 5)]);
     expect(update.x).toBe(95);
     expect(update.y).toBe(45);
     expect(update.width).toBe(15);
@@ -233,32 +265,39 @@ describe("path editing", () => {
 
   it("keeps unmoved anchors in place on a rotated element", () => {
     const el = {
-      ...makePath({ points: [P(0, 0), P(100, 0), P(100, 40)] }),
+      ...makePath({
+        points: [localPoint(0, 0), localPoint(100, 0), localPoint(100, 40)],
+      }),
       angle: 0.7 as any,
     };
     const toScene = (
-      e: { x: number; y: number; angle: number; points: readonly LocalPoint[] },
-      i: number,
+      element: {
+        x: number;
+        y: number;
+        angle: number;
+        points: readonly LocalPoint[];
+      },
+      index: number,
     ) => {
       const [minX, minY, maxX, maxY] = getPathLocalBounds({
-        points: e.points,
-        handles: e.points.map(() => NO_HANDLES),
+        points: element.points,
+        handles: element.points.map(() => NO_HANDLES),
         closed: false,
       });
-      const cx = e.x + (minX + maxX) / 2;
-      const cy = e.y + (minY + maxY) / 2;
-      const dx = e.x + e.points[i][0] - cx;
-      const dy = e.y + e.points[i][1] - cy;
-      const cos = Math.cos(e.angle);
-      const sin = Math.sin(e.angle);
+      const cx = element.x + (minX + maxX) / 2;
+      const cy = element.y + (minY + maxY) / 2;
+      const dx = element.x + element.points[index][0] - cx;
+      const dy = element.y + element.points[index][1] - cy;
+      const cos = Math.cos(element.angle);
+      const sin = Math.sin(element.angle);
       return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
     };
-    const geometry = movePathPoint(el, 2, P(100, 200));
+    const geometry = movePathPoint(el, 2, localPoint(100, 200));
     const update = getPathUpdate(el, geometry);
     const next = { ...el, ...update };
-    for (const i of [0, 1]) {
-      const [ax, ay] = toScene(el, i);
-      const [bx, by] = toScene(next, i);
+    for (const index of [0, 1]) {
+      const [ax, ay] = toScene(el, index);
+      const [bx, by] = toScene(next, index);
       expect(bx).toBeCloseTo(ax, 6);
       expect(by).toBeCloseTo(ay, 6);
     }
@@ -266,9 +305,9 @@ describe("path editing", () => {
 
   it("setPathHandle updates the handle of one point only", () => {
     const el = curved();
-    const next = setPathHandle(el, 1, "in", P(0, 20));
+    const next = setPathHandle(el, 1, "in", localPoint(0, 20));
     expect(next.handles[0]).toEqual(el.handles[0]);
-    expect(next.handles[1].in).toEqual(P(0, 20));
+    expect(next.handles[1].in).toEqual(localPoint(0, 20));
   });
 
   it("scaling mirrors points and handles, keeping the curve at the origin", () => {
@@ -277,26 +316,26 @@ describe("path editing", () => {
     const bounds = getPathLocalBounds({ ...next, closed: false });
     expect(bounds[0]).toBeCloseTo(0);
     expect(bounds[1]).toBeCloseTo(0);
-    expect(next.handles[0].out).toEqual(P(-0, 120));
+    expect(next.handles[0].out).toEqual(localPoint(-0, 120));
   });
 });
 
 describe("hard and soft points in one path", () => {
   it("a hard point next to a smooth one curves on the smooth side only", () => {
     const el = makePath({
-      points: [P(0, 0), P(100, 0), P(200, 0)],
+      points: [localPoint(0, 0), localPoint(100, 0), localPoint(200, 0)],
       handles: [
         { mode: "corner", in: null, out: null },
-        { mode: "smooth", in: P(-30, 0), out: P(30, 40) },
-        { mode: "corner", in: P(0, 20), out: null },
+        { mode: "smooth", in: localPoint(-30, 0), out: localPoint(30, 40) },
+        { mode: "corner", in: localPoint(0, 20), out: null },
       ],
     });
     const [s1, s2] = getPathSegments(el);
     // corner -> smooth: bends toward the smooth point's incoming tangent
     expect(s1.c1).toEqual(s1.p0);
-    expect(s1.c2).toEqual(P(70, 0));
+    expect(s1.c2).toEqual(localPoint(70, 0));
     // smooth -> corner: the corner's hidden tangent is not used
-    expect(s2.c1).toEqual(P(130, 40));
+    expect(s2.c1).toEqual(localPoint(130, 40));
     expect(s2.c2).toEqual(s2.p1);
   });
 });
@@ -304,10 +343,10 @@ describe("hard and soft points in one path", () => {
 describe("deleting a point keeps the curve", () => {
   it("refits the neighbours after a split point is removed", () => {
     const el = makePath({
-      points: [P(0, 0), P(100, 0)],
+      points: [localPoint(0, 0), localPoint(100, 0)],
       handles: [
-        { mode: "broken", in: null, out: P(0, 60) },
-        { mode: "broken", in: P(0, 60), out: null },
+        { mode: "broken", in: null, out: localPoint(0, 60) },
+        { mode: "broken", in: localPoint(0, 60), out: null },
       ],
     });
     const before = flattenPath(el, 100);
@@ -333,49 +372,59 @@ describe("deleting a point keeps the curve", () => {
 describe("opening and closing", () => {
   it("closing smooths the seam of a smooth end point", () => {
     const el = makePath({
-      points: [P(0, 0), P(100, 0), P(100, 100)],
+      points: [localPoint(0, 0), localPoint(100, 0), localPoint(100, 100)],
       handles: [
-        { mode: "smooth", in: null, out: P(20, -20) },
+        { mode: "smooth", in: null, out: localPoint(20, -20) },
         NO_HANDLES,
         NO_HANDLES,
       ],
     });
     const closed = setPathClosed(el, true)!;
     expect(closed.closed).toBe(true);
-    expect(closed.handles[0].in).toEqual(P(-20, 20));
+    expect(closed.handles[0].in).toEqual(localPoint(-20, 20));
   });
 
   it("closing leaves a hard start a corner", () => {
-    const el = makePath({ points: [P(0, 0), P(100, 0), P(100, 100)] });
+    const el = makePath({
+      points: [localPoint(0, 0), localPoint(100, 0), localPoint(100, 100)],
+    });
     const closed = setPathClosed(el, true)!;
     expect(closed.handles[0]).toEqual(NO_HANDLES);
   });
 
   it("closing folds a last point that sits on the first", () => {
     const el = makePath({
-      points: [P(0, 0), P(100, 0), P(100, 100), P(0.2, 0.1)],
+      points: [
+        localPoint(0, 0),
+        localPoint(100, 0),
+        localPoint(100, 100),
+        localPoint(0.2, 0.1),
+      ],
       handles: [
         NO_HANDLES,
         NO_HANDLES,
         NO_HANDLES,
-        { mode: "smooth", in: P(-5, 5), out: null },
+        { mode: "smooth", in: localPoint(-5, 5), out: null },
       ],
     });
     const closed = setPathClosed(el, true)!;
     expect(closed.points).toHaveLength(3);
-    expect(closed.handles[0].in).toEqual(P(-5, 5));
+    expect(closed.handles[0].in).toEqual(localPoint(-5, 5));
   });
 
   it("opening keeps every point, and too short paths cannot close", () => {
     const el = makePath({
-      points: [P(0, 0), P(100, 0), P(100, 100)],
+      points: [localPoint(0, 0), localPoint(100, 0), localPoint(100, 100)],
       closed: true,
     });
     const open = setPathClosed(el, false)!;
     expect(open.closed).toBe(false);
     expect(open.points).toHaveLength(3);
     expect(
-      setPathClosed(makePath({ points: [P(0, 0), P(1, 1)] }), true),
+      setPathClosed(
+        makePath({ points: [localPoint(0, 0), localPoint(1, 1)] }),
+        true,
+      ),
     ).toBeNull();
     expect(setPathClosed(el, true)).toBeNull(); // already closed
   });
@@ -383,67 +432,94 @@ describe("opening and closing", () => {
 
 describe("split and join", () => {
   const open = () =>
-    makePath({ points: [P(0, 0), P(50, 0), P(100, 50), P(150, 0)] });
+    makePath({
+      points: [
+        localPoint(0, 0),
+        localPoint(50, 0),
+        localPoint(100, 50),
+        localPoint(150, 0),
+      ],
+    });
 
   it("splits an open path in two sharing the cut point", () => {
-    const [a, b] = splitPathAt(open(), 2)!;
-    expect(a.points).toEqual([P(0, 0), P(50, 0), P(100, 50)]);
-    expect(b.points).toEqual([P(100, 50), P(150, 0)]);
+    const [first, second] = splitPathAt(open(), 2)!;
+    expect(first.points).toEqual([
+      localPoint(0, 0),
+      localPoint(50, 0),
+      localPoint(100, 50),
+    ]);
+    expect(second.points).toEqual([localPoint(100, 50), localPoint(150, 0)]);
     expect(splitPathAt(open(), 0)).toBeNull();
     expect(splitPathAt(open(), 3)).toBeNull();
   });
 
   it("a closed path cut at a point becomes one open path from there back to there", () => {
     const el = makePath({
-      points: [P(0, 0), P(10, 0), P(10, 10)],
+      points: [localPoint(0, 0), localPoint(10, 0), localPoint(10, 10)],
       closed: true,
     });
     const [only] = splitPathAt(el, 1)!;
-    expect(only.points).toEqual([P(10, 0), P(10, 10), P(0, 0), P(10, 0)]);
+    expect(only.points).toEqual([
+      localPoint(10, 0),
+      localPoint(10, 10),
+      localPoint(0, 0),
+      localPoint(10, 0),
+    ]);
   });
 
   it("joins two paths, merging ends that coincide", () => {
-    const [a, b] = splitPathAt(open(), 2)!;
-    const joined = joinPathGeometries(a, b);
+    const [first, second] = splitPathAt(open(), 2)!;
+    const joined = joinPathGeometries(first, second);
     expect(joined.points).toEqual(open().points);
   });
 
   it("bridges ends that do not meet, and reverses a path", () => {
-    const a = {
-      points: [P(0, 0), P(10, 0)],
+    const first = {
+      points: [localPoint(0, 0), localPoint(10, 0)],
       handles: [NO_HANDLES, NO_HANDLES],
     };
-    const b = {
-      points: [P(30, 0), P(40, 0)],
+    const second = {
+      points: [localPoint(30, 0), localPoint(40, 0)],
       handles: [NO_HANDLES, NO_HANDLES],
     };
-    expect(joinPathGeometries(a, b).points).toHaveLength(4);
-    const r = reversePathGeometry({
-      points: [P(0, 0), P(10, 0)],
+    expect(joinPathGeometries(first, second).points).toHaveLength(4);
+    const reversed = reversePathGeometry({
+      points: [localPoint(0, 0), localPoint(10, 0)],
       handles: [
-        { mode: "broken", in: null, out: P(1, 1) },
-        { mode: "broken", in: P(2, 2), out: null },
+        { mode: "broken", in: null, out: localPoint(1, 1) },
+        { mode: "broken", in: localPoint(2, 2), out: null },
       ],
     });
-    expect(r.points).toEqual([P(10, 0), P(0, 0)]);
-    expect(r.handles[0]).toEqual({ mode: "broken", in: null, out: P(2, 2) });
-    expect(r.handles[1]).toEqual({ mode: "broken", in: P(1, 1), out: null });
+    expect(reversed.points).toEqual([localPoint(10, 0), localPoint(0, 0)]);
+    expect(reversed.handles[0]).toEqual({
+      mode: "broken",
+      in: null,
+      out: localPoint(2, 2),
+    });
+    expect(reversed.handles[1]).toEqual({
+      mode: "broken",
+      in: localPoint(1, 1),
+      out: null,
+    });
   });
 
   it("scene geometry turns points and handles with the element", () => {
     const el = {
       ...makePath({
-        points: [P(0, 0), P(100, 0)],
-        handles: [{ mode: "broken", in: null, out: P(10, 0) }, NO_HANDLES],
+        points: [localPoint(0, 0), localPoint(100, 0)],
+        handles: [
+          { mode: "broken", in: null, out: localPoint(10, 0) },
+          NO_HANDLES,
+        ],
       }),
       angle: (Math.PI / 2) as any,
     };
-    const g = getPathSceneGeometry(el);
+    const geometry = getPathSceneGeometry(el);
     // a quarter turn about the middle of the path
-    expect(g.points[0][0]).toBeCloseTo(150, 5);
-    expect(g.points[0][1]).toBeCloseTo(0, 5);
-    expect(g.handles[0].out![0]).toBeCloseTo(0, 5);
-    expect(g.handles[0].out![1]).toBeCloseTo(10, 5);
+    expect(geometry.points[0][0]).toBeCloseTo(150, 5);
+    expect(geometry.points[0][1]).toBeCloseTo(0, 5);
+    expect(geometry.handles[0].out![0]).toBeCloseTo(0, 5);
+    expect(geometry.handles[0].out![1]).toBeCloseTo(10, 5);
   });
 });
 
@@ -466,9 +542,9 @@ describe("bevel", () => {
   };
   const area = (poly: readonly LocalPoint[]) =>
     Math.abs(
-      poly.reduce((a, p, i) => {
-        const q = poly[(i + 1) % poly.length];
-        return a + (p[0] * q[1] - q[0] * p[1]);
+      poly.reduce((sum, point, index) => {
+        const next = poly[(index + 1) % poly.length];
+        return sum + (point[0] * next[1] - next[0] * point[1]);
       }, 0) / 2,
     );
 
@@ -482,12 +558,12 @@ describe("bevel", () => {
   });
 
   it("keeps the anchors and the size, only the drawn outline changes", () => {
-    const g = square(20);
-    expect(bevelLoop(g).points).toHaveLength(8);
-    expect(g.points).toHaveLength(4);
-    const [x1, y1, x2, y2] = getPathLocalBounds(g);
+    const geometry = square(20);
+    expect(bevelLoop(geometry).points).toHaveLength(8);
+    expect(geometry.points).toHaveLength(4);
+    const [x1, y1, x2, y2] = getPathLocalBounds(geometry);
     expect([x1, y1, x2, y2]).toEqual([0, 0, 100, 100]);
-    expect(getPathSvgD(g)).toContain("C");
+    expect(getPathSvgD(geometry)).toContain("C");
   });
 
   it("limits the radius to what the sides allow", () => {
@@ -512,16 +588,21 @@ describe("bevel", () => {
   });
 
   it("setPathBevel sets and clears radii", () => {
-    const g = square();
-    expect(setPathBevel(g, 8).handles.every((h) => h.radius === 8)).toBe(true);
-    expect(setPathBevel(g, 8, [1]).handles.map((h) => h.radius)).toEqual([
-      undefined,
-      8,
-      undefined,
-      undefined,
-    ]);
+    const geometry = square();
     expect(
-      setPathBevel(setPathBevel(g, 8), 0).handles.some((h) => "radius" in h),
+      setPathBevel(geometry, 8).handles.every(
+        (pointHandles) => pointHandles.radius === 8,
+      ),
+    ).toBe(true);
+    expect(
+      setPathBevel(geometry, 8, [1]).handles.map(
+        (pointHandles) => pointHandles.radius,
+      ),
+    ).toEqual([undefined, 8, undefined, undefined]);
+    expect(
+      setPathBevel(setPathBevel(geometry, 8), 0).handles.some(
+        (pointHandles) => "radius" in pointHandles,
+      ),
     ).toBe(false);
   });
 });

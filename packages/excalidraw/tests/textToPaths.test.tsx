@@ -18,7 +18,7 @@ import { API } from "./helpers/api";
 import { act, render, unmountComponent } from "./test-utils";
 
 unmountComponent();
-const { h } = window;
+const handle = window.h;
 
 /** the real font files of the repo, as the app would fetch them */
 const fontsDir = path.join(__dirname, "..", "fonts", "Nunito");
@@ -32,7 +32,7 @@ const loader: FontLoader = async (_family, cp) => {
     const { decompress } = await loadWoff2();
     for (const file of fs
       .readdirSync(fontsDir)
-      .filter((f) => f.endsWith(".woff2"))) {
+      .filter((fontFile) => fontFile.endsWith(".woff2"))) {
       const buf = fs.readFileSync(path.join(fontsDir, file));
       const ttf = decompress(
         buf.buffer.slice(
@@ -45,7 +45,7 @@ const loader: FontLoader = async (_family, cp) => {
   }
   return (
     cache.find(
-      (f) => (f as any).charToGlyphIndex(String.fromCodePoint(cp)) > 0,
+      (font) => (font as any).charToGlyphIndex(String.fromCodePoint(cp)) > 0,
     ) ?? null
   );
 };
@@ -65,20 +65,26 @@ describe("text to vectors", () => {
     expect(out).toBeTruthy();
     // four letters, four paths, one group, all of them paths
     expect(out.elements).toHaveLength(4);
-    expect(new Set(out.elements.map((e) => e.type))).toEqual(new Set(["path"]));
-    expect(new Set(out.elements.map((e) => e.groupIds[0])).size).toBe(1);
-    expect(out.elements.every((e) => e.backgroundColor === "#e03131")).toBe(
-      true,
+    expect(new Set(out.elements.map((element) => element.type))).toEqual(
+      new Set(["path"]),
     );
+    expect(
+      new Set(out.elements.map((element) => element.groupIds[0])).size,
+    ).toBe(1);
+    expect(
+      out.elements.every((element) => element.backgroundColor === "#e03131"),
+    ).toBe(true);
     // the O and the b have a counter: a hole (a contour) each
-    const holes = out.elements.map((e) => ((e as any).contours ?? []).length);
+    const holes = out.elements.map(
+      (element) => ((element as any).contours ?? []).length,
+    );
     expect(holes[0]).toBeGreaterThan(0);
     expect(holes[2]).toBeGreaterThan(0); // b
     expect(holes[1]).toBe(0); // h has none
     // the letters sit inside the text's box, the second line below the first
-    const [o, , b] = out.elements;
-    expect(o.x).toBeGreaterThanOrEqual(text.x - 2);
-    expect(b.y).toBeGreaterThan(o.y + 20);
+    const [first, , last] = out.elements;
+    expect(first.x).toBeGreaterThanOrEqual(text.x - 2);
+    expect(last.y).toBeGreaterThan(first.y + 20);
     expect(out.missing).toEqual([]);
   });
 
@@ -132,13 +138,15 @@ describe("text to vectors", () => {
       API.setElements([text]);
       API.setSelectedElements([text]);
       await act(async () => {
-        await h.app.actionManager.executeAction(actionTextToVectors);
+        await handle.app.actionManager.executeAction(actionTextToVectors);
       });
-      const live = h.elements.filter((e) => !e.isDeleted);
-      expect(live.every((e) => e.type === "path")).toBe(true);
+      const live = handle.elements.filter((element) => !element.isDeleted);
+      expect(live.every((element) => element.type === "path")).toBe(true);
       expect(live).toHaveLength(2);
-      expect(Object.keys(h.state.selectedElementIds)).toHaveLength(2);
-      expect(h.elements.find((e) => e.id === text.id)!.isDeleted).toBe(true);
+      expect(Object.keys(handle.state.selectedElementIds)).toHaveLength(2);
+      expect(
+        handle.elements.find((element) => element.id === text.id)!.isDeleted,
+      ).toBe(true);
     } finally {
       setOutlineFontLoader(null);
     }

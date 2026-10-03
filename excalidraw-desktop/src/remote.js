@@ -41,8 +41,8 @@ const connectSftp = async (cfg, password) => {
   await new Promise((resolve, reject) => {
     client
       .on("ready", resolve)
-      .on("error", (e) =>
-        reject(seen && !cfg.hostKey ? new HostKeyError(seen, false) : e),
+      .on("error", (error) =>
+        reject(seen && !cfg.hostKey ? new HostKeyError(seen, false) : error),
       )
       .connect({
         host: cfg.host,
@@ -56,44 +56,48 @@ const connectSftp = async (cfg, password) => {
           return !!cfg.hostKey && cfg.hostKey === seen;
         },
       });
-  }).catch((e) => {
+  }).catch((error) => {
     if (seen && cfg.hostKey && cfg.hostKey !== seen) {
       throw new HostKeyError(seen, true);
     }
-    throw e;
+    throw error;
   });
   const sftp = await new Promise((resolve, reject) =>
-    client.sftp((e, s) => (e ? reject(e) : resolve(s))),
+    client.sftp((error, sftpSession) =>
+      error ? reject(error) : resolve(sftpSession),
+    ),
   );
-  const p = (fn, ...args) =>
+  const sftpCall = (fn, ...args) =>
     new Promise((resolve, reject) =>
-      sftp[fn](...args, (e, v) => (e ? reject(e) : resolve(v))),
+      sftp[fn](...args, (error, value) =>
+        error ? reject(error) : resolve(value),
+      ),
     );
   const dir = cfg.dir || ".";
   return {
     async ensure() {
       try {
-        await p("stat", dir);
+        await sftpCall("stat", dir);
       } catch {
         let acc = dir.startsWith("/") ? "" : ".";
         for (const part of dir.split("/").filter(Boolean)) {
           acc = acc ? `${acc}/${part}` : part;
-          await p("mkdir", acc).catch(() => {});
+          await sftpCall("mkdir", acc).catch(() => {});
         }
       }
     },
     async list() {
-      return (await p("readdir", dir)).map((e) => e.filename);
+      return (await sftpCall("readdir", dir)).map((entry) => entry.filename);
     },
     async put(localPath, name) {
       const target = join(dir, name);
       // written under another name, then renamed: a cut connection never leaves a half file
       const tmp = `${target}.part`;
-      await p("fastPut", localPath, tmp);
-      await p("unlink", target).catch(() => {});
-      await p("rename", tmp, target);
+      await sftpCall("fastPut", localPath, tmp);
+      await sftpCall("unlink", target).catch(() => {});
+      await sftpCall("rename", tmp, target);
     },
-    get: (name, localPath) => p("fastGet", join(dir, name), localPath),
+    get: (name, localPath) => sftpCall("fastGet", join(dir, name), localPath),
     close: async () => client.end(),
     fingerprint: () => seen,
   };
@@ -120,7 +124,7 @@ const connectFtp = async (cfg, password) => {
     ensure: () => client.ensureDir(dir),
     async list() {
       await client.cd(dir);
-      return (await client.list()).map((e) => e.name);
+      return (await client.list()).map((entry) => entry.name);
     },
     async put(localPath, name) {
       safeName(name);
