@@ -9,6 +9,7 @@ import {
   getElementAbsoluteCoords,
   getPathUpdate,
   isPathElement,
+  type MirrorLine,
   withPathLoopGeometry,
 } from "@excalidraw/element";
 
@@ -30,6 +31,12 @@ const DOUBLE_CLICK_MS = 400;
 
 export type ScenePoint = { x: number; y: number };
 
+/** the mirror line of a gesture and the sibling of each point, fixed when it starts */
+export type PathMirror = {
+  line: MirrorLine;
+  pairs: ReadonlyMap<number, number>;
+};
+
 export type PathGesture =
   | {
       kind: "anchor";
@@ -40,6 +47,7 @@ export type PathGesture =
       grab: [number, number];
       /** the points that travel with it: the selection it belongs to */
       indexes: number[];
+      mirror?: PathMirror;
     }
   | {
       kind: "handle";
@@ -47,7 +55,9 @@ export type PathGesture =
       index: number;
       side: "in" | "out";
       original: ExcalidrawPathElement;
+      mirror?: PathMirror;
     }
+  | { kind: "mirror-line"; original: ExcalidrawPathElement }
   | { kind: "marquee"; loop: number; start: ScenePoint; base: number[] }
   | { kind: "pen-handle"; index: number };
 
@@ -175,9 +185,19 @@ export class PathContext {
     selectedPoint: number | null = null,
     loop = 0,
   ) => {
-    this.app.setState({
-      editingPath: elementId ? { elementId, selectedPoint, loop } : null,
-    });
+    this.app.setState((prevState) => ({
+      editingPath: elementId
+        ? {
+            elementId,
+            selectedPoint,
+            loop,
+            // the mirror line stays with the path being edited
+            ...(prevState.editingPath?.elementId === elementId
+              ? { mirror: prevState.editingPath.mirror }
+              : {}),
+          }
+        : null,
+    }));
   };
 
   private patchEditing = (patch: Partial<NonNullable<EditingPath>>) =>
@@ -194,6 +214,9 @@ export class PathContext {
       selectedPoints: indexes,
       loop,
     });
+
+  setMirror = (mirror: NonNullable<EditingPath>["mirror"]) =>
+    this.patchEditing({ mirror });
 
   setMarquee = (marquee: NonNullable<EditingPath>["marquee"]) =>
     this.patchEditing({ marquee });

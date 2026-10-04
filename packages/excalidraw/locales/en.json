@@ -373,6 +373,9 @@
       "openPath": "Open path",
       "split": "Split here",
       "join": "Join paths",
+      "mirror": "Mirror",
+      "mirrorVertical": "Mirror across a vertical line: points on each side move together",
+      "mirrorHorizontal": "Mirror across a horizontal line: points on each side move together",
       "done": "Done"
     },
     "lineEditor": {

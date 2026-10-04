@@ -114,6 +114,23 @@ export const PathEditorPanel = ({ app }: { app: App }) => {
       >
         {t("labels.path.split")}
       </button>
+      {(["x", "y"] as const).map((axis) => (
+        <button
+          key={axis}
+          type="button"
+          data-testid={`path-mirror-${axis}`}
+          title={t(
+            axis === "x"
+              ? "labels.path.mirrorVertical"
+              : "labels.path.mirrorHorizontal",
+          )}
+          aria-pressed={editing.mirror?.axis === axis}
+          style={buttonStyle(editing.mirror?.axis === axis, false)}
+          onClick={() => app.path.toggleMirror(axis)}
+        >
+          {axis === "x" ? "↔" : "↕"} {t("labels.path.mirror")}
+        </button>
+      ))}
       <button
         type="button"
         data-testid="path-editor-done"

@@ -2,6 +2,10 @@ import { KEYS } from "@excalidraw/common";
 import { pointFrom, type LocalPoint } from "@excalidraw/math";
 import {
   NO_HANDLES,
+  applyMirror,
+  type MirrorLine,
+  centerMirrorLine,
+  findMirrorPairs,
   deletePathPoint,
   dragPathHandle,
   getClosestPathLoopSegment,
@@ -25,7 +29,12 @@ import type React from "react";
 
 import type { AppState } from "../../types";
 
-import type { PathContext, PathGesture, ScenePoint } from "./context";
+import type {
+  PathContext,
+  PathGesture,
+  PathMirror,
+  ScenePoint,
+} from "./context";
 
 /** radius of an anchor/handle hit area, in screen px */
 const HIT_RADIUS = 9;
@@ -55,6 +64,67 @@ export class PathPointEditor {
   private get editing() {
     return this.app.state.editingPath;
   }
+
+  /**
+   * The line is kept relative to the scene (not to the path's own origin,
+   * which moves when the bounds change); this is it in the path's local space.
+   */
+  private localMirror = (element: ExcalidrawPathElement): MirrorLine | null => {
+    const line = this.editing?.mirror;
+    return line
+      ? {
+          axis: line.axis,
+          at: line.at - (line.axis === "x" ? element.x : element.y),
+        }
+      : null;
+  };
+
+  /** the mirror line with the sibling of each point, as the outline is now */
+  private mirrorOf = (
+    element: ExcalidrawPathElement,
+    loop: number,
+  ): PathMirror | undefined => {
+    const line = this.localMirror(element);
+    return line
+      ? {
+          line,
+          pairs: findMirrorPairs(getPathLoopView(element, loop).points, line),
+        }
+      : undefined;
+  };
+
+  /** adds the mirror line across the middle of the outline, or removes it */
+  toggleMirror = (axis: "x" | "y") => {
+    const element = this.context.getEditedElement();
+    if (!element) {
+      return;
+    }
+    if (this.editing?.mirror?.axis === axis) {
+      this.context.setMirror(null);
+      return;
+    }
+    const centered = centerMirrorLine(
+      getPathLoopView(element, this.editing?.loop ?? 0).points,
+      axis,
+    );
+    this.context.setMirror({
+      axis,
+      at: centered.at + (axis === "x" ? element.x : element.y),
+    });
+  };
+
+  private isOnMirrorLine = (
+    element: ExcalidrawPathElement,
+    pointer: ScenePoint,
+    hitRadius: number,
+  ) => {
+    const line = this.localMirror(element);
+    if (!line) {
+      return false;
+    }
+    const local = this.context.toLocal(element, pointer);
+    return Math.abs(local[line.axis === "x" ? 0 : 1] - line.at) <= hitRadius;
+  };
 
   startEditing = (element: ExcalidrawPathElement) => {
     this.context.setEditing(element.id, null);
@@ -148,6 +218,7 @@ export class PathPointEditor {
         index: hit.index,
         side: hit.side,
         original: element,
+        mirror: this.mirrorOf(element, hit.loop),
       };
       this.context.listen();
       return true;
@@ -157,6 +228,11 @@ export class PathPointEditor {
         togglesMode: isDouble || event.altKey,
         additive: event.shiftKey,
       });
+      return true;
+    }
+    if (this.isOnMirrorLine(element, pointer, hitRadius)) {
+      this.context.gesture = { kind: "mirror-line", original: element };
+      this.context.listen();
       return true;
     }
     if (this.insertOnOutline(element, pointer, hitRadius, isDouble)) {
@@ -217,6 +293,7 @@ export class PathPointEditor {
       original: element,
       grab: [anchor[0] - local[0], anchor[1] - local[1]],
       indexes: keepsSelection ? current : [hit.index],
+      mirror: this.mirrorOf(element, hit.loop),
     };
     this.context.listen();
   };
@@ -258,6 +335,10 @@ export class PathPointEditor {
       this.dragMarquee(gesture, pointer);
       return;
     }
+    if (gesture.kind === "mirror-line") {
+      this.dragMirrorLine(gesture.original, pointer);
+      return;
+    }
     const { original, loop, index } = gesture;
     const local = this.context.toLocal(original, pointer);
     const view = getPathLoopView(original, loop);
@@ -277,12 +358,21 @@ export class PathPointEditor {
         target = this.context.toLocal(original, snapped);
       }
       const from = view.points[index];
+      const moved = movePathPoints(view, gesture.indexes, [
+        target[0] - from[0],
+        target[1] - from[1],
+      ]);
       this.context.apply(
         original,
-        movePathPoints(view, gesture.indexes, [
-          target[0] - from[0],
-          target[1] - from[1],
-        ]),
+        gesture.mirror
+          ? applyMirror(
+              moved,
+              gesture.mirror.line,
+              gesture.mirror.pairs,
+              // the point under the pointer wins over a selected sibling
+              [...gesture.indexes.filter((other) => other !== index), index],
+            )
+          : moved,
         undefined,
         loop,
       );
@@ -295,19 +385,38 @@ export class PathPointEditor {
       local[1] - anchor[1],
     );
     const current = view.handles[index] ?? NO_HANDLES;
+    const dragged = {
+      points: view.points,
+      handles: view.handles.map((handles, handlesIndex) =>
+        handlesIndex === index
+          ? dragPathHandle(current, gesture.side, offset)
+          : handles,
+      ),
+    };
     this.context.apply(
       original,
-      {
-        points: view.points,
-        handles: view.handles.map((handles, handlesIndex) =>
-          handlesIndex === index
-            ? dragPathHandle(current, gesture.side, offset)
-            : handles,
-        ),
-      },
+      gesture.mirror
+        ? applyMirror(dragged, gesture.mirror.line, gesture.mirror.pairs, [
+            index,
+          ])
+        : dragged,
       undefined,
       loop,
     );
+  };
+
+  private dragMirrorLine = (
+    element: ExcalidrawPathElement,
+    pointer: ScenePoint,
+  ) => {
+    const line = this.editing?.mirror;
+    if (line) {
+      const local = this.context.toLocal(element, pointer);
+      this.context.setMirror({
+        ...line,
+        at: line.axis === "x" ? element.x + local[0] : element.y + local[1],
+      });
+    }
   };
 
   private dragMarquee = (

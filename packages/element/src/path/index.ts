@@ -6,5 +6,6 @@ export * from "./handles";
 export * from "./points";
 export * from "./topology";
 export * from "./loops";
+export * from "./mirror";
 export * from "./transform";
 export * from "./shapes";

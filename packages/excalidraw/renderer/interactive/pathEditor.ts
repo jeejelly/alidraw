@@ -9,6 +9,40 @@ import { getThemedColor } from "./shared";
 import type { InteractiveCanvasAppState } from "../../types";
 import type { RenderableElementsMap } from "../../scene/types";
 
+/** the thin pink dotted line the points mirror across; it exists only while editing */
+const renderMirrorLine = (
+  context: CanvasRenderingContext2D,
+  appState: InteractiveCanvasAppState,
+  element: ExcalidrawPathElement,
+  mirror: { axis: "x" | "y"; at: number },
+  toScene: (point: readonly [number, number]) => readonly [number, number],
+) => {
+  const zoom = appState.zoom.value;
+  const margin = 24 / zoom;
+  const xs = element.points.map((point) => point[0]);
+  const ys = element.points.map((point) => point[1]);
+  const [minX, maxX, minY, maxY] = [
+    Math.min(...xs) - margin,
+    Math.max(...xs) + margin,
+    Math.min(...ys) - margin,
+    Math.max(...ys) + margin,
+  ];
+  const at = mirror.at - (mirror.axis === "x" ? element.x : element.y);
+  const [from, to] =
+    mirror.axis === "x"
+      ? [toScene([at, minY]), toScene([at, maxY])]
+      : [toScene([minX, at]), toScene([maxX, at])];
+  context.save();
+  context.strokeStyle = getThemedColor("#e0449b", appState.theme);
+  context.lineWidth = 1 / zoom;
+  context.setLineDash([3 / zoom, 3 / zoom]);
+  context.beginPath();
+  context.moveTo(from[0], from[1]);
+  context.lineTo(to[0], to[1]);
+  context.stroke();
+  context.restore();
+};
+
 /** anchors of a path being edited, and the tangent handles of the selected one */
 export const renderPathEditor = (
   context: CanvasRenderingContext2D,
@@ -93,6 +127,9 @@ export const renderPathEditor = (
       context.fill();
       context.stroke();
     });
+  }
+  if (editing.mirror) {
+    renderMirrorLine(context, appState, element, editing.mirror, toScene);
   }
   if (editing.marquee) {
     const { x1, y1, x2, y2 } = editing.marquee;

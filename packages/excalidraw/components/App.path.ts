@@ -56,6 +56,8 @@ export class AppPath {
   setPointMode = (mode: PathPointMode, index?: number) =>
     this.editor.setPointMode(mode, index);
 
+  toggleMirror = (axis: "x" | "y") => this.editor.toggleMirror(axis);
+
   selectAllPoints = () => this.editor.selectAllPoints();
 
   toggleClosed = () => this.editor.toggleClosed();

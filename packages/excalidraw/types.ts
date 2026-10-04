@@ -621,6 +621,8 @@ export interface AppState {
     selectedPoint: number | null;
     /** every selected point of the outline (the primary one included) */
     selectedPoints?: number[];
+    /** a line the points mirror across while editing (`at` in the path's frame, scene units) */
+    mirror?: { axis: "x" | "y"; at: number } | null;
     /** the box being dragged to select points, in scene coordinates */
     marquee?: { x1: number; y1: number; x2: number; y2: number } | null;
     /** the outline being edited: 0 is the main one, k the (k-1)th contour */
