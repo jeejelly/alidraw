@@ -46,13 +46,20 @@ export const importFromLocalStorage = () => {
     console.error(error);
   }
 
+  // stored data that cannot be read is reported, not silently dropped
+  let damaged = false;
   let elements: ExcalidrawElement[] = [];
   if (savedElements) {
     try {
-      elements = JSON.parse(savedElements);
+      const parsed = JSON.parse(savedElements);
+      if (Array.isArray(parsed)) {
+        elements = parsed;
+      } else {
+        damaged = true;
+      }
     } catch (error: any) {
       console.error(error);
-      // Do nothing because elements array is already empty
+      damaged = true;
     }
   }
 
@@ -67,7 +74,7 @@ export const importFromLocalStorage = () => {
       };
     } catch (error: any) {
       console.error(error);
-      // Do nothing because appState is already null
+      damaged = true;
     }
   }
   // our inspector is the app's palette: open on first launch, then whatever
@@ -78,7 +85,7 @@ export const importFromLocalStorage = () => {
     // rulers and guides are part of designing: on from the first launch
     rulersEnabled: appState?.rulersEnabled ?? true,
   };
-  return { elements, appState };
+  return { elements, appState, damaged };
 };
 
 export const getElementsStorageSize = () => {

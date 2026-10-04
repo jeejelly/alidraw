@@ -29,16 +29,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@excalidraw/excalidraw/i18n";
 
 import { isElementLink } from "@excalidraw/element";
-import {
-  restoreAppState,
-  restoreElements,
-} from "@excalidraw/excalidraw/data/restore";
 import { newElementWith } from "@excalidraw/element";
 import { isInitializedImageElement } from "@excalidraw/element";
-import {
-  parseLibraryTokensFromUrl,
-  useHandleLibrary,
-} from "@excalidraw/excalidraw/data/library";
+import { useHandleLibrary } from "@excalidraw/excalidraw/data/library";
 
 import type {
   FileId,
@@ -74,6 +67,7 @@ import { TopErrorBoundary } from "./components/TopErrorBoundary";
 import { updateStaleImageStatuses } from "./data/FileManager";
 import { FileStatusStore } from "./data/fileStatusStore";
 import { importFromLocalStorage } from "./data/localStorage";
+import { loadStartupScene } from "./data/startupRecovery";
 import {
   LibraryIndexedDBAdapter,
   LibraryLocalStorageMigrationAdapter,
@@ -143,20 +137,6 @@ if (window.self !== window.top) {
     // ignore
   }
 }
-
-/** The scene this browser last saved. No link, room or URL loads a scene. */
-const initializeScene = (): { scene: ExcalidrawInitialDataState } => {
-  const localDataState = importFromLocalStorage();
-  return {
-    scene: {
-      elements: restoreElements(localDataState?.elements, null, {
-        repairBindings: true,
-        deleteInvisibleElements: true,
-      }),
-      appState: restoreAppState(localDataState?.appState, null),
-    },
-  };
-};
 
 const ExcalidrawWrapper = () => {
   const excalidrawAPI = useExcalidrawAPI();
@@ -266,7 +246,7 @@ const ExcalidrawWrapper = () => {
   // Hoisted loadImages
   // ---------------------------------------------------------------------------
   const loadImages = useCallback(
-    (data: ReturnType<typeof initializeScene>, isInitialLoad = false) => {
+    (data: ReturnType<typeof loadStartupScene>, isInitialLoad = false) => {
       if (!excalidrawAPI || !isInitialLoad) {
         return;
       }
@@ -306,7 +286,7 @@ const ExcalidrawWrapper = () => {
       return;
     }
 
-    const data = initializeScene();
+    const data = loadStartupScene();
     loadImages(data, /* isInitialLoad */ true);
     initialStatePromiseRef.current.promise.resolve(data.scene);
 

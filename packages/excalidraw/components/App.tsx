@@ -3671,11 +3671,30 @@ class App extends React.Component<AppProps, AppState> {
         },
       };
     }
-    const restoredElements = restoreElements(initialData?.elements, null, {
-      repairBindings: true,
-      deleteInvisibleElements: true,
-    });
-    let restoredAppState = restoreAppState(initialData?.appState, null);
+    let restoredElements: ReturnType<typeof restoreElements>;
+    let restoredAppState: ReturnType<typeof restoreAppState>;
+    try {
+      restoredElements = restoreElements(initialData?.elements, null, {
+        repairBindings: true,
+        deleteInvisibleElements: true,
+      });
+      restoredAppState = restoreAppState(initialData?.appState, null);
+    } catch (error: any) {
+      // a scene that cannot be restored starts the editor blank, with a notice
+      console.error(error);
+      initialData = null;
+      restoredElements = [];
+      restoredAppState = restoreAppState(
+        {
+          toast: {
+            message: t("errors.damagedSceneShort"),
+            closable: true,
+            duration: 15000,
+          },
+        },
+        null,
+      );
+    }
     const activeTool = restoredAppState.activeTool;
 
     if (!restoredAppState.preferredSelectionTool.initialized) {
@@ -3704,7 +3723,7 @@ class App extends React.Component<AppProps, AppState> {
             }
           : restoredAppState.activeTool,
       isLoading: false,
-      toast: this.state.toast,
+      toast: this.state.toast ?? restoredAppState.toast,
     };
 
     const viewportAppState = {

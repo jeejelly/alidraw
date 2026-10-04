@@ -2,6 +2,8 @@ import Trans from "@excalidraw/excalidraw/components/Trans";
 import { t } from "@excalidraw/excalidraw/i18n";
 import React from "react";
 
+import { recoverFromStartupCrash } from "../data/startupRecovery";
+
 interface TopErrorBoundaryState {
   hasError: boolean;
   localStorage: string;
@@ -31,6 +33,10 @@ export class TopErrorBoundary extends React.Component<
     }
 
     console.error(error, errorInfo);
+    // a crash at startup is blamed on the stored scene: set it aside, start blank
+    if (recoverFromStartupCrash()) {
+      return;
+    }
     this.setState({
       hasError: true,
       localStorage: JSON.stringify(_localStorage),
