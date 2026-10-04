@@ -41,8 +41,12 @@ export const renderPathEditor = (
   const loops = 1 + (element.contours?.length ?? 0);
   for (let loop = 0; loop < loops; loop++) {
     const view = getPathLoopView(element, loop);
-    const selected =
-      loop === (editing.loop ?? 0) ? editing.selectedPoint : null;
+    const isActiveLoop: boolean = loop === (editing.loop ?? 0);
+    const selected = isActiveLoop ? editing.selectedPoint : null;
+    const marked = isActiveLoop
+      ? editing.selectedPoints ??
+        (editing.selectedPoint != null ? [editing.selectedPoint] : [])
+      : [];
     if (
       selected != null &&
       view.handles[selected]?.mode !== "corner" &&
@@ -74,7 +78,7 @@ export const renderPathEditor = (
     view.points.forEach((point, index) => {
       const scenePoint = toScene(point);
       context.strokeStyle = accent;
-      context.fillStyle = index === selected ? fillSelected : fill;
+      context.fillStyle = marked.includes(index) ? fillSelected : fill;
       context.beginPath();
       if (view.handles[index]?.mode === "corner") {
         context.rect(
@@ -89,6 +93,16 @@ export const renderPathEditor = (
       context.fill();
       context.stroke();
     });
+  }
+  if (editing.marquee) {
+    const { x1, y1, x2, y2 } = editing.marquee;
+    context.fillStyle = getThemedColor(
+      "rgba(94, 90, 216, 0.08)",
+      appState.theme,
+    );
+    context.fillRect(x1, y1, x2 - x1, y2 - y1);
+    context.setLineDash([4 / zoom, 3 / zoom]);
+    context.strokeRect(x1, y1, x2 - x1, y2 - y1);
   }
   context.restore();
 };

@@ -56,6 +56,8 @@ export class AppPath {
   setPointMode = (mode: PathPointMode, index?: number) =>
     this.editor.setPointMode(mode, index);
 
+  selectAllPoints = () => this.editor.selectAllPoints();
+
   toggleClosed = () => this.editor.toggleClosed();
 
   splitAtSelectedPoint = () => this.editor.splitAtSelectedPoint();
@@ -122,8 +124,11 @@ export class AppPath {
   };
 
   private onPointerRelease = () => {
-    const wasEditing =
-      this.context.gesture && this.context.gesture.kind !== "pen-handle";
+    const gesture = this.context.gesture;
+    const wasEditing = gesture && gesture.kind !== "pen-handle";
+    if (gesture?.kind === "marquee") {
+      this.editor.finishMarquee();
+    }
     this.context.gesture = null;
     if (wasEditing) {
       this.context.commit();

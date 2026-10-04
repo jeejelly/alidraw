@@ -8,13 +8,14 @@ import {
   getPathLoopView,
   getPathUpdate,
   insertPathPoint,
-  movePathPoint,
+  movePathPoints,
   newPathElement,
   setPathClosed,
   setPathPointMode,
   splitPathAt,
 } from "@excalidraw/element";
 
+import type { PathGeometry } from "@excalidraw/element";
 import type {
   ExcalidrawPathElement,
   PathPointMode,
@@ -22,7 +23,9 @@ import type {
 
 import type React from "react";
 
-import type { PathContext, ScenePoint } from "./context";
+import type { AppState } from "../../types";
+
+import type { PathContext, PathGesture, ScenePoint } from "./context";
 
 /** radius of an anchor/handle hit area, in screen px */
 const HIT_RADIUS = 9;
@@ -30,6 +33,13 @@ const HIT_RADIUS = 9;
 type PointHit = { loop: number; index: number; side?: "in" | "out" };
 
 type GuideModifiers = { ctrlKey: boolean; metaKey: boolean };
+
+/** the selected points of the outline being edited */
+const selectionOf = (
+  editing: NonNullable<AppState["editingPath"]> | null,
+): number[] =>
+  editing?.selectedPoints ??
+  (editing?.selectedPoint != null ? [editing.selectedPoint] : []);
 
 const toggledMode = (mode: PathPointMode | undefined): PathPointMode =>
   mode === "corner" ? "smooth" : "corner";
@@ -143,10 +153,23 @@ export class PathPointEditor {
       return true;
     }
     if (hit) {
-      this.pressAnchor(element, pointer, hit, isDouble || event.altKey);
+      this.pressAnchor(element, pointer, hit, {
+        togglesMode: isDouble || event.altKey,
+        additive: event.shiftKey,
+      });
       return true;
     }
     if (this.insertOnOutline(element, pointer, hitRadius, isDouble)) {
+      return true;
+    }
+    if (event.shiftKey) {
+      this.context.gesture = {
+        kind: "marquee",
+        loop: this.editing?.loop ?? 0,
+        start: pointer,
+        base: selectionOf(this.editing),
+      };
+      this.context.listen();
       return true;
     }
     // anywhere else leaves the editor and lets the click select as usual
@@ -154,15 +177,32 @@ export class PathPointEditor {
     return false;
   };
 
-  /** a press on an anchor selects and drags it; a double click or Alt toggles its mode */
+  /**
+   * A press on an anchor selects and drags it (with the rest of its
+   * selection); Shift adds or removes it; a double click or Alt toggles its mode.
+   */
   private pressAnchor = (
     element: ExcalidrawPathElement,
     pointer: ScenePoint,
     hit: PointHit,
-    togglesMode: boolean,
+    { togglesMode, additive }: { togglesMode: boolean; additive: boolean },
   ) => {
     const view = getPathLoopView(element, hit.loop);
-    this.context.setEditing(element.id, hit.index, hit.loop);
+    const sameLoop = (this.editing?.loop ?? 0) === hit.loop;
+    const current = sameLoop ? selectionOf(this.editing) : [];
+    if (additive) {
+      const next = current.includes(hit.index)
+        ? current.filter((index) => index !== hit.index)
+        : [...current, hit.index];
+      this.context.selectPoints(next, next.at(-1) ?? null, hit.loop);
+      return;
+    }
+    const keepsSelection = current.length > 1 && current.includes(hit.index);
+    if (keepsSelection && !togglesMode) {
+      this.context.selectPoints(current, hit.index, hit.loop);
+    } else {
+      this.context.setEditing(element.id, hit.index, hit.loop);
+    }
     if (togglesMode) {
       this.setPointMode(toggledMode(view.handles[hit.index]?.mode), hit.index);
       this.context.lastClick = null;
@@ -176,6 +216,7 @@ export class PathPointEditor {
       index: hit.index,
       original: element,
       grab: [anchor[0] - local[0], anchor[1] - local[1]],
+      indexes: keepsSelection ? current : [hit.index],
     };
     this.context.listen();
   };
@@ -213,6 +254,10 @@ export class PathPointEditor {
     if (!gesture || gesture.kind === "pen-handle") {
       return;
     }
+    if (gesture.kind === "marquee") {
+      this.dragMarquee(gesture, pointer);
+      return;
+    }
     const { original, loop, index } = gesture;
     const local = this.context.toLocal(original, pointer);
     const view = getPathLoopView(original, loop);
@@ -231,9 +276,13 @@ export class PathPointEditor {
       if (snapped.x !== anchor[0] || snapped.y !== anchor[1]) {
         target = this.context.toLocal(original, snapped);
       }
+      const from = view.points[index];
       this.context.apply(
         original,
-        movePathPoint(view, index, target),
+        movePathPoints(view, gesture.indexes, [
+          target[0] - from[0],
+          target[1] - from[1],
+        ]),
         undefined,
         loop,
       );
@@ -261,17 +310,65 @@ export class PathPointEditor {
     );
   };
 
-  setPointMode = (mode: PathPointMode, index?: number) => {
+  private dragMarquee = (
+    gesture: Extract<PathGesture, { kind: "marquee" }>,
+    pointer: ScenePoint,
+  ) => {
     const element = this.context.getEditedElement();
-    const target = index ?? this.editing?.selectedPoint ?? null;
-    if (!element || target == null) {
+    if (!element) {
+      return;
+    }
+    const x1 = Math.min(gesture.start.x, pointer.x);
+    const x2 = Math.max(gesture.start.x, pointer.x);
+    const y1 = Math.min(gesture.start.y, pointer.y);
+    const y2 = Math.max(gesture.start.y, pointer.y);
+    const inside = getPathLoopView(element, gesture.loop)
+      .points.map((point, index) => ({
+        index,
+        scene: this.context.toScene(element, point),
+      }))
+      .filter(
+        ({ scene }) =>
+          scene[0] >= x1 && scene[0] <= x2 && scene[1] >= y1 && scene[1] <= y2,
+      )
+      .map(({ index }) => index);
+    const indexes = [...new Set([...gesture.base, ...inside])];
+    this.context.selectPoints(indexes, indexes.at(-1) ?? null, gesture.loop);
+    this.context.setMarquee({ x1, y1, x2, y2 });
+  };
+
+  /** the box is dropped, the points it caught stay selected */
+  finishMarquee = () => this.context.setMarquee(null);
+
+  selectAllPoints = () => {
+    const element = this.context.getEditedElement();
+    if (!element) {
       return;
     }
     const loop = this.editing?.loop ?? 0;
-    this.context.apply(
-      element,
-      setPathPointMode(getPathLoopView(element, loop), target, mode),
+    const indexes = getPathLoopView(element, loop).points.map(
+      (_, index) => index,
     );
+    this.context.selectPoints(indexes, indexes.at(-1) ?? null, loop);
+  };
+
+  /** sets the mode of one point, else of every selected point */
+  setPointMode = (mode: PathPointMode, index?: number) => {
+    const element = this.context.getEditedElement();
+    const targets = index != null ? [index] : selectionOf(this.editing);
+    if (!element || !targets.length) {
+      return;
+    }
+    const loop = this.editing?.loop ?? 0;
+    let geometry: PathGeometry = getPathLoopView(element, loop);
+    for (const target of targets) {
+      geometry = setPathPointMode(
+        { ...getPathLoopView(element, loop), ...geometry },
+        target,
+        mode,
+      );
+    }
+    this.context.apply(element, geometry);
     this.context.commit();
   };
 
@@ -328,18 +425,31 @@ export class PathPointEditor {
     this.context.commit();
   };
 
+  /** deletes the selected points, highest index first so the others keep theirs */
   deleteSelectedPoint = () => {
     const element = this.context.getEditedElement();
-    const target = this.editing?.selectedPoint ?? null;
-    if (!element || target == null) {
+    const targets = [...selectionOf(this.editing)].sort(
+      (left, right) => right - left,
+    );
+    if (!element || !targets.length) {
       return;
     }
     const loop = this.editing?.loop ?? 0;
-    const next = deletePathPoint(getPathLoopView(element, loop), target);
-    if (!next) {
+    let geometry: PathGeometry | null = null;
+    for (const target of targets) {
+      const next = deletePathPoint(
+        { ...getPathLoopView(element, loop), ...geometry },
+        target,
+      );
+      if (!next) {
+        break;
+      }
+      geometry = next;
+    }
+    if (!geometry) {
       return;
     }
-    this.context.apply(element, next);
+    this.context.apply(element, geometry);
     this.context.setEditing(element.id, null, loop);
     this.context.commit();
   };
@@ -365,6 +475,10 @@ export class PathPointEditor {
     }
     if (event.key === KEYS.ESCAPE || event.key === KEYS.ENTER) {
       this.stopEditing();
+      return true;
+    }
+    if (event[KEYS.CTRL_OR_CMD] && event.key.toLowerCase() === KEYS.A) {
+      this.selectAllPoints();
       return true;
     }
     if (editing.selectedPoint == null) {

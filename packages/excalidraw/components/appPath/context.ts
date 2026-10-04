@@ -21,7 +21,10 @@ import { getGuideSnap } from "../../guides";
 
 import { listenToGesture } from "../gestureListeners";
 
+import type { AppState } from "../../types";
 import type App from "../App";
+
+type EditingPath = AppState["editingPath"];
 
 const DOUBLE_CLICK_MS = 400;
 
@@ -35,6 +38,8 @@ export type PathGesture =
       original: ExcalidrawPathElement;
       /** anchor position minus pointer, local to `original` */
       grab: [number, number];
+      /** the points that travel with it: the selection it belongs to */
+      indexes: number[];
     }
   | {
       kind: "handle";
@@ -43,6 +48,7 @@ export type PathGesture =
       side: "in" | "out";
       original: ExcalidrawPathElement;
     }
+  | { kind: "marquee"; loop: number; start: ScenePoint; base: number[] }
   | { kind: "pen-handle"; index: number };
 
 type PointerHandlers = {
@@ -173,6 +179,24 @@ export class PathContext {
       editingPath: elementId ? { elementId, selectedPoint, loop } : null,
     });
   };
+
+  private patchEditing = (patch: Partial<NonNullable<EditingPath>>) =>
+    this.app.setState((prevState) =>
+      prevState.editingPath
+        ? { editingPath: { ...prevState.editingPath, ...patch } }
+        : null,
+    );
+
+  /** selects several points of an outline; `primary` is the one the panel acts on */
+  selectPoints = (indexes: number[], primary: number | null, loop = 0) =>
+    this.patchEditing({
+      selectedPoint: primary,
+      selectedPoints: indexes,
+      loop,
+    });
+
+  setMarquee = (marquee: NonNullable<EditingPath>["marquee"]) =>
+    this.patchEditing({ marquee });
 
   /** a gesture owns the pointer until release; the pen tracks it between clicks */
   listen = () => {

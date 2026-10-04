@@ -75,6 +75,20 @@ export const movePathPoint = (
   handles: element.handles,
 });
 
+/** moves several points by the same offset; their handles travel with them */
+export const movePathPoints = (
+  element: ExcalidrawPathElement,
+  indexes: readonly number[],
+  delta: readonly [number, number],
+): PathGeometry => ({
+  points: element.points.map((point, pointIndex) =>
+    indexes.includes(pointIndex)
+      ? pointFrom<LocalPoint>(point[0] + delta[0], point[1] + delta[1])
+      : point,
+  ),
+  handles: element.handles,
+});
+
 /**
  * Inserts a point on segment `segmentIndex` (the one leaving point
  * `segmentIndex`) at parameter `t`. The curve is split with de Casteljau, so

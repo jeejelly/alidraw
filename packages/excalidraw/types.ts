@@ -619,6 +619,10 @@ export interface AppState {
   editingPath: {
     elementId: ExcalidrawElement["id"];
     selectedPoint: number | null;
+    /** every selected point of the outline (the primary one included) */
+    selectedPoints?: number[];
+    /** the box being dragged to select points, in scene coordinates */
+    marquee?: { x1: number; y1: number; x2: number; y2: number } | null;
     /** the outline being edited: 0 is the main one, k the (k-1)th contour */
     loop?: number;
   } | null;
