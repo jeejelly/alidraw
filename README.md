@@ -1,161 +1,151 @@
 <a href="docs/fixtures/crumbly/README.md">
-  <img alt="Crumbly: a phone app and a website designed with this editor's themed components, flat vector illustrations and flow elements" src="docs/fixtures/crumbly/crumbly.png" />
+  <img alt="Crumbly: a phone app and a website designed with Alidraw's themed components, flat vector illustrations and flow elements" src="docs/fixtures/crumbly/crumbly.png" />
 </a>
 
-<h4 align="center">
-  <a href="https://excalidraw.com">Excalidraw Editor</a> |
-  <a href="https://plus.excalidraw.com/blog">Blog</a> |
-  <a href="https://docs.excalidraw.com">Documentation</a> |
-  <a href="https://plus.excalidraw.com">Excalidraw+</a>
-</h4>
+<h1 align="center">Alidraw</h1>
 
-<div align="center">
-  <h2>
-    An open source virtual hand-drawn style whiteboard. </br>
-    Collaborative and end-to-end encrypted. </br>
-  <br />
-  </h2>
-</div>
-
-<br />
 <p align="center">
-  <a href="https://github.com/excalidraw/excalidraw/blob/master/LICENSE">
-    <img alt="Excalidraw is released under the MIT license." src="https://img.shields.io/badge/license-MIT-blue.svg"  /></a>
-  <a href="https://www.npmjs.com/package/@excalidraw/excalidraw">
-    <img alt="npm downloads/month" src="https://img.shields.io/npm/dm/@excalidraw/excalidraw"  /></a>
-  <a href="https://docs.excalidraw.com/docs/introduction/contributing">
-    <img alt="PRs welcome!" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat"  /></a>
-  <a href="https://discord.gg/UexuTaE">
-    <img alt="Chat on Discord" src="https://img.shields.io/discord/723672430744174682?color=738ad6&label=Chat%20on%20Discord&logo=discord&logoColor=ffffff&widget=false"/></a>
-  <a href="https://deepwiki.com/excalidraw/excalidraw">
-    <img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-  <a href="https://twitter.com/excalidraw">
-    <img alt="Follow Excalidraw on Twitter" src="https://img.shields.io/twitter/follow/excalidraw.svg?label=follow+@excalidraw&style=social&logo=twitter"/></a>
+  Precise vector design of complete UI components.<br />
+  Mermaid flowcharts drawn, restyled and re-laid out on the canvas, round trip by default.
 </p>
 
-<div align="center">
-  <figure>
-    <a href="https://excalidraw.com" target="_blank" rel="noopener">
-      <img src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github%2Fproduct_showcase.png" alt="Product showcase" />
-    </a>
-    <figcaption>
-      <p align="center">
-        Create beautiful hand-drawn like diagrams, wireframes, or whatever you like.
-      </p>
-    </figcaption>
-  </figure>
-</div>
+## Mermaid flowcharts, with any element as a node
 
-## About this fork
+<img alt="The Crumbly screens as a Mermaid flowchart: the Mermaid source in the panel, the drawn screens and links on the canvas" src="docs/fixtures/image.png" />
 
-Changes in this fork, branch `jeejelly`:
+- A flow element is a decorator around any object or group: a label, a handle, ports. The Mermaid layer sits over the drawn elements, not in place of them.
+- Replace a node's design without breaking the round trip:
+  - swap it with a library item;
+  - draw inside it;
+  - nest steps inside a screen (a Mermaid `subgraph`).
+- Text → canvas: paste or edit Mermaid in the Flow panel; existing drawings keep their design, only the changed nodes and links move.
+- Canvas → text: drag a handle to link, add, rename or delete steps; the Mermaid source follows.
+- Lossless round trip:
+  - every node shape, link end and link length;
+  - classes, directives, subgraph direction.
+- Layout stored in the Mermaid file as comments, so the file stays valid Mermaid:
+  - `%% @layout` for position and size;
+  - `%% @ports` for ports;
+  - `%% @link` for the port each link starts and ends on.
+- Links are persistent decorators: an arrow keeps its route, colour and bindings when the flow is redrawn.
+- Ports on steps (decision outcomes, loop body/exit/back), with a port editor and a link editor.
+- Flow, state, architecture and programming symbols insert as flow elements.
+- Import and export: Mermaid and Markdown.
+- Example: [`docs/fixtures/crumbly/crumbly.mmd`](docs/fixtures/crumbly/crumbly.mmd).
 
-### No external connector
+## Vector drawing
 
-- The app reaches its own origin only. CSP: `connect-src`, `img-src`, `font-src` `'self' data: blob:`; `frame-src 'none'`.
-- Removed, sent data out: share links (json.excalidraw.com), live collaboration (collab server, Firebase), Excalidraw+ export, AI text-to-diagram and diagram-to-code, library publish, Sentry, analytics.
-- Removed, fetched from a server: font CDN and esm.sh fallback, Google Fonts, `#url=` and `#addLibrary=` loads, pasted http(s) image URLs, embeds.
-- Removed links: Excalidraw+ promos and sign-up, socials, library browse.
-- Kept: browser storage, file open/save, image export, Mermaid-to-Excalidraw, PWA service worker.
+- Bezier path element with tangent handles: open/close, split/join, holes, curve-preserving delete.
+- Compound shapes (several outlines, holes work).
+- Pathfinder: boolean operations on closed shapes and paths.
+- Knife: cut shapes along a dragged line.
+- Corners: round each corner on its own, with a live gizmo and a radius slider.
+- Rotate and skew gizmo on shapes and groups; rotation locks onto other elements' axes.
+- Rulers, draggable guides with an opt-out magnet, guide lock.
+- Grid spacing, fit to grid, movable grid origin, anchors to elements and guides, Align panel.
+- Named layers that own objects; groups shown as nested nodes.
+- Typography:
+  - installed fonts, typed font size, px/dp unit;
+  - bold and italic;
+  - font library of 85 open-licence families;
+  - text to outlines.
+- Default roughness 0; open paths whose ends meet are merged.
 
-### Linux desktop app (standalone)
+## UI components
 
-- `excalidraw-desktop/`: Electron app serving the build under `app://excalidraw/`; every other request, navigation and new window is refused.
-- File access granted to the app origin only: open, save, autosave to file.
-- `./package.sh desktop`: build, package a `.deb`, install it with `apt-get`; entry in the applications menu.
-- `./package.sh desktop-package`: build the `.deb` only, in `excalidraw-desktop/dist/`.
+- Themable icon and UI component library with parametric components (Symbols tab).
+- Screen templates, pickers, carousel, grids.
+- Ctrl+drag stretches a component with pinned layout.
+- Convert any drawing to a symbol, with parameters: background, outline, texts.
+- Flat vector illustrations (Symbols → Art), inserted as editable paths.
+- Default theme Pop: white sheets, coral accent.
 
-### Local install
+## Colour
 
-- `./package.sh`: build `excalidraw-app`, serve it on `127.0.0.1:3100` as systemd user service `excalidraw-local.service`.
-- `./package.sh status`: service state and HTTP check. Env: `EXCALIDRAW_PORT`, `EXCALIDRAW_DIR`.
-- `./package.sh vscode`: build and install the VS Code extension from sibling directory `excalidraw-vscode` (`EXCALIDRAW_VSCODE_DIR`).
+- Colour picker: saturation square, hue bar, `#rrggbbaa`; a drag is one undo step.
+- Harmonies:
+  - wheel and eight rules;
+  - palettes and colours taken from a picture;
+  - a whole theme from a harmony.
+- Palette panel: draggable, persistent, named swatches in a grid, swatch export.
+- Vectorize images: palette from the picture, smooth outlines, holes kept.
 
-### Colour picker
+## Inspector and panels
 
-- Saturation square and hue bar for any colour, above the hex field; `#rrggbbaa` keeps its alpha.
-- A drag previews the colour live and records one undo step.
+- Right-docked inspector; panels float, snap to screen edges and to each other.
+- Layers panel can be popped out.
+- Configurable Tools section with every overflow tool.
 
-### Save and autosave
+## Import and export
 
-- Ctrl+S writes the open file, no dialog. A scene with no file opens Save As. A failed write shows the reason and a Save as button.
-- Ctrl+Shift+S: Save As.
-- Preferences > Autosave to file, off by default: writes the open `.excalidraw`, or PNG/SVG with the scene embedded, 20 s after the last edit; status in the footer.
+- PDF (vector) with page options.
+- HTML and Jetpack Compose from symbols or the whole canvas, with an inferred responsive layout (rows and columns).
+- SVG import as editable shapes.
+- Save a copy, new canvas.
+- Example: [`crumbly.html`](docs/fixtures/crumbly/crumbly.html), [`Crumbly.kt`](docs/fixtures/crumbly/Crumbly.kt).
 
-### Specified, not implemented
+## Desktop app (Linux)
 
-- `docs/specs/`: EXC-1 typography, EXC-2 rulers and guides, EXC-3 palette panel, EXC-4 path handles.
+- Electron app (`excalidraw-desktop/`): serves the build under `app://excalidraw/`, refuses every other request.
+- Workspaces: a folder chosen on first save becomes a git-backed workspace.
+  - Project tab: scenes tree, rename, duplicate, delete, versions.
+  - check, pull, push; diverged state; network pause.
+- Backup server per workspace (SFTP/FTPS).
+  - Passwords ciphered by a passphrase or by the OS keychain.
+- Images embedded in the scene or linked as files in `assets/`.
+- Ctrl+S writes the open file; Ctrl+Shift+S: Save As.
+- Autosave to file, 20 s after the last edit (Preferences, off by default).
 
-## Features
+## No external connector
 
-The Excalidraw editor (npm package) supports:
+- The app reaches its own origin only.
+  - CSP `connect-src`, `img-src`, `font-src`: `'self' data: blob:`.
+  - `frame-src 'none'`.
+- Removed (sent data out):
+  - share links and live collaboration;
+  - AI features;
+  - library publish;
+  - Sentry and analytics.
+- Removed (fetched from a server):
+  - font CDN;
+  - `#url=` and `#addLibrary=` loads;
+  - pasted image URLs;
+  - embeds.
+- Kept:
+  - browser storage;
+  - file open/save;
+  - image export;
+  - PWA service worker.
 
-- 💯&nbsp;Free & open-source.
-- 🎨&nbsp;Infinite, canvas-based whiteboard.
-- ✍️&nbsp;Hand-drawn like style.
-- 🌓&nbsp;Dark mode.
-- 🏗️&nbsp;Customizable.
-- 📷&nbsp;Image support.
-- 😀&nbsp;Shape libraries support.
-- 🌐&nbsp;Localization (i18n) support.
-- 🖼️&nbsp;Export to PNG, SVG & clipboard.
-- 💾&nbsp;Open format - export drawings as an `.excalidraw` json file.
-- ⚒️&nbsp;Wide range of tools - rectangle, circle, diamond, arrow, line, free-draw, eraser...
-- ➡️&nbsp;Arrow-binding & labeled arrows.
-- 🔙&nbsp;Undo / Redo.
-- 🔍&nbsp;Zoom and panning support.
+## Install and run
 
-## Excalidraw.com
+| Command | Effect |
+|---|---|
+| `yarn start` | Dev server for `excalidraw-app` |
+| `./package.sh` | Build, serve on `127.0.0.1:3100` as systemd user service `excalidraw-local.service` |
+| `./package.sh status` | Service state and HTTP check (env: `EXCALIDRAW_PORT`, `EXCALIDRAW_DIR`) |
+| `./package.sh desktop` | Build, package a `.deb`, install it; entry in the applications menu |
+| `./package.sh desktop-package` | `.deb` only, in `excalidraw-desktop/dist/` |
+| `./package.sh vscode` | Build and install the VS Code extension from `../excalidraw-vscode` (`EXCALIDRAW_VSCODE_DIR`) |
 
-The app hosted at [excalidraw.com](https://excalidraw.com) is a minimal showcase of what you can build with Excalidraw. Its [source code](https://github.com/excalidraw/excalidraw/tree/master/excalidraw-app) is part of this repository as well, and the app features:
+## Repository
 
-- 📡&nbsp;PWA support (works offline).
-- 🤼&nbsp;Real-time collaboration.
-- 🔒&nbsp;End-to-end encryption.
-- 💾&nbsp;Local-first support (autosaves to the browser).
-- 🔗&nbsp;Shareable links (export to a readonly link you can share with others).
+| Path | Content |
+|---|---|
+| `packages/excalidraw/` | Editor component |
+| `packages/flow/` | Flow elements, Mermaid parse/serialize, layout |
+| `packages/symbols/` | Component and icon library, themes, HTML/Compose code export |
+| `packages/vector/` | SVG import, image vectorize, smooth outlines |
+| `packages/color/` | Colour spaces, harmonies, palettes, swatches |
+| `packages/common/`, `element/`, `math/`, `utils/` | Core packages |
+| `excalidraw-app/` | Web app |
+| `excalidraw-desktop/` | Electron app |
+| `docs/specs/` | Specifications EXC-1 … EXC-17 |
+| `docs/fixtures/crumbly/` | Crumbly fixture: a design generated by a test using the app's own tools |
 
-We'll be adding these features as drop-in plugins for the npm package in the future.
+Checks before a commit: `yarn test:typecheck`, `yarn test:update`, `yarn fix`.
 
-## Quick start
+## Credits
 
-**Note:** following instructions are for installing the Excalidraw [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw) when integrating Excalidraw into your own app. To run the repository locally for development, please refer to our [Development Guide](https://docs.excalidraw.com/docs/introduction/development).
-
-Use `npm` or `yarn` to install the package.
-
-```bash
-npm install react react-dom @excalidraw/excalidraw
-# or
-yarn add react react-dom @excalidraw/excalidraw
-```
-
-Check out our [documentation](https://docs.excalidraw.com/docs/@excalidraw/excalidraw/installation) for more details!
-
-## Contributing
-
-- Missing something or found a bug? [Report here](https://github.com/excalidraw/excalidraw/issues).
-- Want to contribute? Check out our [contribution guide](https://docs.excalidraw.com/docs/introduction/contributing) or let us know on [Discord](https://discord.gg/UexuTaE).
-- Want to help with translations? See the [translation guide](https://docs.excalidraw.com/docs/introduction/contributing#translating).
-
-## Integrations
-
-- [VScode extension](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor)
-- [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw)
-
-## Who's integrating Excalidraw
-
-[Google Cloud](https://googlecloudcheatsheet.withgoogle.com/architecture) • [Meta](https://meta.com/) • [CodeSandbox](https://codesandbox.io/) • [Obsidian Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) • [Replit](https://replit.com/) • [Slite](https://slite.com/) • [Notion](https://notion.so/) • [HackerRank](https://www.hackerrank.com/) • and many others
-
-## Sponsors & support
-
-If you like the project, you can become a sponsor at [Open Collective](https://opencollective.com/excalidraw) or use [Excalidraw+](https://plus.excalidraw.com/).
-
-## Thank you for supporting Excalidraw
-
-[<img src="https://opencollective.com/excalidraw/tiers/sponsors/0/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/0/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/1/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/1/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/2/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/2/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/3/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/3/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/4/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/4/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/5/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/5/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/6/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/6/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/7/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/7/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/8/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/8/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/9/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/9/website) [<img src="https://opencollective.com/excalidraw/tiers/sponsors/10/avatar.svg?avatarHeight=120"/>](https://opencollective.com/excalidraw/tiers/sponsors/10/website)
-
-<a href="https://opencollective.com/excalidraw#category-CONTRIBUTE" target="_blank"><img src="https://opencollective.com/excalidraw/tiers/backers.svg?avatarHeight=32"/></a>
-
-Last but not least, we're thankful to these companies for offering their services for free:
-
-[![Vercel](./.github/assets/vercel.svg)](https://vercel.com) [![Sentry](./.github/assets/sentry.svg)](https://sentry.io) [![Crowdin](./.github/assets/crowdin.svg)](https://crowdin.com)
+- Alidraw is derived from [Excalidraw](https://github.com/excalidraw/excalidraw) ([excalidraw.com](https://excalidraw.com)), the original project and code base.
+- Licence: MIT, see [LICENSE](LICENSE); copyright (c) 2020 Excalidraw for the original code.
