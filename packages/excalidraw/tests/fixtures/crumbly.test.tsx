@@ -492,7 +492,7 @@ describe("Crumbly: a social network about eating cookies", () => {
       fs.writeFileSync(path.join(dir, "Crumbly.kt"), code.compose);
       fs.writeFileSync(
         path.join(dir, "crumbly.excalidraw"),
-        serializeAsJSON(handle.elements, handle.state, {}, "local"),
+        serializeAsJSON(liveElements(), handle.state, {}, "local"),
       );
       const svg = await exportToSvg(
         liveElements() as any,

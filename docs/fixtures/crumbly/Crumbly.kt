@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 
 // Rows and columns inferred from the canvas; widths that reach the edge stretch, the rest keep their size. 1 group(s) of overlapping parts could not be split and stay fixed.
 // 7 x overlapping parts (kept at their relative place in a fixed box)
-// 52 x path (inline SVG in HTML, a placeholder in Compose)
+// 54 x path (inline SVG in HTML, a placeholder in Compose)
 
 val AppColors = lightColorScheme(
     primary = Color(0xFFFF6B57),
@@ -272,11 +272,11 @@ fun Screen() {
                                 }
                             }
                         }
-                        Spacer(Modifier.width(52.dp))
-                        Box(Modifier.padding(top = 519.6.dp)) {
+                        Spacer(Modifier.width(44.dp))
+                        Box(Modifier.padding(top = 523.8.dp)) {
                             Text("tap", fontSize = 20.sp, color = Color(0xFFE0449B))
                         }
-                        Spacer(Modifier.width(78.dp))
+                        Spacer(Modifier.width(86.dp))
                         Box(Modifier) {
                             Box(Modifier.size(360.dp, 720.dp)) {
                                 Box(Modifier.offset(0.dp, 0.dp)) {
@@ -352,10 +352,6 @@ fun Screen() {
                                         NavigationBarItem(selected = false, onClick = { /* TODO */ }, icon = { Icon(Icons.Default.Person, contentDescription = null) }, label = { Text("Profile") })
                                     }
                                 }
-                                Box(Modifier.offset(16.dp, 104.dp)) {
-                                    // TODO: Avatar, photo has no Compose mapping yet
-                                    Box(Modifier.size(48.dp))
-                                }
                                 Box(Modifier.offset(16.dp, 190.dp)) {
                                     LinearProgressIndicator(progress = { 0.72f }, modifier = Modifier.width(328.dp))
                                 }
@@ -372,6 +368,20 @@ fun Screen() {
                                             ListItem(headlineContent = { Text(item) }, supportingContent = { Text("Secondary text") })
                                         }
                                     }
+                                }
+                                Box(Modifier.offset(16.dp, 104.dp)) {
+                                    Box(
+                                        Modifier
+                                            .size(44.dp, 44.dp)
+                                            .background(Color(0xFFECEEF7), CircleShape)
+                                            .border(1.dp, Color(0xFFE1E3EF), CircleShape),
+                                    )
+                                }
+                                Box(Modifier.offset(34.dp, 118.dp)) {
+                                    Spacer(Modifier.size(8.dp, 8.dp)) // TODO: path: draw it with Canvas or a vector asset
+                                }
+                                Box(Modifier.offset(30.dp, 128.dp)) {
+                                    Spacer(Modifier.size(16.dp, 6.dp)) // TODO: path: draw it with Canvas or a vector asset
                                 }
                             }
                         }

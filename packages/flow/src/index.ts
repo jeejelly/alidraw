@@ -14,6 +14,7 @@ export * from "./flowParts";
 export * from "./flowPortEdit";
 export * from "./flowPorts";
 export * from "./flowRead";
+export * from "./flowRepair";
 export * from "./flowSelect";
 export * from "./flowSerialize";
 export * from "./flowText";

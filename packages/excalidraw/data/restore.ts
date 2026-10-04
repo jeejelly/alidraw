@@ -44,6 +44,7 @@ import {
   projectFixedPointOntoDiagonal,
   isNonDeletedElement,
 } from "@excalidraw/element";
+import { dropDuplicateLinks } from "@excalidraw/flow";
 import { normalizeFixedPoint } from "@excalidraw/element";
 import {
   updateElbowArrowPoints,
@@ -988,51 +989,56 @@ export const restoreElements = <T extends ExcalidrawElement>(
     ? arrayToMap(existingElements)
     : null;
 
-  const restoredElements = syncInvalidIndices(
-    (targetElements || []).reduce((elements, element) => {
-      // filtering out selection, which is legacy, no longer kept in elements,
-      // and causing issues if retained
-      if (element.type === "selection") {
+  const restoredElements = dropDuplicateLinks(
+    syncInvalidIndices(
+      (targetElements || []).reduce((elements, element) => {
+        // filtering out selection, which is legacy, no longer kept in elements,
+        // and causing issues if retained
+        if (element.type === "selection") {
+          return elements;
+        }
+        let migratedElement: ExcalidrawElement | null;
+        try {
+          migratedElement = restoreElement(
+            element,
+            targetElementsMap,
+            existingElementsMap,
+            {
+              deleteInvisibleElements: opts?.deleteInvisibleElements,
+            },
+          );
+        } catch (error) {
+          console.error("Error restoring element:", error);
+          migratedElement = null;
+        }
+        if (migratedElement) {
+          const localElement = existingElementsMap?.get(element.id);
+
+          const shouldMarkAsDeleted =
+            opts?.deleteInvisibleElements && isInvisiblySmallElement(element);
+
+          if (shouldMarkAsDeleted) {
+            migratedElement = bumpVersion(
+              migratedElement,
+              localElement?.version,
+            );
+          }
+
+          if (shouldMarkAsDeleted) {
+            migratedElement = { ...migratedElement, isDeleted: true };
+          }
+
+          if (existingIds.has(migratedElement.id)) {
+            migratedElement = { ...migratedElement, id: randomId() };
+          }
+          existingIds.add(migratedElement.id);
+
+          elements.push(migratedElement);
+        }
+
         return elements;
-      }
-      let migratedElement: ExcalidrawElement | null;
-      try {
-        migratedElement = restoreElement(
-          element,
-          targetElementsMap,
-          existingElementsMap,
-          {
-            deleteInvisibleElements: opts?.deleteInvisibleElements,
-          },
-        );
-      } catch (error) {
-        console.error("Error restoring element:", error);
-        migratedElement = null;
-      }
-      if (migratedElement) {
-        const localElement = existingElementsMap?.get(element.id);
-
-        const shouldMarkAsDeleted =
-          opts?.deleteInvisibleElements && isInvisiblySmallElement(element);
-
-        if (shouldMarkAsDeleted) {
-          migratedElement = bumpVersion(migratedElement, localElement?.version);
-        }
-
-        if (shouldMarkAsDeleted) {
-          migratedElement = { ...migratedElement, isDeleted: true };
-        }
-
-        if (existingIds.has(migratedElement.id)) {
-          migratedElement = { ...migratedElement, id: randomId() };
-        }
-        existingIds.add(migratedElement.id);
-
-        elements.push(migratedElement);
-      }
-
-      return elements;
-    }, [] as ExcalidrawElement[]),
+      }, [] as ExcalidrawElement[]),
+    ),
   );
 
   if (!opts?.repairBindings) {
