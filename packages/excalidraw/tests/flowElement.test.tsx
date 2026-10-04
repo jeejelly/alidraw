@@ -7,6 +7,7 @@ import {
   addLink,
   addPlaceholder,
   fillPlaceholder,
+  refitFlowElement,
   wrapAsFlowElement,
 } from "@excalidraw/flow";
 import { parseFlow, serializeFlow } from "@excalidraw/flow";
@@ -396,5 +397,56 @@ describe("flow elements", () => {
       expect(kept.x + kept.width).toBeGreaterThanOrEqual(x2);
       expect(kept.y + kept.height).toBeGreaterThanOrEqual(y2);
     });
+  });
+});
+
+describe("the outline fits its shape", () => {
+  const outlineOf = (key: string) =>
+    liveElements().find(
+      (element) =>
+        getFlowMeta(element)?.key === key &&
+        getFlowMeta(element)?.kind === "node",
+    )!;
+
+  it("a step's outline is exactly the bounds of what it wraps, and stays so when refitted", async () => {
+    await render(<Excalidraw />);
+    const shape = box(40, 30, 140, 70);
+    API.setElements([shape]);
+    act(() => {
+      wrapAsFlowElement(scene(), [shape], "F", { label: "Buy" });
+    });
+    const outline = outlineOf("buy");
+    expect([outline.x, outline.y, outline.width, outline.height]).toEqual([
+      40, 30, 140, 70,
+    ]);
+    act(() => {
+      scene().mutateElement(
+        liveElements().find((element) => element.id === shape.id)!,
+        { width: 200, x: 60 } as any,
+      );
+      refitFlowElement(scene(), outlineOf("buy"));
+    });
+    const refitted = outlineOf("buy");
+    expect([refitted.x, refitted.width]).toEqual([60, 200]);
+  });
+
+  it("a screen keeps a gap around the flow elements inside it", async () => {
+    await render(<Excalidraw />);
+    const first = box(0, 0);
+    const second = box(300, 0);
+    API.setElements([first, second]);
+    act(() => {
+      wrapAsFlowElement(scene(), [first], "F", { label: "A" });
+      wrapAsFlowElement(scene(), [second], "F", { label: "B" });
+    });
+    const inner = [outlineOf("a"), outlineOf("b")];
+    act(() => {
+      wrapAsFlowElement(scene(), inner, "F", { label: "Home" });
+    });
+    const screenOutline = outlineOf("home");
+    expect(screenOutline.x).toBeLessThan(
+      Math.min(...inner.map((item) => item.x)),
+    );
+    expect(screenOutline.width).toBeGreaterThan(300 + 100);
   });
 });

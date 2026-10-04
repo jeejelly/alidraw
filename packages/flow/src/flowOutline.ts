@@ -110,10 +110,12 @@ export const refitFlowElement = (scene: Scene, outline: ExcalidrawElement) => {
     return;
   }
   const [x1, y1, x2, y2] = getCommonBounds(content);
-  const rx = x1 - PAD;
-  const ry = y1 - PAD;
-  const rw = x2 - x1 + PAD * 2;
-  const rh = y2 - y1 + PAD * 2;
+  // a screen keeps a gap around the flow elements in it; a step fits its shape
+  const pad = content.some((element) => getFlowMeta(element)?.wrap) ? PAD : 0;
+  const rx = x1 - pad;
+  const ry = y1 - pad;
+  const rw = x2 - x1 + pad * 2;
+  const rh = y2 - y1 + pad * 2;
   scene.mutateElement(outline, { x: rx, y: ry, width: rw, height: rh } as any);
   const { labels, handles } = partsOf(all, meta.id);
   const label = labels.get(meta.key);

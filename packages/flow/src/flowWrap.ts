@@ -178,6 +178,7 @@ const buildWrapElements = ({
   frameId,
   meta,
   shape,
+  pad,
 }: {
   flowId: string;
   key: string;
@@ -188,12 +189,13 @@ const buildWrapElements = ({
   frameId: string | null;
   meta: FlowMeta;
   shape?: FlowShape;
+  pad: number;
 }) => {
   const [left, top, right, bottom] = bounds;
-  const outlineX = left - PAD;
-  const outlineY = top - PAD;
-  const outlineWidth = right - left + PAD * 2;
-  const outlineHeight = bottom - top + PAD * 2;
+  const outlineX = left - pad;
+  const outlineY = top - pad;
+  const outlineWidth = right - left + pad * 2;
+  const outlineHeight = bottom - top + pad * 2;
   return convertToExcalidrawElements(
     [
       {
@@ -328,6 +330,7 @@ export const wrapAsFlowElement = (
     frameId: frames.size === 1 ? [...frames][0] : null,
     meta,
     shape: look.shape ?? (look.form ? FORMS[look.form].shape : undefined),
+    pad: holdsFlowElement ? PAD : 0,
   });
   const targetIds = new Set(targets.map((element) => element.id));
   scene.replaceAllElements(insertWrap(all, targetIds, group, made));

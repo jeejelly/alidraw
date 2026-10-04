@@ -1,3 +1,4 @@
+/** the gap between a screen's outline and the flow elements inside it (a step has none: its outline is its shape) */
 export const PAD = 18;
 export const ACCENT = "#e0449b";
 /** links read on light and dark canvases alike */
