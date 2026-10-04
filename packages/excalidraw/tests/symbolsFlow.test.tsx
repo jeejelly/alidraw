@@ -191,6 +191,7 @@ describe("filled shapes and code fonts", () => {
 
   it("every diagram family fills its bodies with the wash, not the plain surface", () => {
     const families = new Set(["Flow", "State", "Architecture", "Programming"]);
+    const offenders: string[] = [];
     for (const def of COMPONENTS.filter((item) =>
       families.has(item.category),
     )) {
@@ -201,8 +202,11 @@ describe("filled shapes and code fonts", () => {
         .shapes(THEMES[2], values as any)
         .map((shape: any) => shape.f)
         .filter(Boolean);
-      expect(fills, def.id).not.toContain("surface");
+      if (fills.includes("surface")) {
+        offenders.push(def.id);
+      }
     }
+    expect(offenders).toEqual([]);
   });
 
   it("code uses a monospace face, other text does not", () => {
