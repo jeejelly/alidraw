@@ -1,11 +1,11 @@
-import { radiusOf, type SymbolTheme, type Token } from "./theme";
+import { radiusOf, type Fill, type SymbolTheme, type Token } from "./theme";
 
 /** Components as shapes in theme tokens; the same list draws the preview and builds the canvas elements. */
 export type Radius = "ctl" | "card" | "pill" | number;
 
 type Common = {
   s?: Token | null;
-  f?: Token | null;
+  f?: Fill | null;
   sw?: number;
   dash?: boolean;
 };

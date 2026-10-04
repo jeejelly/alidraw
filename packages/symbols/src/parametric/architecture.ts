@@ -22,7 +22,7 @@ import { text } from "./helpers";
 import type { Token } from "../theme";
 
 const box = (width: number, height: number, ink: Token, dash = false) =>
-  rectShape(0, 0, width, height, { r: "ctl", f: "surface", s: ink, dash });
+  rectShape(0, 0, width, height, { r: "ctl", f: "wash", s: ink, dash });
 
 /** a box with an icon on its left and the label in the room that is left */
 const iconBox = (
@@ -171,7 +171,7 @@ export const mobile = nodeDef({
   label: "App",
   flow: { shape: "round" },
   body: (width, height, ink) => [
-    rectShape(0, 0, width, height, { r: "card", f: "surface", s: ink }),
+    rectShape(0, 0, width, height, { r: "card", f: "wash", s: ink }),
     lineShape(
       [
         [width / 2 - 14, 12],
@@ -233,7 +233,7 @@ export const actor = withFlow(
       const line = (...points: [number, number][]): Shape =>
         lineShape(points, { s: ink });
       return [
-        ellipseShape(20, 0, 24, 24, { f: "surface", s: ink }),
+        ellipseShape(20, 0, 24, 24, { f: "wash", s: ink }),
         line([32, 24], [32, 58]),
         line([10, 36], [54, 36]),
         line([32, 58], [14, 84]),

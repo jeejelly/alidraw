@@ -8,6 +8,7 @@ import {
   COMPONENT_CATEGORIES,
   THEMES,
   themeUpdates,
+  washOf,
 } from "@excalidraw/symbols";
 
 import { Excalidraw } from "../index";
@@ -155,7 +156,7 @@ describe("filled shapes and code fonts", () => {
       );
       expect(polygons.length).toBeGreaterThan(0);
       for (const polygon of polygons) {
-        expect(polygon.backgroundColor).toBe(THEMES[2].colors.surface);
+        expect(polygon.backgroundColor).toBe(washOf(THEMES[2]));
       }
     }
   });
@@ -166,7 +167,42 @@ describe("filled shapes and code fonts", () => {
     );
     const dark = THEMES[THEMES.length - 1];
     const [update] = themeUpdates([polygon], dark);
-    expect(update.updates.backgroundColor).toBe(dark.colors.surface);
+    expect(update.updates.backgroundColor).toBe(washOf(dark));
+  });
+
+  it("the wash is a light tint of the danger colour, lighter than the colour itself", () => {
+    const theme = THEMES[2];
+    const wash = washOf(theme);
+    expect(wash).toMatch(/^#[0-9a-f]{6}$/);
+    expect(wash).not.toBe(theme.colors.danger);
+    // light: each channel is nearer the surface than the danger colour is
+    const channel = (hex: string, at: number) =>
+      parseInt(hex.slice(at, at + 2), 16);
+    for (const at of [1, 3, 5]) {
+      expect(
+        Math.abs(channel(wash, at) - channel(theme.colors.surface, at)),
+      ).toBeLessThan(
+        Math.abs(
+          channel(theme.colors.danger, at) - channel(theme.colors.surface, at),
+        ) + 1,
+      );
+    }
+  });
+
+  it("every diagram family fills its bodies with the wash, not the plain surface", () => {
+    const families = new Set(["Flow", "State", "Architecture", "Programming"]);
+    for (const def of COMPONENTS.filter((item) =>
+      families.has(item.category),
+    )) {
+      const values = Object.fromEntries(
+        (def.params ?? []).map((param) => [param.key, param.def]),
+      );
+      const fills = def
+        .shapes(THEMES[2], values as any)
+        .map((shape: any) => shape.f)
+        .filter(Boolean);
+      expect(fills, def.id).not.toContain("surface");
+    }
   });
 
   it("code uses a monospace face, other text does not", () => {

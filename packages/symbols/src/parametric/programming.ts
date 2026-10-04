@@ -52,7 +52,7 @@ const compartments = (
     y += height;
   }
   out.push(
-    rectShape(0, 0, width, y, { r: "ctl", f: "surface", s: header.ink }),
+    rectShape(0, 0, width, y, { r: "ctl", f: "wash", s: header.ink }),
     rectShape(0, 0, width, headHeight, { r: "ctl", f: "surfaceAlt", s: null }),
     ...(header.note
       ? [textShape(header.note, width / 2, 14, 11, "muted", "middle")]
@@ -134,7 +134,7 @@ export const func = nodeDef({
   label: "total(items): number",
   flow: { shape: "round" },
   body: (width, height, ink) => [
-    rectShape(0, 0, width, height, { r: "pill", f: "surface", s: ink }),
+    rectShape(0, 0, width, height, { r: "pill", f: "wash", s: ink }),
   ],
 });
 
@@ -149,7 +149,7 @@ export const moduleBox = nodeDef({
   flow: { shape: "rect" },
   body: (width, height, ink) => [
     rectShape(0, 0, width * 0.4, 20, { r: 0, f: "surfaceAlt", s: ink }),
-    rectShape(0, 20, width, height - 20, { r: 0, f: "surface", s: ink }),
+    rectShape(0, 20, width, height - 20, { r: 0, f: "wash", s: ink }),
   ],
   place: (width, height) => [width / 2, 20 + (height - 20) / 2, "middle"],
 });
@@ -169,7 +169,7 @@ export const endpoint = withFlow(
     (_theme, values) => {
       const ink: Token = values.method === "DELETE" ? "danger" : "accent";
       return [
-        rectShape(0, 0, values.width, 40, { r: "ctl", f: "surface", s: ink }),
+        rectShape(0, 0, values.width, 40, { r: "ctl", f: "wash", s: ink }),
         rectShape(6, 6, 64, 28, { r: "ctl", f: ink, s: null }),
         textShape(values.method, 38, 20, 12, "onAccent", "middle"),
         textShape(values.path, 82, 20, 14, "text", "start", true),

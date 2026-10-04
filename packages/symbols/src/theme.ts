@@ -11,6 +11,9 @@ export type Token =
   | "success"
   | "danger";
 
+/** a fill: a token, or the light wash of the danger colour that diagram shapes are filled with */
+export type Fill = Token | "wash";
+
 /** corner radius of controls in px; the maximum draws full pills */
 export const MAX_RADIUS = 40;
 
@@ -232,6 +235,15 @@ export const radiusOf = (
     ? 20
     : Math.min(theme.radius * 1.5, 28);
 };
+
+/** how much of the danger colour the wash keeps over the surface (watermelon on a light page) */
+const WASH_STRENGTH = 0.14;
+
+export const washOf = (theme: SymbolTheme) =>
+  mix(theme.colors.danger, theme.colors.surface, 1 - WASH_STRENGTH);
+
+export const fillColor = (theme: SymbolTheme, fill: Fill) =>
+  fill === "wash" ? washOf(theme) : theme.colors[fill];
 
 const mix = (from: string, to: string, amount: number) => {
   const pa = /^#?([0-9a-f]{6})$/i.exec(from)?.[1];

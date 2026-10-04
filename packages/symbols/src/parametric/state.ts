@@ -71,7 +71,7 @@ export const stateBox = withFlow(
       const out: Shape[] = [
         rectShape(0, 0, values.width, height, {
           r: "card",
-          f: "surface",
+          f: "wash",
           s: "accent",
         }),
         textShape(values.name, values.width / 2, 20, 14, "text", "middle"),
@@ -153,7 +153,7 @@ export const history = withFlow(
     [text("name", "Name", "History"), num("size", "Size", 36, 24, 100)],
     (_theme, values) => [
       ellipseShape(0, 0, values.size, values.size, {
-        f: "surface",
+        f: "wash",
         s: "accent",
       }),
       textShape(

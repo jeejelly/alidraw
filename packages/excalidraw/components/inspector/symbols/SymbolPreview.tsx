@@ -1,4 +1,4 @@
-import { getIcon } from "@excalidraw/symbols";
+import { getIcon, washOf } from "@excalidraw/symbols";
 import { boundsOf, resolveRadius, type Shape } from "@excalidraw/symbols";
 
 import type { SymbolTheme } from "@excalidraw/symbols";
@@ -19,7 +19,7 @@ export const SymbolPreview = ({
 }) => {
   const bounds = boundsOf(shapes);
   const pad = 6;
-  const colors = theme.colors;
+  const colors = { ...theme.colors, wash: washOf(theme) };
   const none = "none";
   return (
     <svg

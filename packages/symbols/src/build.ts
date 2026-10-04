@@ -25,14 +25,14 @@ import {
 } from "./components";
 import { getIcon } from "./icons";
 
-import type { SymbolTheme, Token } from "./theme";
+import { fillColor, type Fill, type SymbolTheme, type Token } from "./theme";
 
 export { boundsOf };
 
 /** what a symbol element remembers of its theme: tokens, so a new theme can recolour it */
 export type SymbolMeta = {
   s?: Token | null;
-  f?: Token | null;
+  f?: Fill | null;
   /** stroke follows the theme's stroke width, scaled by this */
   sw?: number;
   r?: any;
@@ -168,13 +168,15 @@ export const buildElements = (
   const group = randomId();
   const color = (tk: Token | null | undefined) =>
     tk ? theme.colors[tk] : NONE;
+  const fill = (tk: Fill | null | undefined) =>
+    tk ? fillColor(theme, tk) : NONE;
   const out: ExcalidrawElement[] = [];
   const base = (
     meta: Omit<SymbolMeta, "group">,
     extra: Record<string, any> = {},
   ) => ({
     strokeColor: color(meta.s),
-    backgroundColor: color(meta.f),
+    backgroundColor: fill(meta.f),
     fillStyle: "solid" as const,
     strokeWidth: extra.strokeWidth ?? 1,
     roughness: 0,
@@ -304,7 +306,7 @@ export const themeUpdates = (
       updates.strokeColor = meta.s ? theme.colors[meta.s] : NONE;
     }
     if (meta.f !== undefined) {
-      updates.backgroundColor = meta.f ? theme.colors[meta.f] : NONE;
+      updates.backgroundColor = meta.f ? fillColor(theme, meta.f) : NONE;
     }
     if (meta.sw) {
       updates.strokeWidth = Math.max(1, theme.stroke * meta.sw);

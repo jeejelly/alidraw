@@ -28,7 +28,7 @@ export const terminator = nodeDef({
   label: "Start",
   flow: { form: "stadium", shape: "round" },
   body: (width, height, ink) => [
-    rectShape(0, 0, width, height, { r: "pill", f: "surface", s: ink }),
+    rectShape(0, 0, width, height, { r: "pill", f: "wash", s: ink }),
   ],
 });
 
@@ -42,7 +42,7 @@ export const process = nodeDef({
   label: "Process",
   flow: { shape: "rect" },
   body: (width, height, ink) => [
-    rectShape(0, 0, width, height, { r: "ctl", f: "surface", s: ink }),
+    rectShape(0, 0, width, height, { r: "ctl", f: "wash", s: ink }),
   ],
 });
 
@@ -103,7 +103,7 @@ export const predefinedProcess = nodeDef({
   label: "Subroutine",
   flow: { form: "subroutine", shape: "rect" },
   body: (width, height, ink) => [
-    rectShape(0, 0, width, height, { r: 0, f: "surface", s: ink }),
+    rectShape(0, 0, width, height, { r: 0, f: "wash", s: ink }),
     lineShape(
       [
         [12, 0],
@@ -250,7 +250,7 @@ export const connector = withFlow(
     [text("label", "Label", "A"), num("size", "Size", 40, 24, 120)],
     (_theme, values) => [
       ellipseShape(0, 0, values.size, values.size, {
-        f: "surface",
+        f: "wash",
         s: "accent",
       }),
       textShape(

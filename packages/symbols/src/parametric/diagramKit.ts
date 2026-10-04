@@ -13,7 +13,7 @@ import {
 
 import { num, pick, text } from "./helpers";
 
-import type { Token } from "../theme";
+import type { Fill, Token } from "../theme";
 
 /** the outcomes of a decision; a mirror of the flow package's defaults */
 export const DECISION_PORTS: SymbolFlowPort[] = [
@@ -53,11 +53,11 @@ export const sizeParams = (width: number, height: number): Param[] => [
   num("height", "Height", height, 24, 600),
 ];
 
-/** a closed outline, filled with the surface colour unless `fill` says otherwise */
+/** a closed outline, filled with the watermelon wash unless `fill` says otherwise */
 export const closed = (
   points: [number, number][],
   ink: Token,
-  fill: Token | null = "surface",
+  fill: Fill | null = "wash",
 ): Shape => lineShape([...points, points[0]], { s: ink, f: fill });
 
 /** points along an elliptical arc, angles in radians */
@@ -78,7 +78,7 @@ export const ellipseArc = (
 export const cylinder = (width: number, height: number, ink: Token) => {
   const cap = Math.min(height / 4, 16);
   return [
-    rectShape(0, cap, width, height - 2 * cap, { f: "surface", s: null }),
+    rectShape(0, cap, width, height - 2 * cap, { f: "wash", s: null }),
     lineShape(ellipseArc(width / 2, height - cap, width / 2, cap, 0, Math.PI), {
       s: ink,
     }),
@@ -97,7 +97,7 @@ export const cylinder = (width: number, height: number, ink: Token) => {
       { s: ink },
     ),
     // drawn last so the rim covers the side lines
-    { t: "ellipse", x: 0, y: 0, w: width, h: cap * 2, f: "surface", s: ink },
+    { t: "ellipse", x: 0, y: 0, w: width, h: cap * 2, f: "wash", s: ink },
   ] as Shape[];
 };
 
