@@ -365,6 +365,41 @@ describe("open, close, split and join in the editor", () => {
       [400, 0],
     ]);
   });
+
+  it("merges several open paths whose ends are near into one closed path", async () => {
+    await render(<Excalidraw handleKeyboardGlobally />);
+    const top = mk(0, 0, [
+      [0, 0],
+      [100, 0],
+    ]);
+    const right = mk(100, 4, [
+      [0, 0],
+      [0, 100],
+    ]);
+    const bottom = mk(100, 104, [
+      [0, 0],
+      [-100, 0],
+    ]);
+    const left = mk(0, 104, [
+      [0, 0],
+      [0, -100],
+    ]);
+    const far = mk(900, 900, [
+      [0, 0],
+      [10, 10],
+    ]);
+    API.setElements([top, right, bottom, left, far]);
+    API.setSelectedElements([top, right, bottom, left]);
+    Keyboard.withModifierKeys({ ctrl: true }, () => Keyboard.codePress("KeyJ"));
+    const live = handle.elements.filter(
+      (element) => !element.isDeleted,
+    ) as ExcalidrawPathElement[];
+    expect(live).toHaveLength(2);
+    const merged = live.find((element) => element.id === top.id)!;
+    expect(merged.closed).toBe(true);
+    expect(merged.points).toHaveLength(4);
+    expect(live.some((element) => element.id === far.id)).toBe(true);
+  });
 });
 
 const flat = (path: ExcalidrawPathElement) =>

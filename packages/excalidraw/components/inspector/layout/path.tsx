@@ -55,8 +55,8 @@ export const PathSection = ({ app }: { app: App }) => {
       icon: <PathActionIcon kind="join" />,
       title: t("labels.path.join"),
       enabled:
-        selected.length === 2 &&
-        selected.every((element) => element.type === "path"),
+        selected.length >= 2 &&
+        selected.every((element) => element.type === "path" && !element.closed),
       active: false,
       run: () => execute(actionJoinPaths),
     },

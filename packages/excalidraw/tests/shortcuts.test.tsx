@@ -22,8 +22,10 @@ describe("shortcuts", () => {
     Keyboard.withModifierKeys({ ctrl: true }, () => {
       Keyboard.keyDown(KEYS.DELETE);
     });
+    await waitFor(() => {
+      expect(document.querySelector(".confirm-dialog")).not.toBe(null);
+    });
     const confirmDialog = document.querySelector(".confirm-dialog")!;
-    expect(confirmDialog).not.toBe(null);
 
     fireEvent.click(confirmDialog.querySelector('[aria-label="Confirm"]')!);
 

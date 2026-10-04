@@ -4,8 +4,7 @@ import {
   getPathGeometryFromShape,
   getPathSceneGeometry,
   getPathUpdate,
-  joinPathGeometries,
-  reversePathGeometry,
+  mergeOpenPaths,
   isConvertibleToPath,
   isLineConvertibleToPath,
   NO_HANDLES,
@@ -149,7 +148,13 @@ const isOpenPath = (
 ): element is ExcalidrawPathElement =>
   isPathElement(element) && !element.closed && element.points.length >= 2;
 
-/** two open paths become one, joined where their ends are nearest */
+/** how close (on screen) two end points must be for their paths to merge */
+const MERGE_TOLERANCE_PX = 24;
+
+/**
+ * Open paths become one wherever their ends meet, keeping curves; a chain
+ * whose two ends meet closes. Two paths always join at their nearest ends.
+ */
 export const actionJoinPaths = register({
   name: "joinPaths",
   label: "labels.path.join",
@@ -164,49 +169,59 @@ export const actionJoinPaths = register({
     event.code === CODES.J,
   predicate: (elements, appState, _, app) => {
     const selected = app.scene.getSelectedElements(appState);
-    return selected.length === 2 && selected.every(isOpenPath);
+    return selected.length >= 2 && selected.every(isOpenPath);
   },
   perform: (elements, appState, _, app) => {
     const selected = app.scene.getSelectedElements(appState);
-    if (selected.length !== 2 || !selected.every(isOpenPath)) {
+    if (selected.length < 2 || !selected.every(isOpenPath)) {
       return false;
     }
-    const [firstPath, secondPath] = selected as ExcalidrawPathElement[];
-    const firstGeometry = getPathSceneGeometry(firstPath);
-    const secondGeometry = getPathSceneGeometry(secondPath);
-    const gap = (from: typeof firstGeometry, to: typeof firstGeometry) => {
-      const tail = from.points[from.points.length - 1];
-      const head = to.points[0];
-      return Math.hypot(tail[0] - head[0], tail[1] - head[1]);
-    };
-    const candidates = [
-      [firstGeometry, secondGeometry],
-      [firstGeometry, reversePathGeometry(secondGeometry)],
-      [reversePathGeometry(firstGeometry), secondGeometry],
-      [reversePathGeometry(firstGeometry), reversePathGeometry(secondGeometry)],
-    ] as const;
-    const [first, second] = candidates.reduce((best, candidate) =>
-      gap(candidate[0], candidate[1]) < gap(best[0], best[1])
-        ? candidate
-        : best,
-    );
-    const joined = joinPathGeometries(first, second);
-    // scene coordinates, no rotation: a frame at the origin
-    const frame = { ...firstPath, x: 0, y: 0, angle: 0 as any, ...joined };
-    const update = getPathUpdate(frame, joined);
+    const paths = selected as ExcalidrawPathElement[];
+    const tolerance = MERGE_TOLERANCE_PX / appState.zoom.value;
+    const merged = mergeOpenPaths(
+      paths.map(getPathSceneGeometry),
+      paths.length === 2 ? Infinity : tolerance,
+      tolerance,
+    ).filter((chain) => chain.members.length > 1);
+    if (!merged.length) {
+      return false;
+    }
+    const updates = new Map<string, ReturnType<typeof newElementWith>>();
+    const removed = new Set<string>();
+    const selectedIds: Record<string, true> = {};
+    for (const chain of merged) {
+      const [keptIndex, ...rest] = chain.members;
+      const kept = paths[keptIndex];
+      // scene coordinates, no rotation: a frame at the origin
+      const frame = {
+        ...kept,
+        x: 0,
+        y: 0,
+        angle: 0 as any,
+        closed: chain.closed,
+        points: chain.points,
+        handles: chain.handles,
+      };
+      updates.set(
+        kept.id,
+        newElementWith(kept, {
+          ...getPathUpdate(frame, chain),
+          closed: chain.closed,
+          angle: 0 as any,
+        } as any),
+      );
+      rest.forEach((index) => removed.add(paths[index].id));
+      selectedIds[kept.id] = true;
+    }
     return {
-      elements: elements.map((element) => {
-        if (element.id === firstPath.id) {
-          return newElementWith(element, { ...update, angle: 0 as any } as any);
-        }
-        if (element.id === secondPath.id) {
-          return newElementWith(element, { isDeleted: true });
-        }
-        return element;
-      }),
+      elements: elements.map((element) =>
+        removed.has(element.id)
+          ? newElementWith(element, { isDeleted: true })
+          : updates.get(element.id) ?? element,
+      ),
       appState: {
         ...appState,
-        selectedElementIds: { [firstPath.id]: true },
+        selectedElementIds: selectedIds,
         editingPath: null,
       },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,

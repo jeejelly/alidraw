@@ -147,6 +147,127 @@ export const reversePathGeometry = (geometry: PathGeometry): PathGeometry => ({
     .map((handles) => ({ ...handles, in: handles.out, out: handles.in })),
 });
 
+export type MergedPaths = PathGeometry & {
+  closed: boolean;
+  /** indexes of the input paths that went into this one, in input order */
+  members: number[];
+};
+
+const endGap = (first: PathGeometry, second: PathGeometry) =>
+  len(sub(first.points[first.points.length - 1], second.points[0]));
+
+/** ends that nearly touch are moved onto their midpoint so they merge */
+const snapEnds = (
+  first: PathGeometry,
+  second: PathGeometry,
+  tolerance: number,
+): [PathGeometry, PathGeometry] => {
+  const tail = first.points[first.points.length - 1];
+  const head = second.points[0];
+  if (len(sub(tail, head)) > tolerance) {
+    return [first, second];
+  }
+  const middle = pointFrom<LocalPoint>(
+    (tail[0] + head[0]) / 2,
+    (tail[1] + head[1]) / 2,
+  );
+  return [
+    { ...first, points: [...first.points.slice(0, -1), middle] },
+    { ...second, points: [middle, ...second.points.slice(1)] },
+  ];
+};
+
+type EndPair = {
+  from: number;
+  to: number;
+  first: PathGeometry;
+  second: PathGeometry;
+  gap: number;
+};
+
+/** the two chains (one possibly reversed each) with the closest ends */
+const nearestEnds = (
+  chains: readonly PathGeometry[],
+  tolerance: number,
+): EndPair | null => {
+  let best: EndPair | null = null;
+  for (let from = 0; from < chains.length; from++) {
+    for (let to = from + 1; to < chains.length; to++) {
+      for (const first of [chains[from], reversePathGeometry(chains[from])]) {
+        for (const second of [chains[to], reversePathGeometry(chains[to])]) {
+          const gap = endGap(first, second);
+          if (gap <= tolerance && (!best || gap < best.gap)) {
+            best = { from, to, first, second, gap };
+          }
+        }
+      }
+    }
+  }
+  return best;
+};
+
+/**
+ * Chains open paths whose end points lie within `joinTolerance` of each
+ * other (nearest pair first, reversing paths where needed) so that curves
+ * are kept. A chain of several paths whose two ends meet within
+ * `closeTolerance` becomes a closed path.
+ */
+export const mergeOpenPaths = (
+  geometries: readonly PathGeometry[],
+  joinTolerance: number,
+  closeTolerance: number,
+  snapTolerance = closeTolerance,
+): MergedPaths[] => {
+  let chains: (PathGeometry & { members: number[] })[] = geometries.map(
+    (geometry, index) => ({ ...geometry, members: [index] }),
+  );
+  for (;;) {
+    const best = nearestEnds(chains, joinTolerance);
+    if (!best) {
+      break;
+    }
+    const { from, to, first, second } = best;
+    const merged = {
+      ...joinPathGeometries(...snapEnds(first, second, snapTolerance)),
+      members: [...chains[from].members, ...chains[to].members].sort(
+        (left, right) => left - right,
+      ),
+    };
+    chains = [
+      ...chains.filter((_, index) => index !== from && index !== to),
+      merged,
+    ];
+  }
+  return chains
+    .map((chain) => {
+      const count = chain.points.length;
+      const closes =
+        chain.members.length > 1 &&
+        count >= 3 &&
+        len(sub(chain.points[count - 1], chain.points[0])) <= closeTolerance;
+      if (!closes) {
+        return { ...chain, closed: false };
+      }
+      const last = chain.handles[count - 1];
+      const start = chain.handles[0];
+      const handles = [
+        {
+          ...start,
+          mode: last.mode === "corner" ? start.mode : last.mode,
+          in: last.in ?? start.in,
+        },
+        ...chain.handles.slice(1, -1),
+      ];
+      return {
+        ...chain,
+        points: chain.points.slice(0, -1),
+        handles: smoothSeam(handles),
+        closed: true,
+      };
+    })
+    .sort((left, right) => left.members[0] - right.members[0]);
+};
+
 /**
  * Joins the end of `first` to the start of `second`. End points that coincide
  * are merged into one (keeping the tangent of each side); others are bridged
