@@ -128,6 +128,11 @@ export class PathPointEditor {
 
   startEditing = (element: ExcalidrawPathElement) => {
     this.context.setEditing(element.id, null);
+    // the mirror line saved with the path comes back
+    const mirror = this.context.loadMirror(element);
+    if (mirror) {
+      this.context.showMirror(mirror);
+    }
   };
 
   stopEditing = () => {

@@ -6,6 +6,7 @@ import { pointFrom, type LocalPoint } from "@excalidraw/math";
 import type { ExcalidrawPathElement } from "@excalidraw/element/types";
 
 import { actionEditPath } from "../actions";
+import { restoreElements } from "../data/restore";
 import { Excalidraw } from "../index";
 
 import { API } from "./helpers/api";
@@ -26,7 +27,7 @@ const handle = window.h;
 const getPath = () =>
   handle.elements.find(
     (element) => !element.isDeleted && element.type === "path",
-  ) as ExcalidrawPathElement;
+  ) as ExcalidrawPathElement & { isDeleted: false };
 
 const sceneOf = (path: ExcalidrawPathElement) =>
   path.points.map((point) => [path.x + point[0], path.y + point[1]]);
@@ -74,7 +75,7 @@ describe("mirror editing", () => {
   };
 
   it("adds the line in the middle of the shape, and removes it", () => {
-    expect(handle.state.editingPath?.mirror).toBeUndefined();
+    expect(handle.state.editingPath?.mirror).toBeFalsy();
     fireEvent.click(screen.getByTestId("path-mirror-x"));
     expect(handle.state.editingPath?.mirror).toEqual({ axis: "x", at: 200 });
     fireEvent.click(screen.getByTestId("path-mirror-x"));
@@ -108,6 +109,47 @@ describe("mirror editing", () => {
     expect(sceneOf(getPath())[5]).toEqual([0, 230]);
     drag([400, 230], [380, 250]);
     expect(sceneOf(getPath())[5]).toEqual([20, 250]);
+  });
+
+  it("the line is saved with the path and comes back on the next edit", () => {
+    fireEvent.click(screen.getByTestId("path-mirror-x"));
+    drag([200, 250], [210, 250]);
+    expect(getPath().customData?.pathMirror).toEqual({
+      axis: "x",
+      position: 0.55,
+    });
+    // leaving the editor hides the line, the path keeps it
+    fireEvent.click(screen.getByTestId("path-editor-done"));
+    expect(handle.state.editingPath).toBeNull();
+    // it survives a save and a reload
+    const reloaded = restoreElements(
+      [getPath()],
+      null,
+    )[0] as ExcalidrawPathElement;
+    expect(reloaded.customData?.pathMirror).toEqual({
+      axis: "x",
+      position: 0.55,
+    });
+    API.setSelectedElements([getPath()]);
+    API.executeAction(actionEditPath);
+    expect(handle.state.editingPath?.mirror).toEqual({ axis: "x", at: 210 });
+  });
+
+  it("the saved line follows the path when it is moved or resized", () => {
+    fireEvent.click(screen.getByTestId("path-mirror-x"));
+    fireEvent.click(screen.getByTestId("path-editor-done"));
+    const path = getPath();
+    act(() => handle.app.scene.mutateElement(path, { x: path.x + 50 }));
+    API.setSelectedElements([getPath()]);
+    API.executeAction(actionEditPath);
+    expect(handle.state.editingPath?.mirror).toEqual({ axis: "x", at: 250 });
+  });
+
+  it("removing the line removes it from the file too", () => {
+    fireEvent.click(screen.getByTestId("path-mirror-x"));
+    expect(getPath().customData?.pathMirror).toBeDefined();
+    fireEvent.click(screen.getByTestId("path-mirror-x"));
+    expect(getPath().customData?.pathMirror).toBeUndefined();
   });
 
   it("without the line, points move alone", () => {

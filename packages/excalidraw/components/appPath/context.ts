@@ -10,6 +10,8 @@ import {
   getPathUpdate,
   isPathElement,
   type MirrorLine,
+  mirrorAtFraction,
+  mirrorFraction,
   withPathLoopGeometry,
 } from "@excalidraw/element";
 
@@ -26,6 +28,9 @@ import type { AppState } from "../../types";
 import type App from "../App";
 
 type EditingPath = AppState["editingPath"];
+
+/** where the mirror line is saved, in the path's `customData` */
+const MIRROR_KEY = "pathMirror";
 
 const DOUBLE_CLICK_MS = 400;
 
@@ -172,6 +177,11 @@ export class PathContext {
       ),
       ...(closed !== undefined ? { closed } : {}),
     });
+    // the saved fraction follows the new extent so the line stays where it is
+    const mirror = this.app.state.editingPath?.mirror;
+    if (mirror) {
+      this.storeMirror(mirror);
+    }
   };
 
   /** makes everything changed since the last commit one undo step */
@@ -215,8 +225,59 @@ export class PathContext {
       loop,
     });
 
-  setMirror = (mirror: NonNullable<EditingPath>["mirror"]) =>
+  /** the line is kept in the file, on the path, so it is there for the next edit */
+  setMirror = (mirror: NonNullable<EditingPath>["mirror"]) => {
     this.patchEditing({ mirror });
+    this.storeMirror(mirror ?? null);
+  };
+
+  /** shows a line that is already saved with the path */
+  showMirror = (mirror: NonNullable<EditingPath>["mirror"]) =>
+    this.patchEditing({ mirror });
+
+  private storeMirror = (mirror: NonNullable<EditingPath>["mirror"]) => {
+    const element = this.getEditedElement();
+    if (!element) {
+      return;
+    }
+    const { [MIRROR_KEY]: _dropped, ...rest } = element.customData ?? {};
+    const local = mirror
+      ? {
+          axis: mirror.axis,
+          at: mirror.at - (mirror.axis === "x" ? element.x : element.y),
+        }
+      : null;
+    this.app.scene.mutateElement(element, {
+      customData: local
+        ? {
+            ...rest,
+            [MIRROR_KEY]: {
+              axis: local.axis,
+              position: mirrorFraction(element.points, local),
+            },
+          }
+        : rest,
+    });
+  };
+
+  /** the line saved on the path, in the editing frame (scene units) */
+  loadMirror = (
+    element: ExcalidrawPathElement,
+  ): NonNullable<EditingPath>["mirror"] => {
+    const saved = element.customData?.[MIRROR_KEY];
+    if (
+      !saved ||
+      (saved.axis !== "x" && saved.axis !== "y") ||
+      typeof saved.position !== "number"
+    ) {
+      return null;
+    }
+    const local = mirrorAtFraction(element.points, saved.axis, saved.position);
+    return {
+      axis: local.axis,
+      at: local.at + (local.axis === "x" ? element.x : element.y),
+    };
+  };
 
   setMarquee = (marquee: NonNullable<EditingPath>["marquee"]) =>
     this.patchEditing({ marquee });

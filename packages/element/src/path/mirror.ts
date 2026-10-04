@@ -35,6 +35,35 @@ export const reflectHandles = (
   out: reflectOffset(handles.in, line),
 });
 
+const spanOf = (points: readonly LocalPoint[], axis: MirrorLine["axis"]) => {
+  const values = points.map((point) => (axis === "x" ? point[0] : point[1]));
+  return {
+    min: Math.min(...values),
+    size: Math.max(...values) - Math.min(...values),
+  };
+};
+
+/**
+ * Where the line sits as a fraction of the points' extent (0 at one edge, 1
+ * at the other): it survives moving, resizing and rotating the path.
+ */
+export const mirrorFraction = (
+  points: readonly LocalPoint[],
+  line: MirrorLine,
+): number => {
+  const { min, size } = spanOf(points, line.axis);
+  return size ? (line.at - min) / size : 0.5;
+};
+
+export const mirrorAtFraction = (
+  points: readonly LocalPoint[],
+  axis: MirrorLine["axis"],
+  fraction: number,
+): MirrorLine => {
+  const { min, size } = spanOf(points, axis);
+  return { axis, at: min + fraction * size };
+};
+
 /** the line through the middle of the points */
 export const centerMirrorLine = (
   points: readonly LocalPoint[],

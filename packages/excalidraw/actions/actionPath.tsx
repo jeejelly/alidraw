@@ -136,7 +136,11 @@ export const actionEditPath = register({
       elements,
       appState: {
         ...appState,
-        editingPath: { elementId: selected[0].id, selectedPoint: null },
+        editingPath: {
+          elementId: selected[0].id,
+          selectedPoint: null,
+          mirror: app.path.loadMirror(selected[0]),
+        },
       },
       captureUpdate: CaptureUpdateAction.EVENTUALLY,
     };

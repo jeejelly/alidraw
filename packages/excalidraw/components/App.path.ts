@@ -61,6 +61,10 @@ export class AppPath {
   /** the selected points of the path being edited, as a path of their own */
   copySelectedPoints = () => this.editor.copySelectedPoints();
 
+  /** the mirror line saved with a path, for the editing state */
+  loadMirror = (element: ExcalidrawPathElement) =>
+    this.context.loadMirror(element);
+
   selectAllPoints = () => this.editor.selectAllPoints();
 
   toggleClosed = () => this.editor.toggleClosed();
