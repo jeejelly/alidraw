@@ -194,6 +194,7 @@ import {
   resolveElementRenderState,
   getRenderElementWithPositionOverride,
   editGroupForSelectedElement,
+  getEditingGroupChain,
   getElementsInGroup,
   getSelectedGroupIdForElement,
   getSelectedGroupIds,
@@ -424,6 +425,7 @@ import ConvertElementTypePopup, {
 } from "./ConvertElementTypePopup";
 
 import { activeConfirmDialogAtom } from "./ActiveConfirmDialog";
+import { componentGroupOf } from "./componentContext";
 import { AppArrowText } from "./App.arrowText";
 import { AppClipboard } from "./App.clipboard";
 import { AppText } from "./App.text";
@@ -4685,18 +4687,32 @@ class App extends React.Component<AppProps, AppState> {
     const elements = restoreElements(opts.elements, null, {
       deleteInvisibleElements: true,
     });
-    const clientX =
-      typeof opts.position === "object"
-        ? opts.position.clientX
-        : opts.position === "cursor"
-        ? this.viewport.lastPosition.x
-        : this.state.width / 2 + this.state.offsetLeft;
-    const clientY =
-      typeof opts.position === "object"
-        ? opts.position.clientY
-        : opts.position === "cursor"
-        ? this.viewport.lastPosition.y
-        : this.state.height / 2 + this.state.offsetTop;
+    // library items go to the middle of the group being edited
+    const contextBounds =
+      opts.position === "center" ? this.getEditingGroupBounds() : null;
+    const contextCenter = contextBounds
+      ? sceneCoordsToViewportCoords(
+          {
+            sceneX: (contextBounds[0] + contextBounds[2]) / 2,
+            sceneY: (contextBounds[1] + contextBounds[3]) / 2,
+          },
+          this.state,
+        )
+      : null;
+    const clientX = contextCenter
+      ? contextCenter.x
+      : typeof opts.position === "object"
+      ? opts.position.clientX
+      : opts.position === "cursor"
+      ? this.viewport.lastPosition.x
+      : this.state.width / 2 + this.state.offsetLeft;
+    const clientY = contextCenter
+      ? contextCenter.y
+      : typeof opts.position === "object"
+      ? opts.position.clientY
+      : opts.position === "cursor"
+      ? this.viewport.lastPosition.y
+      : this.state.height / 2 + this.state.offsetTop;
 
     const duplication = this.duplicate.duplicateAtSceneCoords(
       elements,
@@ -4713,6 +4729,7 @@ class App extends React.Component<AppProps, AppState> {
 
     const { nextElements, duplicatedElements } = duplication;
 
+    this.joinEditingGroup(duplicatedElements);
     this.scene.replaceAllElements(nextElements);
 
     duplicatedElements.forEach((newElement) => {
@@ -5696,7 +5713,6 @@ class App extends React.Component<AppProps, AppState> {
         this.setState({
           selectedElementIds: makeNextSelectedElementIds({}, this.state),
           selectedGroupIds: {},
-          editingGroupId: null,
           activeEmbeddable: null,
         });
       }
@@ -5939,7 +5955,6 @@ class App extends React.Component<AppProps, AppState> {
           activeTool: nextActiveTool,
           selectedElementIds: makeNextSelectedElementIds({}, prevState),
           selectedGroupIds: makeNextSelectedElementIds({}, prevState),
-          editingGroupId: null,
           multiElement: null,
         };
       }
@@ -6446,6 +6461,10 @@ class App extends React.Component<AppProps, AppState> {
 
     this.cursor.reset();
 
+    if (this.enterComponentContext(sceneX, sceneY)) {
+      return;
+    }
+
     const selectedGroupIds = getSelectedGroupIds(this.state);
 
     if (selectedGroupIds.length > 0) {
@@ -6893,10 +6912,91 @@ class App extends React.Component<AppProps, AppState> {
     );
   };
 
+  /** double click on a symbol or flow element: it becomes the drawing context */
+  private enterComponentContext = (sceneX: number, sceneY: number) => {
+    const hitElement = this.getElementAtPosition(sceneX, sceneY);
+    if (!hitElement) {
+      return false;
+    }
+    const groupId = componentGroupOf(
+      hitElement,
+      this.scene.getNonDeletedElementsMap(),
+    );
+    if (!groupId || groupId === this.state.editingGroupId) {
+      return false;
+    }
+    this.store.scheduleCapture();
+    this.setState((prevState) => ({
+      ...prevState,
+      ...selectGroupsForSelectedElements(
+        {
+          editingGroupId: groupId,
+          selectedElementIds: { [hitElement.id]: true },
+        },
+        this.scene.getNonDeletedElements(),
+        prevState,
+        this,
+      ),
+    }));
+    return true;
+  };
+
+  /** the scene bounds of the group being edited */
+  private getEditingGroupBounds = () => {
+    const members = this.state.editingGroupId
+      ? getElementsInGroup(
+          this.scene.getNonDeletedElementsMap(),
+          this.state.editingGroupId,
+        )
+      : [];
+    return members.length ? getCommonBounds(members) : null;
+  };
+
+  /**
+   * Shapes added while a group is being edited become part of it. Starting
+   * a shape outside the group (`drawnAt`) ends the editing instead.
+   */
+  private joinEditingGroup = (
+    elements: readonly ExcalidrawElement[],
+    drawnAt?: { x: number; y: number },
+  ) => {
+    const bounds = this.getEditingGroupBounds();
+    if (
+      bounds &&
+      drawnAt &&
+      (drawnAt.x < bounds[0] ||
+        drawnAt.x > bounds[2] ||
+        drawnAt.y < bounds[1] ||
+        drawnAt.y > bounds[3])
+    ) {
+      this.setState({ editingGroupId: null });
+      return;
+    }
+    const chain = getEditingGroupChain(
+      this.scene.getNonDeletedElementsMap(),
+      this.state.editingGroupId,
+    );
+    if (!chain.length) {
+      return;
+    }
+    for (const element of elements) {
+      if (isTextElement(element) && element.containerId) {
+        continue;
+      }
+      if (!chain.every((groupId) => element.groupIds.includes(groupId))) {
+        (element as Mutable<ExcalidrawElement>).groupIds = [
+          ...element.groupIds,
+          ...chain,
+        ];
+      }
+    }
+  };
+
   public insertNewElements = (elements: readonly ExcalidrawElement[]) => {
     if (!elements.length) {
       return;
     }
+    this.joinEditingGroup(elements, elements[0]);
 
     const chunkedElements: ExcalidrawElement[][] = [];
 
@@ -8519,7 +8619,6 @@ class App extends React.Component<AppProps, AppState> {
       this.setState({
         selectedElementIds: makeNextSelectedElementIds({}, this.state),
         selectedGroupIds: {},
-        editingGroupId: null,
         activeEmbeddable: null,
       });
     }

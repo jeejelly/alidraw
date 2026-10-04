@@ -286,6 +286,23 @@ export const editGroupForSelectedElement = (
 export const isElementInGroup = (element: ExcalidrawElement, groupId: string) =>
   element.groupIds.includes(groupId);
 
+/** the groups a new member of the group being edited belongs to, innermost first */
+export const getEditingGroupChain = (
+  elements: ElementsMapOrArray,
+  editingGroupId: AppState["editingGroupId"],
+): GroupId[] => {
+  if (!editingGroupId) {
+    return [];
+  }
+  for (const element of elements.values()) {
+    const position = element.groupIds.indexOf(editingGroupId);
+    if (!element.isDeleted && position > -1) {
+      return element.groupIds.slice(position);
+    }
+  }
+  return [];
+};
+
 export const getElementsInGroup = <
   P extends NonDeletedExcalidrawElement | ExcalidrawElement,
 >(

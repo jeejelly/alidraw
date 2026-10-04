@@ -240,6 +240,7 @@ const getRelevantAppStateProps = (
   activeTool: appState.activeTool,
   openDialog: appState.openDialog,
   editingGroupId: appState.editingGroupId,
+  viewBackgroundColor: appState.viewBackgroundColor,
   selectedElementIds: appState.selectedElementIds,
   frameToHighlight: appState.frameToHighlight,
   offsetLeft: appState.offsetLeft,

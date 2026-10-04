@@ -95,6 +95,7 @@ import {
 } from "../textAutoResizeHandle";
 
 import { renderAnchorLink } from "./interactive/anchorLink";
+import { renderEditingContext } from "./interactive/editingContext";
 import { renderCornerGizmos } from "./interactive/cornerGizmos";
 import { renderGizmo } from "./interactive/gizmo";
 import { renderGuides } from "./interactive/guides";
@@ -1649,6 +1650,7 @@ const _renderInteractiveScene = ({
     normalizedHeight,
   });
 
+  renderEditingContext(context, appState, allElementsMap);
   renderGuides(context, appState);
 
   // Apply zoom

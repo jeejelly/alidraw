@@ -237,6 +237,7 @@ export type InteractiveCanvasAppState = Readonly<
     activeEmbeddable: AppState["activeEmbeddable"];
     selectionElement: AppState["selectionElement"];
     selectedGroupIds: AppState["selectedGroupIds"];
+    viewBackgroundColor: AppState["viewBackgroundColor"];
     selectedLinearElement: AppState["selectedLinearElement"];
     multiElement: AppState["multiElement"];
     newElement: AppState["newElement"];
