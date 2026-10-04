@@ -1285,6 +1285,7 @@ export type AppClassProperties = {
   insertEmbeddableElement: App["insertEmbeddableElement"];
   onMagicframeToolSelect: App["onMagicframeToolSelect"];
   getName: App["getName"];
+  requestNewCanvas: App["requestNewCanvas"];
   dismissLinearEditor: App["dismissLinearEditor"];
   flowchart: App["flowchart"];
   drawShape: App["drawShape"];

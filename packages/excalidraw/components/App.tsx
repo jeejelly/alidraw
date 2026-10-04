@@ -318,6 +318,7 @@ import {
   actionToggleArrowBinding,
   actionToggleMidpointSnapping,
   actionToggleCropEditor,
+  actionClearCanvas,
 } from "../actions";
 import { actionWrapTextInContainer } from "../actions/actionBoundText";
 import { actionPaste } from "../actions/actionClipboard";
@@ -374,7 +375,7 @@ import {
   SVGStringToFile,
 } from "../data/blob";
 
-import { fileOpen } from "../data/filesystem";
+import { fileOpen, newCanvasThroughHost } from "../data/filesystem";
 import {
   showHyperlinkTooltip,
   hideHyperlinkToolip,
@@ -5657,7 +5658,7 @@ class App extends React.Component<AppProps, AppState> {
         event[KEYS.CTRL_OR_CMD] &&
         (event.key === KEYS.BACKSPACE || event.key === KEYS.DELETE)
       ) {
-        this.updateEditorAtom(activeConfirmDialogAtom, "clearCanvas");
+        this.requestNewCanvas();
       }
 
       // eye dropper
@@ -5965,6 +5966,20 @@ class App extends React.Component<AppProps, AppState> {
     // only work on touch screens, so checking for >= pointers means we're on a
     // touchscreen
     return gesture.pointers.size >= 2;
+  };
+
+  /** A new canvas: the host may save the scene first, else the usual confirmation asks. */
+  public requestNewCanvas = async () => {
+    const hosted = await newCanvasThroughHost({
+      elementCount: this.scene.getNonDeletedElements().length,
+      fileHandle: this.state.fileHandle,
+      name: this.getName(),
+    });
+    if (hosted === undefined) {
+      this.updateEditorAtom(activeConfirmDialogAtom, "clearCanvas");
+    } else if (hosted) {
+      this.actionManager.executeAction(actionClearCanvas);
+    }
   };
 
   public getName = () => {

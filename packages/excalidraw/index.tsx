@@ -482,6 +482,7 @@ export {
   setFileOpenProvider,
   setFileSaveProvider,
   setHostCapabilities,
+  setNewCanvasProvider,
   setSceneOpenProvider,
 } from "./data/filesystem";
 export { setPdfExportProvider } from "./data/pdfExport";

@@ -2,11 +2,13 @@ import {
   Excalidraw,
   ExcalidrawAPIProvider,
   registerPaletteTab,
+  setNewCanvasProvider,
   useExcalidrawAPI,
 } from "@excalidraw/excalidraw";
 import {
   fileOpen,
   fileSave,
+  newCanvasThroughHost,
   openSceneThroughHost,
   setFileSaveProvider,
 } from "@excalidraw/excalidraw/data/filesystem";
@@ -22,6 +24,7 @@ import { render as rtlRender } from "@testing-library/react";
 import React from "react";
 
 import { appJotaiStore, Provider } from "../app-jotai";
+import { installNewCanvas } from "../workspace/newCanvas";
 import { installWorkspaceSave } from "../workspace/workspaceSave";
 import { blobText } from "../workspace/blobText";
 import { ProjectPanel } from "../workspace/ProjectPanel";
@@ -188,6 +191,8 @@ afterEach(() => {
   delete (window as any).excalidrawDesktop;
   appJotaiStore.set(activeWorkspaceAtom, null);
   appJotaiStore.set(workspaceDialogOpenAtom, false);
+  appJotaiStore.set(saveCopyDialogOpenAtom, false);
+  appJotaiStore.set(saveRequestAtom, null);
 });
 
 describe("workspace file handle", () => {
@@ -1154,5 +1159,86 @@ describe("save a copy", () => {
     );
     // still open: it was a copy
     expect(screen.getByTestId("savecopy-name")).toBeTruthy();
+  });
+});
+
+describe("a new canvas in the desktop app", () => {
+  const mount = async (bridge: DesktopWorkspaceBridge) => {
+    (window as any).excalidrawDesktop = { version: 1, workspace: bridge };
+    await render(
+      <Provider store={appJotaiStore}>
+        <ExcalidrawAPIProvider>
+          <Excalidraw>
+            <WorkspaceDialog api={null} />
+            <CopyDialogWithApi />
+          </Excalidraw>
+        </ExcalidrawAPIProvider>
+      </Provider>,
+    );
+    installNewCanvas(window.h.app.api);
+  };
+  afterEach(() => setNewCanvasProvider(null));
+
+  const ask = (
+    over: Partial<Parameters<typeof newCanvasThroughHost>[0]> = {},
+  ) =>
+    newCanvasThroughHost({
+      elementCount: 1,
+      fileHandle: null,
+      name: "Idea",
+      ...over,
+    });
+
+  it("an empty canvas is replaced at once, with no question", async () => {
+    const { bridge, calls } = fakeBridge();
+    await mount(bridge);
+    await expect(ask({ elementCount: 0 })).resolves.toBe(true);
+    expect(calls).toEqual([]);
+  });
+
+  it("a file of the project is written back first, no dialog", async () => {
+    const { bridge } = fakeBridge();
+    await mount(bridge);
+    const written: string[] = [];
+    const fileHandle = {
+      name: "a.excalidraw",
+      kind: "file",
+      createWritable: async () => ({
+        write: async (blob: Blob) => written.push(await blobText(blob)),
+        close: async () => {},
+      }),
+    } as unknown as FileSystemFileHandle;
+    await expect(ask({ fileHandle })).resolves.toBe(true);
+    expect(written).toHaveLength(1);
+    expect(screen.queryByTestId("savecopy-name")).toBeNull();
+  });
+
+  it("a scene that is not saved yet is named and put in the project, then the canvas is replaced", async () => {
+    const { bridge, calls } = fakeBridge();
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    await mount(bridge);
+    const answer = ask();
+    const name = (await screen.findByTestId(
+      "savecopy-name",
+    )) as HTMLInputElement;
+    expect(name.value).toBe("Idea");
+    fireEvent.click(screen.getByTestId("savecopy-save"));
+    await expect(answer).resolves.toBe(true);
+    expect(calls).toContain("saveNew:w1:Idea");
+  });
+
+  it("backing out of the save leaves the canvas alone", async () => {
+    const { bridge, calls } = fakeBridge();
+    appJotaiStore.set(activeWorkspaceAtom, { id: "w1", name: "Shop" });
+    await mount(bridge);
+    const answer = ask();
+    await screen.findByTestId("savecopy-name");
+    act(() => appJotaiStore.get(saveRequestAtom)?.cancel());
+    await expect(answer).resolves.toBe(false);
+    expect(calls).not.toContain("saveNew:w1:Idea");
+  });
+
+  it("without the desktop app the usual confirmation stays", async () => {
+    await expect(ask()).resolves.toBeUndefined();
   });
 });

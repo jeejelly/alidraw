@@ -29,7 +29,7 @@ import { getShortcutFromShortcutName } from "../../actions/shortcuts";
 import { trackEvent } from "../../analytics";
 import { useUIAppState } from "../../context/ui-appState";
 import { deburr } from "../../deburr";
-import { atom, useAtom, editorJotaiStore } from "../../editor-jotai";
+import { atom, useAtom } from "../../editor-jotai";
 import { t } from "../../i18n";
 import {
   useApp,
@@ -57,7 +57,6 @@ import {
 import { TOOLS, getToolLetter } from "../Tools";
 import { canChangeBackgroundColor, canChangeStrokeColor } from "../Actions";
 import { useStableCallback } from "../../hooks/useStableCallback";
-import { activeConfirmDialogAtom } from "../ActiveConfirmDialog";
 import { useStable } from "../../hooks/useStable";
 
 import { Ellipsify } from "../Ellipsify";
@@ -410,7 +409,7 @@ function CommandPaletteInner({
           keywords: ["delete", "destroy"],
           viewMode: false,
           perform: () => {
-            editorJotaiStore.set(activeConfirmDialogAtom, "clearCanvas");
+            app.requestNewCanvas();
           },
         },
         {

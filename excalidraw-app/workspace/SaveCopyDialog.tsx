@@ -130,6 +130,7 @@ export const SaveCopyDialog = ({
     >
       <div className="savecopy">
         <SceneTargetForm
+          key={request ? "save" : "copy"}
           workspace={workspace}
           initialName={withoutExtension(initialName)}
           onChange={setTarget}

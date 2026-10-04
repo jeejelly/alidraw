@@ -87,6 +87,29 @@ export const setSceneOpenProvider = (provider: (() => boolean) | null) => {
 export const openSceneThroughHost = () =>
   sceneOpenProvider ? sceneOpenProvider() : false;
 
+/** What a host needs to know to deal with the scene before a new canvas replaces it. */
+type NewCanvasContext = {
+  elementCount: number;
+  fileHandle: FileSystemFileHandle | null;
+  name: string;
+};
+
+/**
+ * Host takeover of "New canvas": resolves `true` once the scene is safe and the canvas
+ * may be cleared, `false` when the user backed out.
+ */
+type NewCanvasProvider = (scene: NewCanvasContext) => Promise<boolean>;
+
+let newCanvasProvider: NewCanvasProvider | null = null;
+
+export const setNewCanvasProvider = (provider: NewCanvasProvider | null) => {
+  newCanvasProvider = provider;
+};
+
+/** `undefined` when no host takes it over: the usual confirmation applies. */
+export const newCanvasThroughHost = (scene: NewCanvasContext) =>
+  newCanvasProvider ? newCanvasProvider(scene) : Promise.resolve(undefined);
+
 /**
  * Host takeover of saving: a handle for later saves (scene files), `null` once an export
  * is written, or `undefined` to defer to the default.

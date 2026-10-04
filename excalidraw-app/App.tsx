@@ -58,6 +58,7 @@ import CustomStats from "./CustomStats";
 import { Provider, useAtomValue, appJotaiStore } from "./app-jotai";
 import { STORAGE_KEYS, SYNC_BROWSER_TABS_TIMEOUT } from "./app_constants";
 import { AppFooter } from "./components/AppFooter";
+import { installNewCanvas } from "./workspace/newCanvas";
 import { installWorkspaceSave } from "./workspace/workspaceSave";
 import { getWorkspaceBridge } from "./workspace/desktopBridge";
 import { ProjectPanel } from "./workspace/ProjectPanel";
@@ -183,6 +184,14 @@ const ExcalidrawWrapper = () => {
   useEffect(
     () =>
       installWorkspaceSave((message) =>
+        excalidrawAPI?.setToast({ message, duration: 4000 }),
+      ),
+    [excalidrawAPI],
+  );
+  // a new canvas saves the scene through the project, never a "save first?" modal
+  useEffect(
+    () =>
+      installNewCanvas(excalidrawAPI, (message) =>
         excalidrawAPI?.setToast({ message, duration: 4000 }),
       ),
     [excalidrawAPI],

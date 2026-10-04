@@ -5,7 +5,10 @@ import { THEME } from "@excalidraw/common";
 import type { Theme } from "@excalidraw/element/types";
 
 import { actionSaveFileToDisk } from "../../actions/actionExport";
-import { hasFileSaveProvider } from "../../data/filesystem";
+import {
+  hasFileSaveProvider,
+  newCanvasThroughHost,
+} from "../../data/filesystem";
 
 import {
   actionClearCanvas,
@@ -251,6 +254,7 @@ Help.displayName = "Help";
 
 export const ClearCanvas = () => {
   const { t } = useI18n();
+  const app = useApp();
 
   const actionManager = useExcalidrawActionManager();
   const elements = useExcalidrawElements();
@@ -261,7 +265,16 @@ export const ClearCanvas = () => {
 
   // a new canvas replaces the current one: the way out offers to save it first
   const handleSelect = async () => {
+    const hosted = await newCanvasThroughHost({
+      elementCount: elements.length,
+      fileHandle: app.state.fileHandle,
+      name: app.getName(),
+    });
+    if (hosted === false) {
+      return;
+    }
     if (
+      hosted ||
       !elements.length ||
       (await openConfirmModal({
         title: t("overwriteConfirm.modal.newCanvas.title"),

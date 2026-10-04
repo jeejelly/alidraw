@@ -35,7 +35,11 @@ const writeExport = async (
   notify(`Saved to ${workspace.name}/${path}`);
 };
 
-const saveScene = async (bridge: Bridge, blob: Blob, defaultName: string) => {
+export const saveScene = async (
+  bridge: Bridge,
+  blob: Blob,
+  defaultName: string,
+) => {
   const workspace = await requireWorkspace();
   const target = await requestSceneTarget(defaultName);
   const text = await externalizeAssets(
