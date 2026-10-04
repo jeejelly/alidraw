@@ -58,6 +58,9 @@ export class AppPath {
 
   toggleMirror = (axis: "x" | "y") => this.editor.toggleMirror(axis);
 
+  /** the selected points of the path being edited, as a path of their own */
+  copySelectedPoints = () => this.editor.copySelectedPoints();
+
   selectAllPoints = () => this.editor.selectAllPoints();
 
   toggleClosed = () => this.editor.toggleClosed();

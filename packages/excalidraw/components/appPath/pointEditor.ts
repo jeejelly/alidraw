@@ -497,6 +497,52 @@ export class PathPointEditor {
     this.context.commit();
   };
 
+  /** a new open path with the look of `element` */
+  private openPathLike = (
+    element: ExcalidrawPathElement,
+    geometry: PathGeometry,
+  ) =>
+    newPathElement({
+      strokeColor: element.strokeColor,
+      backgroundColor: element.backgroundColor,
+      fillStyle: element.fillStyle,
+      strokeWidth: element.strokeWidth,
+      strokeStyle: element.strokeStyle,
+      roughness: element.roughness,
+      opacity: element.opacity,
+      roundness: element.roundness,
+      angle: element.angle,
+      groupIds: element.groupIds,
+      frameId: element.frameId,
+      ...getPathUpdate(element, geometry),
+      closed: false,
+    });
+
+  /**
+   * The selected points (two or more) as a new open path, to copy; null when
+   * fewer are selected. The points keep their handles and their order.
+   */
+  copySelectedPoints = (): ExcalidrawPathElement | null => {
+    const element = this.context.getEditedElement();
+    const indexes = [...selectionOf(this.editing)].sort(
+      (left, right) => left - right,
+    );
+    if (!element || indexes.length < 2) {
+      return null;
+    }
+    const view = getPathLoopView(element, this.editing?.loop ?? 0);
+    const handles = indexes.map((index) => view.handles[index] ?? NO_HANDLES);
+    handles[0] = { ...handles[0], in: null };
+    handles[handles.length - 1] = {
+      ...handles[handles.length - 1],
+      out: null,
+    };
+    return this.openPathLike(element, {
+      points: indexes.map((index) => view.points[index]),
+      handles,
+    });
+  };
+
   /** cuts the path at the selected point */
   splitAtSelectedPoint = () => {
     const element = this.context.getEditedElement();
@@ -510,21 +556,7 @@ export class PathPointEditor {
     }
     const [first, ...rest] = parts;
     const created = rest.map((geometry) =>
-      newPathElement({
-        strokeColor: element.strokeColor,
-        backgroundColor: element.backgroundColor,
-        fillStyle: element.fillStyle,
-        strokeWidth: element.strokeWidth,
-        strokeStyle: element.strokeStyle,
-        roughness: element.roughness,
-        opacity: element.opacity,
-        roundness: element.roundness,
-        angle: element.angle,
-        groupIds: element.groupIds,
-        frameId: element.frameId,
-        ...getPathUpdate(element, geometry),
-        closed: false,
-      }),
+      this.openPathLike(element, geometry),
     );
     this.context.apply(element, first, false);
     if (created.length) {

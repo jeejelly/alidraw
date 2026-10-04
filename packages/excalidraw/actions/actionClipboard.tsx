@@ -5,6 +5,8 @@ import { CODES, KEYS, isFirefox } from "@excalidraw/common";
 
 import { CaptureUpdateAction } from "@excalidraw/element";
 
+import type { NonDeletedExcalidrawElement } from "@excalidraw/element/types";
+
 import {
   copyTextToSystemClipboard,
   copyToClipboard,
@@ -26,11 +28,17 @@ export const actionCopy = register<ClipboardEvent | null>({
   icon: DuplicateIcon,
   trackEvent: { category: "element" },
   perform: async (elements, appState, event, app) => {
-    const elementsToCopy = app.scene.getSelectedElements({
-      selectedElementIds: appState.selectedElementIds,
-      includeBoundTextElement: true,
-      includeElementsInFrames: true,
-    });
+    // while editing path points, the selected points are what gets copied
+    const pointsAsPath = appState.editingPath
+      ? app.path.copySelectedPoints()
+      : null;
+    const elementsToCopy = pointsAsPath
+      ? [pointsAsPath as NonDeletedExcalidrawElement]
+      : app.scene.getSelectedElements({
+          selectedElementIds: appState.selectedElementIds,
+          includeBoundTextElement: true,
+          includeElementsInFrames: true,
+        });
 
     try {
       await copyToClipboard(elementsToCopy, app.files, event);

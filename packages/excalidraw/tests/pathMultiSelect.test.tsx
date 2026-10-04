@@ -132,6 +132,29 @@ describe("selecting several path points", () => {
     ]);
   });
 
+  it("copying selected points makes a path of them for pasting", () => {
+    press(100, 100);
+    press(300, 100, true);
+    press(300, 300, true);
+    const fragment = handle.app.path.copySelectedPoints()!;
+    expect(fragment.type).toBe("path");
+    expect(fragment.closed).toBe(false);
+    expect(
+      fragment.points.map((point) => [
+        fragment.x + point[0],
+        fragment.y + point[1],
+      ]),
+    ).toEqual([
+      [100, 100],
+      [300, 100],
+      [300, 300],
+    ]);
+    // nothing is added until it is pasted, and one point is not a path
+    expect(handle.elements).toHaveLength(1);
+    press(100, 300);
+    expect(handle.app.path.copySelectedPoints()).toBeNull();
+  });
+
   it("a point mode applies to all selected points", () => {
     press(100, 100);
     press(300, 100, true);
