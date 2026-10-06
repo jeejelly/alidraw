@@ -186,7 +186,7 @@ export const layoutNewNodes = (
   if (
     !fixed.size &&
     graph.nodes.length &&
-    (graph.screens.length || graph.layout === "cascade")
+    (graph.screens.length || graph.layout !== "flow")
   ) {
     return layoutCompound(graph, sizes, origin, gap);
   }

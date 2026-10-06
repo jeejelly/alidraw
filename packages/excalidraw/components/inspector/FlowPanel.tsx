@@ -153,7 +153,7 @@ export const FlowPanel = ({ app }: { app: App }) => {
 
   /** the layout line of the source text, and the text with another one */
   const layoutOf = (source: string): "flow" | "cascade" =>
-    parseFlow(source).graph.layout === "cascade" ? "cascade" : "flow";
+    parseFlow(source).graph.layout === "flow" ? "flow" : "cascade";
   const withLayout = (source: string, mode: "flow" | "cascade") => {
     const lines = source
       .split("\n")
@@ -161,8 +161,8 @@ export const FlowPanel = ({ app }: { app: App }) => {
     const header = lines.findIndex((line) =>
       /^\s*(flowchart|graph)\b/i.test(line),
     );
-    if (mode === "cascade" && header >= 0) {
-      lines.splice(header + 1, 0, "  %% @flow layout cascade");
+    if (header >= 0) {
+      lines.splice(header + 1, 0, `  %% @flow layout ${mode}`);
     }
     return lines.join("\n");
   };

@@ -8,9 +8,9 @@ type Size = { w: number; h: number };
 type Point = { x: number; y: number };
 
 /** the gap between a frame and what it holds (the frame's own drawing must agree: see flowApplyFrames) */
-export const FRAME_PAD = 28;
+export const FRAME_PAD = 8;
 /** more room above a frame that holds frames: their titles sit there */
-export const FRAME_TITLE = 26;
+export const FRAME_TITLE = 22;
 
 const ROOT = "";
 
@@ -29,7 +29,7 @@ export const layoutCompound = (
   origin: Point,
   gap: number,
 ): Map<string, Point> => {
-  const cascade = graph.layout === "cascade";
+  const cascade = (graph.layout ?? "cascade") === "cascade";
   const nodeKeys = new Set(graph.nodes.map((node) => node.key));
   const screenByKey = new Map(
     graph.screens.map((screen) => [screen.key, screen]),
@@ -140,7 +140,7 @@ export const layoutCompound = (
     depth: number,
   ) => {
     const items = itemsOf(container);
-    const stair = depth === 0 ? gap * 1.6 : gap * 0.7;
+    const stair = depth === 0 ? gap * 1.4 : gap * 0.8;
     // inner screens first: their sizes are needed here
     for (const key of items.filter((item) => !nodeKeys.has(item))) {
       const screen = screenByKey.get(key)!;
@@ -152,8 +152,8 @@ export const layoutCompound = (
     }
     const horizontal = direction === "LR" || direction === "RL";
     const reverse = direction === "BT" || direction === "RL";
-    const along = depth === 0 ? gap * 2.2 : gap * 1.4;
-    const across = depth === 0 ? gap : gap * 0.7;
+    const along = depth === 0 ? gap * 1.2 : gap;
+    const across = depth === 0 ? gap * 0.7 : gap * 0.6;
     const links = lifted.get(container) ?? [];
     const rank = rankKeys(
       items,
@@ -218,7 +218,9 @@ export const layoutCompound = (
           )
           .map((link) => link.label),
       );
-      return Math.max(along, label * 7.5 + 50);
+      // a label sits on its link: across a row it needs its width, down a column a line
+      const room = horizontal ? label * 7 + 30 : label ? 46 : 0;
+      return Math.max(along, room);
     });
     const rects = new Map<string, Rect>();
     let at = 0;
@@ -258,7 +260,10 @@ export const layoutCompound = (
   const assign = (container: string, ox: number, oy: number) => {
     for (const [key, rect] of arranged.get(container)!.rects) {
       if (nodeKeys.has(key)) {
-        out.set(key, { x: ox + rect.x, y: oy + rect.y });
+        out.set(key, {
+          x: Math.round(ox + rect.x),
+          y: Math.round(oy + rect.y),
+        });
       } else {
         const pads = padsOf(key);
         assign(key, ox + rect.x + pads.x, oy + rect.y + pads.top);

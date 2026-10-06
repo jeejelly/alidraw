@@ -13,7 +13,7 @@ import { textOf } from "./flowText";
 
 import { getFlowMeta, type FlowMeta } from "./flowMeta";
 import { edgeStyleOf } from "./flowParts";
-import { FLOW_LOOK } from "./flowStyle";
+import { FLOW_LOOK, LINK_COLOR } from "./flowStyle";
 
 import type { Changes } from "./flowApplyRemovals";
 import type {
@@ -183,13 +183,15 @@ const arrowSkeleton = (
   startArrowhead: edge.tail ? ARROWHEAD_OF[edge.tailEnd ?? "arrow"] : null,
   endArrowhead: edge.head ? ARROWHEAD_OF[edge.headEnd ?? "arrow"] : null,
   strokeStyle: edge.style === "dashed" ? "dashed" : "solid",
+  // one thickness for every link; a thick (==>) link is a little heavier
   strokeWidth:
     edge.style === "thick"
-      ? 4
-      : look.strokeWidth && look.strokeWidth < 4
+      ? 2.5
+      : look.strokeWidth && look.strokeWidth < 2.5
       ? look.strokeWidth
       : 2,
-  strokeColor: look.strokeColor ?? "#e0449b",
+  strokeColor: look.strokeColor ?? LINK_COLOR,
+  roundness: null,
   ...(look.opacity !== undefined ? { opacity: look.opacity } : {}),
   customData: {
     flow: {
@@ -252,8 +254,18 @@ export const buildLinkSkeletons = ({
       return;
     }
     const ends = routeLink(edge, graph, rectOf, shifts.get(index) ?? 0);
-    skeletons.push(
-      arrowSkeleton(
+    const stepOf = (key: string) =>
+      graph.nodes.find((node) => node.key === key);
+    // a link that leaves or meets a port keeps its straight run to it; the others are elbows
+    const viaPort =
+      !!portPointOf(
+        stepOf(edge.from),
+        rectOf(edge.from),
+        edge.fromPort,
+        edge.label,
+      ) || !!portPointOf(stepOf(edge.to), rectOf(edge.to), edge.toPort);
+    skeletons.push({
+      ...arrowSkeleton(
         edge,
         flowId,
         `${edge.from}>${edge.to}`,
@@ -261,7 +273,8 @@ export const buildLinkSkeletons = ({
         { from: idOf.get(edge.from)!, to: idOf.get(edge.to)! },
         ends,
       ),
-    );
+      ...(viaPort ? {} : { elbowed: true }),
+    });
   });
   return skeletons;
 };
@@ -382,8 +395,8 @@ export const refreshKeptLinks = ({
       changes.strokeStyle = edge.style === "dashed" ? "dashed" : "solid";
       changes.strokeWidth =
         edge.style === "thick"
-          ? 4
-          : arrow.strokeWidth >= 4
+          ? 2.5
+          : arrow.strokeWidth >= 2.5
           ? 2
           : arrow.strokeWidth;
     }

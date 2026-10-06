@@ -27,7 +27,7 @@ export type LinkRoute = "straight" | "curved" | "elbow";
 
 /** a bend as deep as this share of the link's length */
 const BEND = 0.2;
-const THICK = 4;
+const THICK = 2.5;
 const THIN = 2;
 
 /** `none` takes the end off; the arrowhead and the meta (which the text reads first) agree */
@@ -74,11 +74,9 @@ const endPoints = (arrow: ExcalidrawArrowElement) => {
 /** the two ends in a line again: the bends and the curve go, the ends stay */
 export const straightenLink = (scene: Scene, arrow: ExcalidrawArrowElement) => {
   const { first, last } = endPoints(arrow);
-  scene.mutateElement(arrow, {
-    points: [first, last],
-    roundness: null,
-    elbowed: false,
-  });
+  // it stops being an elbow first: an elbow arrow routes whatever points it is given
+  scene.mutateElement(arrow, { roundness: null, elbowed: false });
+  scene.mutateElement(arrow, { points: [first, last] });
 };
 
 /** a smooth curve through one bend, off the line between the ends */
@@ -90,11 +88,13 @@ export const curveLink = (scene: Scene, arrow: ExcalidrawArrowElement) => {
     first[0] + alongX / 2 - alongY * BEND,
     first[1] + alongY / 2 + alongX * BEND,
   ] as LocalPoint;
+  const points =
+    arrow.points.length > 2 ? arrow.points : [first, bendPoint, last];
   scene.mutateElement(arrow, {
-    points: arrow.points.length > 2 ? arrow.points : [first, bendPoint, last],
     roundness: { type: ROUNDNESS.PROPORTIONAL_RADIUS },
     elbowed: false,
   });
+  scene.mutateElement(arrow, { points });
 };
 
 export const linkLabelOf = (scene: Scene, arrow: ExcalidrawArrowElement) =>

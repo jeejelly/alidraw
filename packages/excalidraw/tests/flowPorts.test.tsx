@@ -193,13 +193,17 @@ describe("an end of a link dropped on a port", () => {
     expect(now.endBinding.elementId).toBe(binding);
     expect(now.endBinding.fixedPoint[0]).toBeCloseTo(0.5);
     expect(now.endBinding.fixedPoint[1]).toBeCloseTo(1);
-    expect(near(endOf(now, lastIndex), yesPoint)).toBe(true);
+    expect(near(endOf(now, now.points.length - 1), yesPoint)).toBe(true);
 
     act(() => {
-      handle.app.flow.handleEndpointDrop(arrow.id, lastIndex, {
-        x: diamond.x + 10,
-        y: diamond.y + 10,
-      });
+      handle.app.flow.handleEndpointDrop(
+        arrow.id,
+        arrows()[0].points.length - 1,
+        {
+          x: diamond.x + 10,
+          y: diamond.y + 10,
+        },
+      );
     });
     now = arrows()[0];
     expect(getFlowMeta(now)!.link?.toPort).toBeUndefined();
@@ -317,7 +321,7 @@ describe("the Selection section: a link", () => {
     expect(text()).toContain("d o-.-x a");
 
     fireEvent.click(screen.getByTestId("flow-link-line-thick"));
-    expect(arrows()[0].strokeWidth).toBe(4);
+    expect(arrows()[0].strokeWidth).toBe(2.5);
     expect(arrows()[0].strokeStyle).toBe("solid");
 
     for (const route of ["curved", "elbow", "straight"] as const) {

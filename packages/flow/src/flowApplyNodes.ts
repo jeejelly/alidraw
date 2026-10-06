@@ -21,9 +21,9 @@ export const nodeSize = (node: FlowNode) => {
     ...node.label.split("\n").map((line) => line.length),
     4,
   );
-  const width = Math.min(280, Math.max(120, longest * 8.5 + 40));
+  const width = Math.min(280, Math.max(110, longest * 8 + 28));
   const lines = node.label.split("\n").length;
-  const height = Math.max(56, lines * 26 + 28);
+  const height = Math.max(44, lines * 21 + 20);
   return node.shape === "diamond"
     ? { w: Math.round(width * 1.25), h: Math.round(height * 1.5) }
     : { w: width, h: height };

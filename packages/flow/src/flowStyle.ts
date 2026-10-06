@@ -2,7 +2,7 @@
 export const PAD = 18;
 export const ACCENT = "#e0449b";
 /** links read on light and dark canvases alike */
-export const LINK_COLOR = "#e0449b";
+export const LINK_COLOR = "#1e3a8a";
 export const HANDLE = "#12b886";
 export const HANDLE_SIZE = 16;
 export const PLACEHOLDER = { w: 160, h: 80 };

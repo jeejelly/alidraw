@@ -1,6 +1,11 @@
 import React from "react";
 
-import { applyFlow, parseFlow, readFlow } from "@excalidraw/flow";
+import {
+  applyFlow,
+  parseFlow,
+  readFlow,
+  straightenLink,
+} from "@excalidraw/flow";
 
 import { Excalidraw } from "../index";
 
@@ -19,6 +24,14 @@ const draw = (text: string) => {
     applyFlow(handle.app.scene, "Flow", graph, { x: 100, y: 100 });
   });
 };
+
+/** links are drawn as elbows; these tests are about straight ones */
+const straighten = () =>
+  act(() => {
+    for (const arrow of arrows()) {
+      straightenLink(handle.app.scene, arrow);
+    }
+  });
 
 const arrows = () =>
   liveElements().filter((element) => element.type === "arrow") as any[];
@@ -53,6 +66,7 @@ describe("a link keeps what was done to its arrow", () => {
   it("colour, bends and roundness survive edits elsewhere in the text", async () => {
     await render(<Excalidraw />);
     draw(TEXT);
+    straighten();
     const [first] = arrows();
     mutate(first.id, {
       strokeColor: "#1971c2",
@@ -114,6 +128,7 @@ describe("a link keeps what was done to its arrow", () => {
   it("a straight link follows a step that moved away from it", async () => {
     await render(<Excalidraw />);
     draw(TEXT);
+    straighten();
     const [first] = arrows();
     const target = liveElements().find(
       (element) => element.id === first.endBinding.elementId,

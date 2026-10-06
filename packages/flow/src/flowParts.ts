@@ -41,7 +41,7 @@ export const shapeOf = (element: ExcalidrawElement): FlowNode["shape"] =>
 export const edgeStyleOf = (element: ExcalidrawElement): FlowEdge["style"] =>
   element.strokeStyle !== "solid"
     ? "dashed"
-    : element.strokeWidth >= 4
+    : element.strokeWidth >= 2.5
     ? "thick"
     : "solid";
 

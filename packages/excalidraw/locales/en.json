@@ -212,7 +212,7 @@
       "layout": "Layout",
       "layoutFlow": "Along flow",
       "layoutFlowHint": "Steps follow the direction of the flowchart (LR, TD…)",
-      "layoutCascade": "Cascade",
+      "layoutCascade": "Cascade (default)",
       "layoutCascadeHint": "A vertical column: each step lower than the one before and stepped to the right. Redraws the flow from its top left.",
       "new": "New flow",
       "name": "Name",

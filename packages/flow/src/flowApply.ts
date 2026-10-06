@@ -37,7 +37,7 @@ import { relabelText, textOf } from "./flowText";
 
 import type { FlowGraph, FlowIssue } from "./flowGraph";
 
-const NODE_GAP = 70;
+const NODE_GAP = 36;
 
 /** Steps that exist stay where they are; the rest are laid out around them. */
 const placeNewNodes = (
@@ -417,5 +417,11 @@ export const applyFlow = (
       graph,
     ),
   );
+  // the new elbow links are routed now that their steps are in the scene
+  for (const element of scene.getNonDeletedElements()) {
+    if (newArrowIds.has(element.id) && (element as any).elbowed) {
+      scene.mutateElement(element as any, {});
+    }
+  }
   return issues;
 };
