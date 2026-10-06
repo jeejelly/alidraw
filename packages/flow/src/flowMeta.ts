@@ -44,6 +44,7 @@ export type FlowMeta = {
 /** the parts of a flowchart the drawing itself does not hold */
 export type FlowGraphMeta = {
   direction: FlowDirection;
+  layout?: "flow" | "cascade";
   preamble: string[];
   trailer: string[];
   /** `a ~~~ b`: layout hints, not drawn */

@@ -29,6 +29,7 @@ export const layoutCompound = (
   origin: Point,
   gap: number,
 ): Map<string, Point> => {
+  const cascade = graph.layout === "cascade";
   const nodeKeys = new Set(graph.nodes.map((node) => node.key));
   const screenByKey = new Map(
     graph.screens.map((screen) => [screen.key, screen]),
@@ -139,11 +140,14 @@ export const layoutCompound = (
     depth: number,
   ) => {
     const items = itemsOf(container);
+    const stair = depth === 0 ? gap * 1.6 : gap * 0.7;
     // inner screens first: their sizes are needed here
     for (const key of items.filter((item) => !nodeKeys.has(item))) {
       const screen = screenByKey.get(key)!;
       const own =
-        screen.direction && !crossing.has(key) ? screen.direction : direction;
+        screen.direction && !crossing.has(key) && !cascade
+          ? screen.direction
+          : direction;
       arrange(key, own, depth + 1);
     }
     const horizontal = direction === "LR" || direction === "RL";
@@ -170,7 +174,7 @@ export const layoutCompound = (
         (sum, key, index) => sum + extent(key) + (index ? across : 0),
         0,
       );
-    for (const laneRank of order) {
+    order.forEach((laneRank, laneIndex) => {
       const keys = lanes.get(laneRank)!;
       const wish = (key: string) => {
         const before = links
@@ -185,15 +189,19 @@ export const layoutCompound = (
         const two = wish(second);
         return one === null || two === null ? 0 : one - two;
       });
-      let cursor = -laneSpan(keys) / 2;
+      // a cascade steps each lane to the right of the one above
+      let cursor = cascade ? laneIndex * stair : -laneSpan(keys) / 2;
       for (const key of keys) {
         centre.set(key, cursor + extent(key) / 2);
         cursor += extent(key) + across;
       }
-    }
+    });
     const widest = Math.max(
       0,
-      ...order.map((laneRank) => laneSpan(lanes.get(laneRank)!)),
+      ...order.map(
+        (laneRank, laneIndex) =>
+          laneSpan(lanes.get(laneRank)!) + (cascade ? laneIndex * stair : 0),
+      ),
     );
     // the room a link's label needs between two lanes
     const betweenLanes = order.map((laneRank, index) => {
@@ -226,7 +234,8 @@ export const layoutCompound = (
       for (const key of lanes.get(laneRank)!) {
         const size = sizeOf(key);
         const main = reverse ? total - lane.at - lane.size : lane.at;
-        const side = widest / 2 + centre.get(key)! - extent(key) / 2;
+        const side =
+          (cascade ? 0 : widest / 2) + centre.get(key)! - extent(key) / 2;
         // a step is centred in its lane along the flow as well
         const along0 = main + (lane.size - thick(key)) / 2;
         rects.set(
@@ -243,7 +252,7 @@ export const layoutCompound = (
       h: horizontal ? widest : total,
     });
   };
-  arrange(ROOT, graph.direction, 0);
+  arrange(ROOT, cascade ? "TD" : graph.direction, 0);
 
   const out = new Map<string, Point>();
   const assign = (container: string, ox: number, oy: number) => {

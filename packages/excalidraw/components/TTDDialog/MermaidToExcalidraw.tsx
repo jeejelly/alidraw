@@ -253,7 +253,9 @@ const MermaidToExcalidraw = ({
       },
       app.state,
     );
-    applyFlow(app.scene, `Flow ${flowNumber}`, flowParse.graph, origin);
+    const flowName = `Flow ${flowNumber}`;
+    applyFlow(app.scene, flowName, flowParse.graph, origin);
+    app.layers.assignFlow(flowName);
     app.syncActionResult({
       appState: { ...app.state, paletteOpen: true, openDialog: null },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,

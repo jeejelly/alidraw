@@ -1,6 +1,6 @@
 import React from "react";
 
-import { applyFlow, parseFlow } from "@excalidraw/flow";
+import { applyFlow, parseFlow, serializeFlow } from "@excalidraw/flow";
 
 import { Excalidraw } from "../index";
 
@@ -58,24 +58,16 @@ const ARCHITECTURE = `flowchart LR
 `;
 
 describe("subgraphs of a Mermaid flowchart", () => {
-  it("reads labels without tags and links between subgraphs as links between steps", () => {
+  it("reads labels without tags and keeps the links between subgraphs as written", () => {
     const { graph, issues } = parseFlow(ARCHITECTURE);
     expect(issues.filter((issue) => !issue.warn)).toEqual([]);
     expect(graph.nodes.find((node) => node.key === "LDAP")!.label).toBe(
       "🪪 LDAP / AD\nsource des identités",
     );
     const pairs = graph.edges.map((edge) => `${edge.from}>${edge.to}`);
-    expect(pairs).toContain("NAV>FRONT");
-    expect(pairs).toContain("LDAP>KC");
-    expect(pairs).toContain("KC>FRONT");
-    expect(pairs).toContain("MC>MSI");
-    expect(pairs).toContain("COB>ORA");
-    expect(
-      graph.edges.every(
-        (edge) =>
-          !graph.screens.some((s) => s.key === edge.from || s.key === edge.to),
-      ),
-    ).toBe(true);
+    expect(pairs).toContain("CLI>WEB");
+    expect(pairs).toContain("ANN>SSO");
+    expect(serializeFlow(graph)).toContain("CLI ==>|");
   });
 
   it("draws them nested, apart, left to right, and leaves the untitled groups undrawn", async () => {
@@ -136,6 +128,28 @@ describe("subgraphs of a Mermaid flowchart", () => {
       left("SERVEUR MÉTIER — AIX 7.3"),
     );
     expect(left("SERVEUR MÉTIER — AIX 7.3")).toBeLessThan(left("DONNÉES"));
+    // the links between subgraphs are drawn between their steps
+    const bound = (
+      live.filter((element) => element.type === "arrow") as any[]
+    ).map(
+      (arrow) =>
+        `${
+          live.find((el) => el.id === arrow.startBinding?.elementId)?.customData
+            ?.flow?.key
+        }>${
+          live.find((el) => el.id === arrow.endBinding?.elementId)?.customData
+            ?.flow?.key
+        }`,
+    );
+    for (const pair of [
+      "NAV>FRONT",
+      "LDAP>KC",
+      "KC>FRONT",
+      "MC>MSI",
+      "COB>ORA",
+    ]) {
+      expect(bound).toContain(pair);
+    }
     // every link was drawn
     expect(live.filter((element) => element.type === "arrow").length).toBe(
       graph.edges.length,
@@ -174,5 +188,100 @@ describe("colours of a Mermaid flowchart", () => {
         element.type === "text" && element.containerId === text("a").id,
     ) as any;
     expect(label.strokeColor).toBe("#9a3412");
+  });
+});
+
+describe("the look and layout of a drawn flow", () => {
+  const SIMPLE = [
+    "flowchart LR",
+    "  %% @flow layout cascade",
+    '  a["One"] --> b["Two"]',
+    '  b --> c["Three"]',
+  ].join("\n");
+
+  it("draws filled boxes with thin rounded corners, clean text and plain arrows", async () => {
+    await render(<Excalidraw />);
+    const { graph } = parseFlow("flowchart TD\n  a[One] -->|go| b[Two]");
+    act(() => {
+      applyFlow(handle.app.scene, "look", graph, { x: 0, y: 0 });
+    });
+    const live = liveElements() as any[];
+    const box = live.find((element) => element.type === "rectangle");
+    expect(box).toMatchObject({
+      roughness: 0,
+      fillStyle: "solid",
+      roundness: { value: 8 },
+    });
+    expect(box.backgroundColor).not.toBe("transparent");
+    const label = live.find((element) => element.type === "text");
+    expect(label.fontFamily).toBe(6);
+    expect(live.find((element) => element.type === "arrow").roughness).toBe(0);
+  });
+
+  it("cascades: one column, each step lower and further right", async () => {
+    await render(<Excalidraw />);
+    const { graph } = parseFlow(SIMPLE);
+    expect(graph.layout).toBe("cascade");
+    act(() => {
+      applyFlow(handle.app.scene, "stairs", graph, { x: 0, y: 0 });
+    });
+    const boxes = (liveElements() as any[])
+      .filter((element) => element.type === "rectangle")
+      .sort((first, second) => first.y - second.y);
+    expect(boxes.length).toBe(3);
+    expect(boxes[0].y + boxes[0].height).toBeLessThan(boxes[1].y);
+    expect(boxes[1].y + boxes[1].height).toBeLessThan(boxes[2].y);
+    expect(boxes[0].x).toBeLessThan(boxes[1].x);
+    expect(boxes[1].x).toBeLessThan(boxes[2].x);
+  });
+
+  it("keeps the layout line when the flow is written out again", () => {
+    expect(serializeFlow(parseFlow(SIMPLE).graph)).toContain(
+      "%% @flow layout cascade",
+    );
+  });
+
+  it("puts each flow in a layer of its own", async () => {
+    await render(<Excalidraw />);
+    for (const name of ["Alpha", "Beta"]) {
+      act(() => {
+        applyFlow(
+          handle.app.scene,
+          name,
+          parseFlow("flowchart TD\n  a[One] --> b[Two]").graph,
+          { x: name === "Alpha" ? 0 : 600, y: 0 },
+        );
+        handle.app.layers.assignFlow(name);
+      });
+    }
+    const { layers } = handle.state;
+    const alpha = layers.find((layer) => layer.flow === "Alpha")!;
+    const beta = layers.find((layer) => layer.flow === "Beta")!;
+    expect(alpha.name).toBe("Alpha");
+    expect(beta.id).not.toBe(alpha.id);
+    const owner = (flow: string) =>
+      new Set(
+        (liveElements() as any[])
+          .filter(
+            (element) =>
+              element.customData?.flow?.id === flow &&
+              !(element.type === "text" && element.containerId),
+          )
+          .map((element) => element.customData.layerId),
+      );
+    expect(owner("Alpha")).toEqual(new Set([alpha.id]));
+    expect(owner("Beta")).toEqual(new Set([beta.id]));
+    // the stack order of the flow is kept: boxes under their links
+    const kinds = (liveElements() as any[])
+      .filter((element) => element.customData?.flow?.id === "Alpha")
+      .map((element) => element.type);
+    expect(kinds.indexOf("rectangle")).toBeLessThan(kinds.indexOf("arrow"));
+    // redrawing the flow keeps the same layer
+    act(() => {
+      handle.app.layers.assignFlow("Alpha");
+    });
+    expect(
+      handle.state.layers.filter((layer) => layer.flow === "Alpha"),
+    ).toHaveLength(1);
   });
 });

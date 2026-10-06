@@ -8,6 +8,7 @@ import type { FlowGraph } from "./flowGraph";
 
 const graphMetaOf = (graph: FlowGraph): FlowGraphMeta => ({
   direction: graph.direction,
+  ...(graph.layout ? { layout: graph.layout } : {}),
   preamble: graph.preamble,
   trailer: graph.trailer,
   invisible: graph.edges.filter((edge) => edge.style === "invisible"),
@@ -15,6 +16,7 @@ const graphMetaOf = (graph: FlowGraph): FlowGraphMeta => ({
 
 const isEmpty = (meta: FlowGraphMeta) =>
   meta.direction === "TD" &&
+  !meta.layout &&
   !meta.preamble.length &&
   !meta.trailer.length &&
   !meta.invisible.length;

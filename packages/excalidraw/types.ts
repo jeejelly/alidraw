@@ -1266,6 +1266,7 @@ export type AppClassProperties = {
   focusContainer(): void;
   library: Library;
   flow: App["flow"];
+  layers: App["layers"];
   imageCache: Map<
     FileId,
     {

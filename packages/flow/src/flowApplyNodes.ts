@@ -1,4 +1,4 @@
-import { randomId, ROUNDNESS } from "@excalidraw/common";
+import { FONT_FAMILY, randomId, ROUNDNESS } from "@excalidraw/common";
 import { newElementWith } from "@excalidraw/element";
 
 import type {
@@ -9,6 +9,7 @@ import type {
 import { uniqueRefs, type collectArrowRefs } from "./flowApplyLinks";
 import { getFlowMeta, withFlow, type FlowMeta } from "./flowMeta";
 import { nodeLooks } from "./flowNodeStyle";
+import { FLOW_LOOK } from "./flowStyle";
 import { textOf } from "./flowText";
 
 import type { Changes } from "./flowApplyRemovals";
@@ -20,7 +21,7 @@ export const nodeSize = (node: FlowNode) => {
     ...node.label.split("\n").map((line) => line.length),
     4,
   );
-  const width = Math.min(280, Math.max(120, longest * 9 + 40));
+  const width = Math.min(280, Math.max(120, longest * 8.5 + 40));
   const lines = node.label.split("\n").length;
   const height = Math.max(56, lines * 26 + 28);
   return node.shape === "diamond"
@@ -77,11 +78,18 @@ export const buildNodeBatch = ({
     }
     const type = skeletonType(node.shape);
     const roundness =
-      node.shape === "round" ? { type: ROUNDNESS.ADAPTIVE_RADIUS } : null;
+      node.shape === "round"
+        ? { type: ROUNDNESS.ADAPTIVE_RADIUS }
+        : node.shape === "rect"
+        ? { type: ROUNDNESS.ADAPTIVE_RADIUS, value: FLOW_LOOK.radius }
+        : null;
     const oldText = old ? textOf(old, map) : null;
     const labelChanged = !old || (oldText?.text ?? "") !== node.label;
     const typeChanged =
-      !!old && (old.type !== type || !!old.roundness !== !!roundness);
+      !!old &&
+      (old.type !== type ||
+        (node.shape === "round") !==
+          (!!old.roundness && (old.roundness.value ?? 32) > 16));
     if (old && !labelChanged && !typeChanged) {
       idOf.set(node.key, old.id);
       batch.push(bindingStub(old));
@@ -98,6 +106,11 @@ export const buildNodeBatch = ({
           width: sizes.get(node.key)!.w,
           height: sizes.get(node.key)!.h,
           roundness,
+          roughness: 0,
+          fillStyle: "solid",
+          backgroundColor: FLOW_LOOK.fill,
+          strokeColor: FLOW_LOOK.stroke,
+          strokeWidth: FLOW_LOOK.strokeWidth,
         };
     idOf.set(node.key, base.id);
     recreated.add(node.key);
@@ -118,10 +131,13 @@ export const buildNodeBatch = ({
         ? {
             label: {
               text: node.label,
-              ...(look?.color ? { strokeColor: look.color } : {}),
+              strokeColor: look?.color ?? FLOW_LOOK.text,
               ...(oldText
                 ? { fontSize: oldText.fontSize, fontFamily: oldText.fontFamily }
-                : {}),
+                : {
+                    fontSize: FLOW_LOOK.fontSize,
+                    fontFamily: FONT_FAMILY.Nunito,
+                  }),
             },
           }
         : {}),

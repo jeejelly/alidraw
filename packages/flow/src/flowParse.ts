@@ -202,6 +202,7 @@ const readStatement = (state: ParseState, line: string, lineNo: number) => {
   }
 };
 
+const FLOW_COMMENT = /^%%\s*@flow\s+layout\s*=?\s*(flow|cascade)\s*$/i;
 const PORTS_COMMENT =
   /^%%\s*@ports\s+(\S+)((?:\s+[^\s:]+:-?[\d.]+:-?[\d.]+)+)\s*$/;
 const LINK_COMMENT = /^%%\s*@link\s+(\d+)\s+(\S+)\s+(\S+)\s*$/;
@@ -212,6 +213,11 @@ const readComment = (state: ParseState, line: string) => {
   if (layout) {
     const [, key, x, y, width, height] = layout;
     state.layout.set(key, { x: +x, y: +y, w: +width, h: +height });
+    return;
+  }
+  const mode = FLOW_COMMENT.exec(line);
+  if (mode) {
+    state.graph.layout = mode[1].toLowerCase() as "flow" | "cascade";
     return;
   }
   const ports = PORTS_COMMENT.exec(line);
@@ -315,67 +321,6 @@ const readLine = (state: ParseState, raw: string, lineNo: number) => {
   readStatement(state, line, lineNo);
 };
 
-/**
- * A link to or from a subgraph (`CLI ==> WEB`) is drawn between steps: a frame cannot
- * be linked. It leaves from the last step of the subgraph that nothing in it follows,
- * and arrives at the first step that nothing in it leads to.
- */
-const resolveScreenLinks = (state: ParseState) => {
-  const { graph } = state;
-  const inside = (key: string) => {
-    const within = (node: FlowNode) => {
-      for (
-        let screen = node.screen, guard = 0;
-        screen && guard < 50;
-        screen = state.screens.get(screen)?.parent, guard++
-      ) {
-        if (screen === key) {
-          return true;
-        }
-      }
-      return false;
-    };
-    return graph.nodes.filter(within);
-  };
-  const keptEdges: FlowEdge[] = [];
-  for (const edge of graph.edges) {
-    const resolved = { ...edge };
-    for (const side of ["from", "to"] as const) {
-      const key = edge[side];
-      if (!state.screens.has(key)) {
-        continue;
-      }
-      const members = inside(key);
-      const memberKeys = new Set(members.map((member) => member.key));
-      const pool =
-        side === "from"
-          ? members.filter(
-              (member) =>
-                !graph.edges.some(
-                  (other) =>
-                    other.from === member.key && memberKeys.has(other.to),
-                ),
-            )
-          : members.filter(
-              (member) =>
-                !graph.edges.some(
-                  (other) =>
-                    other.to === member.key && memberKeys.has(other.from),
-                ),
-            );
-      const chosen =
-        side === "from"
-          ? pool[pool.length - 1] ?? members[members.length - 1]
-          : pool[0] ?? members[0];
-      if (chosen) {
-        resolved[side] = chosen.key;
-      }
-    }
-    keptEdges.push(resolved);
-  }
-  graph.edges = keptEdges;
-};
-
 const applyLayout = (state: ParseState) => {
   for (const [key, ports] of state.nodePorts) {
     const node = state.nodes.get(key);
@@ -426,7 +371,6 @@ export const parseFlow = (
       message: `${state.stack.length} subgraph(s) not closed with "end"`,
     });
   }
-  resolveScreenLinks(state);
   applyLayout(state);
   return { graph: state.graph, issues: state.issues };
 };

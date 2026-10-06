@@ -33,7 +33,8 @@ export const shapeOf = (element: ExcalidrawElement): FlowNode["shape"] =>
     ? "diamond"
     : element.type === "ellipse"
     ? "ellipse"
-    : element.roundness
+    : // thin corners are a box's own look; only a big radius makes a rounded step
+    element.roundness && (element.roundness.value ?? 32) > 16
     ? "round"
     : "rect";
 

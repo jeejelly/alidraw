@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { viewportCoordsToSceneCoords } from "@excalidraw/common";
+import { newElementWith } from "@excalidraw/element";
 
 import {
   adoptIntoFlow,
@@ -16,6 +17,8 @@ import { t } from "../../i18n";
 
 import { FlowFiles } from "./FlowFiles";
 import { FlowSelection } from "./FlowSelection";
+
+import { Segmented } from "./primitives";
 
 import type App from "../App";
 
@@ -119,6 +122,7 @@ export const FlowPanel = ({ app }: { app: App }) => {
       x: origin().x,
       y: origin().y,
     });
+    app.layers.assignFlow(id);
     setIssues([
       ...found,
       ...skipped.map((issue) => ({ ...issue, warn: true })),
@@ -145,6 +149,57 @@ export const FlowPanel = ({ app }: { app: App }) => {
     const id = `Flow ${number}`;
     setChosen(id);
     run(id, STARTER);
+  };
+
+  /** the layout line of the source text, and the text with another one */
+  const layoutOf = (source: string): "flow" | "cascade" =>
+    parseFlow(source).graph.layout === "cascade" ? "cascade" : "flow";
+  const withLayout = (source: string, mode: "flow" | "cascade") => {
+    const lines = source
+      .split("\n")
+      .filter((line) => !/^\s*%%\s*@flow\s+layout\b/i.test(line));
+    const header = lines.findIndex((line) =>
+      /^\s*(flowchart|graph)\b/i.test(line),
+    );
+    if (mode === "cascade" && header >= 0) {
+      lines.splice(header + 1, 0, "  %% @flow layout cascade");
+    }
+    return lines.join("\n");
+  };
+  /** a new layout draws the flow again from its top left, so every step is placed anew */
+  const changeLayout = (mode: "flow" | "cascade") => {
+    if (!flowId || mode === layoutOf(text)) {
+      return;
+    }
+    const mine = app.scene
+      .getNonDeletedElements()
+      .filter((element) => getFlowMeta(element)?.id === flowId);
+    const inFlow = new Set(mine.map((element) => element.id));
+    const corner = mine.length
+      ? {
+          x: Math.min(...mine.map((element) => element.x)),
+          y: Math.min(...mine.map((element) => element.y)),
+        }
+      : origin();
+    app.scene.replaceAllElements(
+      app.scene
+        .getElementsIncludingDeleted()
+        .map((element) =>
+          inFlow.has(element.id) ||
+          (element.type === "text" &&
+            element.containerId &&
+            inFlow.has(element.containerId))
+            ? newElementWith(element, { isDeleted: true })
+            : element,
+        ),
+    );
+    const source = withLayout(text, mode);
+    const { graph, issues: found } = parseFlow(source);
+    setIssues(found);
+    applyFlow(app.scene, flowId, graph, corner);
+    app.layers.assignFlow(flowId);
+    commit();
+    setDraft(null);
   };
 
   const adopt = () => {
@@ -238,6 +293,7 @@ export const FlowPanel = ({ app }: { app: App }) => {
                 const next = blurEvent.target.value.trim();
                 if (next && next !== flowId && !flows.includes(next)) {
                   renameFlow(app.scene, flowId, next);
+                  app.layers.renameFlow(flowId, next);
                   setChosen(next);
                   commit();
                 }
@@ -250,6 +306,24 @@ export const FlowPanel = ({ app }: { app: App }) => {
               }}
             />
           </label>
+          <Segmented<"flow" | "cascade">
+            label={t("labels.flow.layout")}
+            value={layoutOf(text)}
+            onChange={changeLayout}
+            testId="flow-layout"
+            options={[
+              {
+                value: "flow",
+                text: t("labels.flow.layoutFlow"),
+                title: t("labels.flow.layoutFlowHint"),
+              },
+              {
+                value: "cascade",
+                text: t("labels.flow.layoutCascade"),
+                title: t("labels.flow.layoutCascadeHint"),
+              },
+            ]}
+          />
           <textarea
             data-testid="flow-source"
             className="flow__source"

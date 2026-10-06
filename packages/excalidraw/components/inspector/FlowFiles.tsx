@@ -59,6 +59,9 @@ export const FlowFiles = ({
         app.state,
       );
       const report = importFlows(app.scene, sources, origin);
+      for (const id of report.imported) {
+        app.layers.assignFlow(id);
+      }
       app.store.scheduleCapture();
       app.setState({});
       const problem = report.problems[0];

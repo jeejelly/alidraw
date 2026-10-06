@@ -79,6 +79,9 @@ export const serializeFlow = (
   options: SerializeOptions = {},
 ): string => {
   const out = [...graph.preamble, `flowchart ${graph.direction}`];
+  if (graph.layout === "cascade") {
+    out.push("  %% @flow layout cascade");
+  }
   const known = new Set(graph.screens.map((screen) => screen.key));
   const emit = (screen: FlowScreen, depth: number) => {
     const pad = "  ".repeat(depth);

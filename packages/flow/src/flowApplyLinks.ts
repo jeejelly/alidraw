@@ -1,4 +1,4 @@
-import { randomId } from "@excalidraw/common";
+import { FONT_FAMILY, randomId } from "@excalidraw/common";
 import { newElementWith } from "@excalidraw/element";
 
 import type {
@@ -13,6 +13,7 @@ import { textOf } from "./flowText";
 
 import { getFlowMeta, type FlowMeta } from "./flowMeta";
 import { edgeStyleOf } from "./flowParts";
+import { FLOW_LOOK } from "./flowStyle";
 
 import type { Changes } from "./flowApplyRemovals";
 import type {
@@ -190,7 +191,6 @@ const arrowSkeleton = (
       : 2,
   strokeColor: look.strokeColor ?? "#e0449b",
   ...(look.opacity !== undefined ? { opacity: look.opacity } : {}),
-  ...(look.roughness !== undefined ? { roughness: look.roughness } : {}),
   customData: {
     flow: {
       id: flowId,
@@ -199,7 +199,16 @@ const arrowSkeleton = (
       ...(linkMetaOf(edge) ? { link: linkMetaOf(edge) } : {}),
     },
   },
-  ...(edge.label ? { label: { text: edge.label } } : {}),
+  roughness: look.roughness ?? 0,
+  ...(edge.label
+    ? {
+        label: {
+          text: edge.label,
+          fontSize: FLOW_LOOK.linkFontSize,
+          fontFamily: FONT_FAMILY.Nunito,
+        },
+      }
+    : {}),
 });
 
 /** The new links, from the border of one step to the border of the next. */

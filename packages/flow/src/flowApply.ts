@@ -28,6 +28,7 @@ import {
 } from "./flowApplyNodes";
 import { planRemovals, type Changes } from "./flowApplyRemovals";
 import { storeGraphMeta } from "./flowGraphMeta";
+import { resolveScreenLinks } from "./flowScreenLinks";
 import { drawnGraph } from "./flowScreens";
 import { layoutNewNodes } from "./flowLayout";
 import { getFlowMeta, withFlow } from "./flowMeta";
@@ -316,11 +317,16 @@ export const applyFlow = (
   fullGraph: FlowGraph,
   origin: { x: number; y: number },
 ): FlowIssue[] => {
-  // untitled subgraphs only group steps for the layout; they are not drawn
-  const graph = drawnGraph(fullGraph);
   const issues: FlowIssue[] = [];
   const all = scene.getElementsIncludingDeleted();
   const parts = partsOf(all, flowId);
+  // links to subgraphs drawn as frames become links between steps
+  const resolved = resolveScreenLinks(
+    fullGraph,
+    new Set(parts.wrapScreens.keys()),
+  );
+  // untitled subgraphs only group steps for the layout; they are not drawn
+  const graph = drawnGraph(resolved);
   const { nodes: oldNodes, screens: oldScreens, wrapScreens } = parts;
 
   const changes: Changes = {
@@ -331,7 +337,7 @@ export const applyFlow = (
   const plan = planLinks(parts, graph, changes);
   planRemovals(all, parts, graph, changes);
 
-  const { sizes, placed } = placeNewNodes(fullGraph, oldNodes, origin);
+  const { sizes, placed } = placeNewNodes(resolved, oldNodes, origin);
 
   const containers = graph.screens.filter((flowScreen) =>
     wrapScreens.has(flowScreen.key),

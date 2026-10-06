@@ -9,6 +9,8 @@ import type { FlowPort } from "./flowPorts";
  */
 export type FlowShape = "rect" | "round" | "diamond" | "ellipse";
 export type FlowDirection = "TD" | "BT" | "LR" | "RL";
+/** how a flow is laid out: along its direction, or stepped down and to the right in a column */
+export type FlowLayoutMode = "flow" | "cascade";
 export type FlowEdgeStyle = "solid" | "dashed" | "thick" | "invisible";
 /** how a link ends: the arrow head, `x` (cross) or `o` (circle) */
 export type FlowEnd = "arrow" | "cross" | "circle";
@@ -58,6 +60,8 @@ export type FlowEdge = {
 };
 export type FlowGraph = {
   direction: FlowDirection;
+  /** `%% @flow layout cascade`; absent: along the direction */
+  layout?: FlowLayoutMode;
   nodes: FlowNode[];
   screens: FlowScreen[];
   edges: FlowEdge[];

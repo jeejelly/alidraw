@@ -129,6 +129,9 @@ export const readFlow = (
     );
   }
   graph.direction = stored?.direction ?? (spreadX > spreadY ? "LR" : "TD");
+  if (stored?.layout) {
+    graph.layout = stored.layout;
+  }
   graph.preamble = stored?.preamble ?? [];
   graph.trailer = stored?.trailer ?? [];
   graph.edges.push(...(stored?.invisible ?? []));

@@ -1,5 +1,7 @@
 import { newElementWith, getBoundTextElement } from "@excalidraw/element";
 
+import { getFlowMeta } from "@excalidraw/flow";
+
 import type { ExcalidrawElement } from "@excalidraw/element/types";
 
 import {
@@ -100,6 +102,68 @@ export class AppLayers {
     this.setLayers([...layers, layer], { activeLayerId: layer.id });
     this.commit();
     return layer;
+  };
+
+  /**
+   * A flow lives in a layer of its own (a layer is a workflow): the layer is made on
+   * first use and holds every element of the flow, so it can be hidden, locked and
+   * ordered as one.
+   */
+  assignFlow = (flowId: string) => {
+    const scene = this.app.scene;
+    const inFlow = (el: ExcalidrawElement) => getFlowMeta(el)?.id === flowId;
+    const own = (el: ExcalidrawElement) =>
+      !(el.type === "text" && el.containerId);
+    const put = (layerId: string) => {
+      // one refresh at the end: in between, the elements not moved yet would be
+      // sent to the active layer and the stack order would be lost
+      this.busy = true;
+      try {
+        for (const el of scene.getNonDeletedElements()) {
+          if (inFlow(el) && own(el) && getLayerId(el) !== layerId) {
+            scene.mutateElement(el, { customData: withLayer(el, layerId) });
+          }
+        }
+      } finally {
+        this.busy = false;
+      }
+    };
+    const existing = this.layers.find((layer) => layer.flow === flowId);
+    if (existing) {
+      put(existing.id);
+      this.refresh();
+      return existing;
+    }
+    let layers = [...this.layers];
+    let active = this.app.state.activeLayerId;
+    if (!layers.length) {
+      // what is already drawn becomes the first layer
+      const base = newLayer([], "Layer 1");
+      layers = [base];
+      active = base.id;
+      for (const el of scene.getNonDeletedElements()) {
+        if (own(el) && !inFlow(el)) {
+          scene.mutateElement(el, { customData: withLayer(el, base.id) });
+        }
+      }
+    }
+    const layer: Layer = { ...newLayer(layers, flowId), flow: flowId };
+    layers.push(layer);
+    // the layers are in the state before the elements name one of them
+    this.app.setState({ layers, activeLayerId: active }, () => {
+      put(layer.id);
+      this.refresh();
+      this.commit();
+    });
+    return layer;
+  };
+
+  /** a renamed flow keeps its layer */
+  renameFlow = (from: string, to: string) => {
+    const layer = this.layers.find((candidate) => candidate.flow === from);
+    if (layer) {
+      this.patch(layer.id, { flow: to, name: to });
+    }
   };
 
   rename = (id: string, name: string) =>

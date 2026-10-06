@@ -16,6 +16,8 @@ export type Layer = {
   visible: boolean;
   locked: boolean;
   collapsed: boolean;
+  /** the flow (workflow) this layer holds: one layer per flow */
+  flow?: string;
 };
 
 export const LAYER_COLORS = [
@@ -118,6 +120,9 @@ export const sanitizeLayers = (raw: unknown): Layer[] => {
       visible: entry.visible !== false,
       locked: entry.locked === true,
       collapsed: entry.collapsed === true,
+      ...(typeof entry.flow === "string" && entry.flow
+        ? { flow: entry.flow }
+        : {}),
     });
   }
   return out;

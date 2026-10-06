@@ -183,7 +183,11 @@ export const layoutNewNodes = (
     result.set(key, { x: rect.x, y: rect.y });
   };
 
-  if (!fixed.size && graph.nodes.length && graph.screens.length) {
+  if (
+    !fixed.size &&
+    graph.nodes.length &&
+    (graph.screens.length || graph.layout === "cascade")
+  ) {
     return layoutCompound(graph, sizes, origin, gap);
   }
   if (!fixed.size && graph.nodes.length) {
