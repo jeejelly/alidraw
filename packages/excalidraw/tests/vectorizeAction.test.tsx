@@ -1,5 +1,7 @@
 import React from "react";
 
+import { TRACE_PRESETS } from "@excalidraw/vector";
+
 import { actionVectorizeImage } from "../actions";
 import { Excalidraw } from "../index";
 
@@ -79,5 +81,50 @@ describe("the vectorize action", () => {
     expect(Object.keys(handle.state.selectedElementIds).sort()).toEqual(
       paths.map((path) => path.id).sort(),
     );
+  });
+
+  it("makes text blocks and plain shapes for a screen capture", async () => {
+    await render(<Excalidraw />);
+    const image = API.createElement({
+      type: "image",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      fileId: "f2" as any,
+    } as any);
+    API.setElements([image]);
+    act(() => {
+      handle.app.addFiles([
+        {
+          id: "f2" as any,
+          mimeType: "image/png",
+          dataURL: "data:image/png;base64,AAAA" as any,
+          created: 1,
+        },
+      ]);
+    });
+    API.setSelectedElements([image]);
+    await act(async () => {
+      await handle.app.actionManager.executeAction(actionVectorizeImage, "ui", {
+        ...TRACE_PRESETS.ui,
+        icons: true,
+        ocr: async () => [
+          { text: "Hello", x: 2, y: 2, width: 20, height: 8, confidence: 90 },
+        ],
+      });
+    });
+    await waitFor(() =>
+      expect(handle.elements.some((element) => element.type === "text")).toBe(
+        true,
+      ),
+    );
+    const live = handle.elements.filter((element) => !element.isDeleted);
+    expect((live.find((element) => element.type === "text") as any).text).toBe(
+      "Hello",
+    );
+    // the page is a plain rectangle, the disc an ellipse
+    expect(live.some((element) => element.type === "rectangle")).toBe(true);
+    expect(live.some((element) => element.type === "ellipse")).toBe(true);
   });
 });

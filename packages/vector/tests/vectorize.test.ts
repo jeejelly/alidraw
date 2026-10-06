@@ -1,4 +1,6 @@
 import {
+  TRACE_PRESETS,
+  traceImage,
   traceToElements,
   traceToSvg,
   type PixelData,
@@ -83,5 +85,89 @@ describe("vectorizing an image", () => {
     const first = await traceToSvg(picture(), { colors: 5 });
     const second = await traceToSvg(picture(), { colors: 5 });
     expect(first).toBe(second);
+  });
+});
+
+/** a 200 x 120 screen: grey page, a white rounded card, a blue button, a dark "label" block */
+const screen = (): PixelData => {
+  const width = 200;
+  const height = 120;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const paint = (
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    [red, green, blue]: number[],
+    radius = 0,
+  ) => {
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const dx = Math.max(x0 + radius - x, 0, x - (x1 - 1 - radius));
+        const dy = Math.max(y0 + radius - y, 0, y - (y1 - 1 - radius));
+        if (dx * dx + dy * dy <= radius * radius) {
+          data.set([red, green, blue, 255], (y * width + x) * 4);
+        }
+      }
+    }
+  };
+  paint(0, 0, width, height, [235, 235, 238]);
+  paint(10, 10, 190, 110, [255, 255, 255], 8);
+  paint(24, 70, 104, 96, [40, 90, 220], 6);
+  paint(24, 24, 84, 36, [30, 30, 30]);
+  return { width, height, data };
+};
+
+describe("vectorizing a screen capture", () => {
+  const ocr = async () => [
+    { text: "Welcome", x: 24, y: 24, width: 60, height: 12, confidence: 95 },
+  ];
+
+  it("keeps boxes as rectangles and the text as a text block", async () => {
+    const out = await traceImage(
+      screen(),
+      { x: 0, y: 0, width: 400, height: 240 },
+      { ...TRACE_PRESETS.ui, ocr },
+    );
+    const types = out.elements.map((element) => element.type);
+    expect(
+      types.filter((type) => type === "rectangle").length,
+    ).toBeGreaterThanOrEqual(3);
+    // the page is under the card, the card under the button
+    expect(out.regions.length).toBe(types.length - out.textBlocks);
+    const text = out.elements.find((element) => element.type === "text") as any;
+    expect(text.text).toBe("Welcome");
+    expect(out.textBlocks).toBe(1);
+    // the letters were painted out: no dark rectangle where the text is
+    expect(
+      out.elements.some(
+        (element) =>
+          element.type !== "text" &&
+          near(element.backgroundColor, [30, 30, 30]),
+      ),
+    ).toBe(false);
+    // doubled: the button is at (48, 140), 160 wide
+    const button = out.elements.find((element) =>
+      near(element.backgroundColor, [40, 90, 220]),
+    )!;
+    expect(button.x).toBeCloseTo(48, 0);
+    expect(button.width).toBeCloseTo(160, 0);
+    expect((button as any).roundness).toBeTruthy();
+  });
+
+  it("goes on without text when the recogniser fails", async () => {
+    const out = await traceImage(
+      screen(),
+      { x: 0, y: 0, width: 200, height: 120 },
+      {
+        ...TRACE_PRESETS.ui,
+        ocr: async () => {
+          throw new Error("offline");
+        },
+      },
+    );
+    expect(out.textBlocks).toBe(0);
+    expect(out.warning).toMatch(/offline/);
+    expect(out.elements.length).toBeGreaterThan(2);
   });
 });

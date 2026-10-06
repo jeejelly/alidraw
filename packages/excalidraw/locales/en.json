@@ -274,9 +274,23 @@
     },
     "vectorize": {
       "title": "Vectorize",
+      "preset": "Picture",
+      "presetUi": "Screen capture",
+      "presetUiHint": "Flat colours, sharp edges: boxes and circles stay shapes, text becomes text blocks",
+      "presetArt": "Artwork",
+      "presetArtHint": "Logos, illustrations and photos: smooth curves in the picture's own colours",
       "colors": "Colours",
+      "detail": "Detail",
       "smoothing": "Smoothing",
-      "hint": "Traces the picture into smooth shapes in its own colours, next to it. Fewer colours and more smoothing suit logos and flat artwork; more colours suit illustrations."
+      "shapes": "Boxes and circles",
+      "shapesHint": "Rectangles, rounded rectangles and ellipses stay real shapes instead of curve fits",
+      "text": "Text blocks",
+      "textHint": "Reads the text (it is loaded once from the internet) and makes text elements; the letters are not traced",
+      "icons": "Library icons",
+      "iconsHint": "Replaces small glyphs with the closest icon of the symbol library, in the glyph's colour",
+      "on": "On",
+      "off": "Off",
+      "hint": "Traces the picture into shapes in its own colours, next to it, at the picture's full resolution. Screen capture suits interfaces; Artwork suits logos and illustrations. More detail keeps small areas, more colours keeps subtle shades."
     },
     "imageStorage": {
       "title": "Image file",
@@ -802,7 +816,8 @@
   "toast": {
     "alreadySymbol": "This already is a symbol",
     "symbolMade": "Symbol made, {{count}} parameters to set in the Symbols tab. Add it to the library to use it again.",
-    "vectorized": "{{count}} shapes made from the picture, next to it",
+    "vectorized": "{{count}} shapes made from the picture, next to it.",
+    "vectorizedIcons": "{{count}} of them are library icons.",
     "textToVectorsNone": "Nothing could be turned into shapes: the font has no outlines for this text",
     "textToVectorsMissing": "These characters have no outline in the font and were left out: {{chars}}",
     "addedToLibrary": "Added to library",

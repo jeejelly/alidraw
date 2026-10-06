@@ -1,9 +1,9 @@
 import type { PixelData } from "./vectorize";
 
-/** the pixels of an image (a data URL), shrunk so its longest side is at most `maxSide` */
+/** the pixels of an image (a data URL), shrunk only if its longest side is over `maxSide` (screen captures keep their resolution) */
 export const loadPixels = (
   dataURL: string,
-  maxSide = 900,
+  maxSide = 2560,
 ): Promise<PixelData> =>
   new Promise((resolve, reject) => {
     const img = new Image();

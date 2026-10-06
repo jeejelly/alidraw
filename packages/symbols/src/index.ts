@@ -15,3 +15,4 @@ export * from "./shapes";
 export * from "./stretch";
 export * from "./templates";
 export * from "./theme";
+export * from "./matchIcons";

@@ -83,7 +83,7 @@ const handlesOf = (
     : { mode: "corner", in: null, out: null };
 
 /** one path element from sub-path data, scaled and placed */
-const pathElement = (
+export const pathElement = (
   sub: ReturnType<typeof parsePath>[number],
   index: number,
   ox: number,

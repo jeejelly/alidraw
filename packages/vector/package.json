@@ -57,6 +57,7 @@
     "@excalidraw/color": "0.18.0",
     "@excalidraw/common": "0.18.0",
     "@excalidraw/element": "0.18.0",
-    "@excalidraw/math": "0.18.0"
+    "@excalidraw/math": "0.18.0",
+    "tesseract.js": "7.0.0"
   }
 }
