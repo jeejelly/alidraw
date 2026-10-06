@@ -5,31 +5,58 @@ import type {
   ExcalidrawFrameElement,
 } from "@excalidraw/element/types";
 
+import { FRAME_PAD, FRAME_TITLE } from "./flowLayoutTree";
 import { withFlow, type FlowMeta } from "./flowMeta";
 
 import type { FlowGraph } from "./flowGraph";
 
-const FRAME_PAD = 28;
-
 type Rect = { x: number; y: number; w: number; h: number };
 
-/** the frame around a screen's steps, or a default box when it has none */
+/** the frame around a screen's steps and inner screens, or a default box when it holds none */
 const frameRectOf = (
-  members: readonly ExcalidrawElement[],
+  graph: FlowGraph,
+  key: string,
+  finalNodes: Map<string, ExcalidrawElement>,
   origin: { x: number; y: number },
+  seen = new Set<string>(),
 ): Rect => {
-  if (!members.length) {
+  const boxes: Rect[] = graph.nodes
+    .filter((flowNode) => flowNode.screen === key)
+    .map((flowNode) => finalNodes.get(flowNode.key)!)
+    .map((member) => ({
+      x: member.x,
+      y: member.y,
+      w: member.width,
+      h: member.height,
+    }));
+  const inner = graph.screens.filter(
+    (flowScreen) => flowScreen.parent === key && !seen.has(flowScreen.key),
+  );
+  for (const flowScreen of inner) {
+    boxes.push(
+      frameRectOf(
+        graph,
+        flowScreen.key,
+        finalNodes,
+        origin,
+        new Set([...seen, key]),
+      ),
+    );
+  }
+  if (!boxes.length) {
     return { x: origin.x, y: origin.y, w: 240, h: 160 };
   }
-  const left = Math.min(...members.map((member) => member.x));
-  const top = Math.min(...members.map((member) => member.y));
-  const right = Math.max(...members.map((member) => member.x + member.width));
-  const bottom = Math.max(...members.map((member) => member.y + member.height));
+  const left = Math.min(...boxes.map((box) => box.x));
+  const top = Math.min(...boxes.map((box) => box.y));
+  const right = Math.max(...boxes.map((box) => box.x + box.w));
+  const bottom = Math.max(...boxes.map((box) => box.y + box.h));
+  // a frame that holds frames leaves room for their titles
+  const above = FRAME_PAD + (inner.length ? FRAME_TITLE : 0);
   return {
     x: left - FRAME_PAD,
-    y: top - FRAME_PAD,
+    y: top - above,
     w: right - left + FRAME_PAD * 2,
-    h: bottom - top + FRAME_PAD * 2,
+    h: bottom - top + FRAME_PAD + above,
   };
 };
 
@@ -54,11 +81,8 @@ export const buildFrames = ({
     if (wrapScreens.has(flowScreen.key)) {
       continue;
     }
-    const members = graph.nodes
-      .filter((flowNode) => flowNode.screen === flowScreen.key)
-      .map((flowNode) => finalNodes.get(flowNode.key)!);
     const old = oldScreens.get(flowScreen.key);
-    const rect = frameRectOf(members, origin);
+    const rect = frameRectOf(graph, flowScreen.key, finalNodes, origin);
     const meta: FlowMeta = {
       id: flowId,
       key: flowScreen.key,

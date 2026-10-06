@@ -8,6 +8,7 @@ import type {
 
 import { uniqueRefs, type collectArrowRefs } from "./flowApplyLinks";
 import { getFlowMeta, withFlow, type FlowMeta } from "./flowMeta";
+import { nodeLooks } from "./flowNodeStyle";
 import { textOf } from "./flowText";
 
 import type { Changes } from "./flowApplyRemovals";
@@ -61,6 +62,7 @@ export const buildNodeBatch = ({
   const batch: any[] = [];
   const idOf = new Map<string, string>();
   const recreated = new Set<string>();
+  const looks = nodeLooks(graph);
   for (const node of graph.nodes) {
     const old = oldNodes.get(node.key);
     if (old && getFlowMeta(old)?.wrap) {
@@ -102,13 +104,21 @@ export const buildNodeBatch = ({
     if (old && oldText) {
       changes.gone.add(oldText.id);
     }
+    // the colours of a new step come from the text's classDef / style lines
+    const look = old ? undefined : looks.get(node.key);
     batch.push({
       ...base,
+      ...(look?.backgroundColor
+        ? { backgroundColor: look.backgroundColor, fillStyle: "solid" }
+        : {}),
+      ...(look?.strokeColor ? { strokeColor: look.strokeColor } : {}),
+      ...(look?.strokeWidth ? { strokeWidth: look.strokeWidth } : {}),
       customData: old ? withFlow(old, meta) : { flow: meta },
       ...(node.label
         ? {
             label: {
               text: node.label,
+              ...(look?.color ? { strokeColor: look.color } : {}),
               ...(oldText
                 ? { fontSize: oldText.fontSize, fontFamily: oldText.fontFamily }
                 : {}),

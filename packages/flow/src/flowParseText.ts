@@ -12,12 +12,19 @@ export const unquote = (raw: string) => {
   if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) {
     text = text.slice(1, -1);
   }
-  return text
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/#([a-z]+);/gi, (whole, name) => NAMED_ENTITIES[name] ?? whole)
-    .replace(/&quot;/g, '"')
-    .trim();
+  return (
+    text
+      .replace(/<br\s*\/?>/gi, "\n")
+      // formatting tags cannot be drawn in a label: the words stay
+      .replace(
+        /<\/?(?:b|i|u|s|em|strong|small|big|sub|sup|span|font|code|p|div|mark)\b[^>]*>/gi,
+        "",
+      )
+      .replace(/#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+      .replace(/#([a-z]+);/gi, (whole, name) => NAMED_ENTITIES[name] ?? whole)
+      .replace(/&quot;/g, '"')
+      .trim()
+  );
 };
 
 export const quote = (label: string) =>

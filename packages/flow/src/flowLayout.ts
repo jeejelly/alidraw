@@ -1,3 +1,6 @@
+import { layoutCompound } from "./flowLayoutTree";
+import { rankKeys } from "./flowRank";
+
 import type { FlowGraph } from "./flowGraph";
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -9,61 +12,11 @@ const overlaps = (first: Rect, second: Rect, gap: number) =>
   second.y < first.y + first.h + gap;
 
 /** longest-path ranks, ignoring edges that close a cycle */
-const rankNodes = (graph: FlowGraph) => {
-  const keys = graph.nodes.map((node) => node.key);
-  const out = new Map<string, string[]>(keys.map((key) => [key, []]));
-  for (const edge of graph.edges) {
-    if (out.has(edge.from) && out.has(edge.to) && edge.from !== edge.to) {
-      out.get(edge.from)!.push(edge.to);
-    }
-  }
-  const state = new Map<string, 0 | 1 | 2>();
-  const dag = new Map<string, string[]>(keys.map((key) => [key, []]));
-  const visit = (key: string) => {
-    state.set(key, 1);
-    for (const target of out.get(key)!) {
-      const visitState = state.get(target) ?? 0;
-      if (visitState === 1) {
-        continue; // back edge
-      }
-      dag.get(key)!.push(target);
-      if (visitState === 0) {
-        visit(target);
-      }
-    }
-    state.set(key, 2);
-  };
-  const hasIncoming = new Set(graph.edges.map((edge) => edge.to));
-  for (const key of keys.filter(
-    (candidateKey) => !hasIncoming.has(candidateKey),
-  )) {
-    if (!state.get(key)) {
-      visit(key);
-    }
-  }
-  for (const key of keys) {
-    if (!state.get(key)) {
-      visit(key);
-    }
-  }
-  const rank = new Map<string, number>(keys.map((key) => [key, 0]));
-  // relax along the DAG until stable (small graphs)
-  for (let pass = 0; pass < keys.length; pass++) {
-    let changed = false;
-    for (const [key, targets] of dag) {
-      for (const target of targets) {
-        if (rank.get(target)! < rank.get(key)! + 1) {
-          rank.set(target, rank.get(key)! + 1);
-          changed = true;
-        }
-      }
-    }
-    if (!changed) {
-      break;
-    }
-  }
-  return rank;
-};
+const rankNodes = (graph: FlowGraph) =>
+  rankKeys(
+    graph.nodes.map((node) => node.key),
+    graph.edges.map((edge) => [edge.from, edge.to]),
+  );
 
 type Size = { w: number; h: number };
 type Point = { x: number; y: number };
@@ -230,6 +183,9 @@ export const layoutNewNodes = (
     result.set(key, { x: rect.x, y: rect.y });
   };
 
+  if (!fixed.size && graph.nodes.length && graph.screens.length) {
+    return layoutCompound(graph, sizes, origin, gap);
+  }
   if (!fixed.size && graph.nodes.length) {
     layoutLayered(graph, sizes, origin, flow, put);
     return result;

@@ -28,6 +28,7 @@ import {
 } from "./flowApplyNodes";
 import { planRemovals, type Changes } from "./flowApplyRemovals";
 import { storeGraphMeta } from "./flowGraphMeta";
+import { drawnGraph } from "./flowScreens";
 import { layoutNewNodes } from "./flowLayout";
 import { getFlowMeta, withFlow } from "./flowMeta";
 import { partsOf, type FlowParts } from "./flowParts";
@@ -312,9 +313,11 @@ const rebuildElements = ({
 export const applyFlow = (
   scene: Scene,
   flowId: string,
-  graph: FlowGraph,
+  fullGraph: FlowGraph,
   origin: { x: number; y: number },
 ): FlowIssue[] => {
+  // untitled subgraphs only group steps for the layout; they are not drawn
+  const graph = drawnGraph(fullGraph);
   const issues: FlowIssue[] = [];
   const all = scene.getElementsIncludingDeleted();
   const parts = partsOf(all, flowId);
@@ -328,7 +331,7 @@ export const applyFlow = (
   const plan = planLinks(parts, graph, changes);
   planRemovals(all, parts, graph, changes);
 
-  const { sizes, placed } = placeNewNodes(graph, oldNodes, origin);
+  const { sizes, placed } = placeNewNodes(fullGraph, oldNodes, origin);
 
   const containers = graph.screens.filter((flowScreen) =>
     wrapScreens.has(flowScreen.key),
