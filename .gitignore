@@ -30,3 +30,5 @@ meta*.json
 
 # private Node fetched by package.sh
 .node/
+.specweaver/*
+.specweaver
